@@ -516,12 +516,27 @@ class Play extends Phaser.Scene {
                 cardSprite.on('pointerover', () => {
                     console.log('Card hovered:', cardObject.card)
                     // Add hover effects here
+                    // Scale the card slightly larger
+                    this.tweens.add({
+                        targets: cardObject.sprite,
+                        y: cardObject.sprite.y - 92,
+                        duration: 200,
+                        ease: 'Linear'
+                    })
+
                 })
 
                 // Add pointerout event listener for when hovering ends
                 cardSprite.on('pointerout', () => {
                     console.log('Card not hovered:', cardObject.card)
                     // Remove hover effects here
+                    this.tweens.add({
+                        targets: cardObject.sprite,
+                        y: cardObject.sprite.y + 92,
+                        duration: 200,
+                        ease: 'Linear'
+                    })
+
                 })
 
                 // Listen for pointerdown event on the card
