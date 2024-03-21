@@ -14,6 +14,22 @@ class Play extends Phaser.Scene {
     create() {
         console.log('play scene started')
 
+        //create all sprites here
+        //place end turn button
+        this.endTurnButton = this.add.sprite(w - borderPadding, h - borderPadding, 'end_turn', 0).setOrigin(1, 1).setScale(3)
+        //place restart button
+        this.restart = this.add.sprite(w - borderPadding, 0 + borderPadding, 'restart', 0).setOrigin(1, 0).setScale(3)
+        //add deck to middle right
+        this.deckSprite = this.add.sprite(w - borderPadding, centerY, 'card_deck', 53).setOrigin(1, 0.5).setScale(2).setDepth(5)
+        this.add.sprite(this.deckSprite.x - 4, this.deckSprite.y + 4, 'card_deck', 53).setOrigin(1, 0.5).setScale(2).setDepth(4)
+        this.add.sprite(this.deckSprite.x - 8, this.deckSprite.y + 8, 'card_deck', 53).setOrigin(1, 0.5).setScale(2).setDepth(3)
+        this.add.sprite(this.deckSprite.x - 12, this.deckSprite.y + 12, 'card_deck', 53).setOrigin(1, 0.5).setScale(2).setDepth(2)
+        //add sortRank to bottom left
+        this.sortRank = this.add.sprite(0 + borderPadding, h - borderPadding, 'sort_rank', 0).setOrigin(0, 1).setScale(3)
+        //add deck to middle right
+        this.sortSuit = this.add.sprite(0 + borderPadding, h - borderPadding - this.sortRank.width - 5, 'sort_suit', 0).setOrigin(0, 1).setScale(3)
+
+
         // Menu config
         let menuConfig = {
             fontFamily: 'PressStart2P',
@@ -34,23 +50,30 @@ class Play extends Phaser.Scene {
         this.p2Turn = false
         this.drawn = false
 
+        //create hands
+        this.p1Hand
+        this.p2Hand
+        this.handSprites = []
+
         //create deck
         this.deck = this.createDeck()
         this.deck = this.shuffle(this.deck)
         console.log(this.deck)
 
-        //create hands
-        this.p1Hand
-        this.p2Hand
+        
 
         //deal cards
         this.dealCards()
 
+        //display cards in hand
+        this.displayHand()
+
         //print deck
         console.log(this.deck)
 
-        //place end turn button
-        this.endTurnButton = this.add.sprite(w - borderPadding, h - borderPadding, 'end_turn', 0).setOrigin(1, 1).setScale(3)
+        
+
+        
 
         // Make the end turn clickable
         this.endTurnButton.setInteractive()
@@ -76,10 +99,11 @@ class Play extends Phaser.Scene {
             console.log('end turn press')
             //change to push frame
             this.endTurnButton.setFrame(1, false)
+            //display cards in hand
+            this.displayHand()
         })
 
-        //place restart button
-        this.restart = this.add.sprite(w - borderPadding, 0 + borderPadding, 'restart', 0).setOrigin(1, 0).setScale(3)
+        
 
         // Make the restart clickable
         this.restart.setInteractive()
@@ -103,13 +127,11 @@ class Play extends Phaser.Scene {
             console.log('restart press')
             //change to push frame
             this.restart.setFrame(1, false)
+            //display cards in hand
+            this.displayHand()
         })
 
-        //add deck to middle right
-        this.deckSprite = this.add.sprite(w - borderPadding, centerY, 'card_deck', 53).setOrigin(1, 0.5).setScale(2).setDepth(5)
-        this.add.sprite(this.deckSprite.x - 4, this.deckSprite.y + 4, 'card_deck', 53).setOrigin(1, 0.5).setScale(2).setDepth(4)
-        this.add.sprite(this.deckSprite.x - 8, this.deckSprite.y + 8, 'card_deck', 53).setOrigin(1, 0.5).setScale(2).setDepth(3)
-        this.add.sprite(this.deckSprite.x - 12, this.deckSprite.y + 12, 'card_deck', 53).setOrigin(1, 0.5).setScale(2).setDepth(2)
+        
 
         // Make the deck clickable
         this.deckSprite.setInteractive()
@@ -147,11 +169,12 @@ class Play extends Phaser.Scene {
             console.log('deckSprite clicked!')
             this.drawCard()
             this.turnValid = true
+            //display cards in hand
+            this.displayHand()
             
         })
 
-        //add sortRank to bottom left
-        this.sortRank = this.add.sprite(0 + borderPadding, h - borderPadding, 'sort_rank', 0).setOrigin(0, 1).setScale(3)
+        
 
          // Make the restart clickable
         this.sortRank.setInteractive()
@@ -176,10 +199,11 @@ class Play extends Phaser.Scene {
             console.log('sortRank press')
             //change to push frame
             this.sortRank.setFrame(1, false)
+            //display cards in hand
+            this.displayHand()
         })
 
-        //add deck to middle right
-        this.sortSuit = this.add.sprite(0 + borderPadding, h - borderPadding - this.sortRank.width - 5, 'sort_suit', 0).setOrigin(0, 1).setScale(3)
+        
 
          // Make the restart clickable
         this.sortSuit.setInteractive()
@@ -204,6 +228,8 @@ class Play extends Phaser.Scene {
             console.log('sortSuit press')
             //change to push frame
             this.sortSuit.setFrame(1, false)
+            //display cards in hand
+            this.displayHand()
         })
         
     }
@@ -212,8 +238,6 @@ class Play extends Phaser.Scene {
         //display Player turn
         this.displayTurn()
 
-        //display cards in hand
-        this.displayHand()
        
 
     }
@@ -252,6 +276,8 @@ class Play extends Phaser.Scene {
         }
         console.log("Player 1's Hand:", this.p1Hand)
         console.log("Player 2's Hand:", this.p2Hand)
+        // //add event listener
+        // this.addListener()
     }
 
     drawCard() {
@@ -268,6 +294,8 @@ class Play extends Phaser.Scene {
             },
             fixedWidth: 0,
         }
+
+        
 
         // Only can draw if not drawn
         if (this.p1Turn && !this.drawn) {
@@ -301,6 +329,9 @@ class Play extends Phaser.Scene {
                 })
             })
         }
+
+        // //add event listener
+        // this.addListener()
     }
 
     sortRankHand() {
@@ -412,13 +443,12 @@ class Play extends Phaser.Scene {
     displayHand() {
         let hand = this.p1Turn ? this.p1Hand : this.p2Hand // Select the current player's hand based on the turn
         const startX = this.sortRank.x + this.sortRank.width * 3 // Starting X position for the first card
-        const cardWidth = this.add.sprite(-50, -50, 'card_deck', 0).width * 2 // Width of each card sprite
         const minVisibleWidth = 10 // Minimum width visible for each card
     
         // Remove any existing card sprites
-        this.handSprites?.forEach(sprite => sprite.destroy())
-    
-        this.handSprites = [] // Array to store references to the card sprites
+        this.handSprites.forEach(cardObject => cardObject.sprite.destroy())
+
+        this.handSprites = []
     
         // Calculate the total width taken by the cards
         const totalCardWidth = hand.length * minVisibleWidth
@@ -439,39 +469,25 @@ class Play extends Phaser.Scene {
         cardSpacing = Math.max(cardSpacing, minVisibleWidth)
     
         let x = startX
-    
+
         // Loop through each card in the hand and create a sprite for it
         hand.forEach((card, index) => {
             const cardIndex = this.getCardFrameIndex(card)
-            this.cardSprite = this.add.sprite(x, this.scale.height - borderPadding, 'card_deck', cardIndex).setOrigin(0, 0.5).setScale(2)
-    
-            // Make the card sprite interactive
-            this.cardSprite.setInteractive()
-    
-            // Add pointerover event listener for hovering
-            this.cardSprite.on('pointerover', () => {
-                console.log('Card hovered:', card)
-                // Add hover effects here
-            })
-    
-            // Add pointerout event listener for when hovering ends
-            this.cardSprite.on('pointerout', () => {
-                console.log('Card not hovered:', card)
-                // Remove hover effects here
-            })
-    
-            // Listen for pointerdown event on the card
-            this.cardSprite.on('pointerdown', () => {
-                console.log('Card clicked:', card)
-                // Add click functionality here
-            })
-    
-            this.handSprites.push(this.cardSprite)
+            const spriteName = 'cardSprite_' + this.spriteIndex // Generate unique name
+            const cardSprite = this.add.sprite(x, this.scale.height - borderPadding, 'card_deck', cardIndex).setOrigin(0, 0.5).setScale(2).setName(spriteName)
+            const cardObject = { card: card, sprite: cardSprite } // Create an object containing both the card and its sprite
+            this.handSprites.push(cardObject) // Push the object into handSprites
+
     
             // Update the position of the next card
             x += minVisibleWidth + cardSpacing
         })
+
+        this.addListener()
+
+        console.log(this.handSprites)
     }
+    
     
     
 
@@ -482,5 +498,55 @@ class Play extends Phaser.Scene {
         const rankIndex = rankOrder.indexOf(card.rank)
         return suitIndex * 13 + rankIndex // Each suit has 13 cards in the sprite sheet
     }
+
+    addListener() {
+        console.log('add listeners')
+        if (this.handSprites) {
+            console.log(this.handSprites)
+            // Remove any existing event listeners
+            this.removeListeners()
+
+            this.handSprites.forEach(cardObject => {
+                const cardSprite = cardObject.sprite
+
+                // Make the card sprite interactive
+                cardSprite.setInteractive()
+
+                // Add pointerover event listener for hovering
+                cardSprite.on('pointerover', () => {
+                    console.log('Card hovered:', cardObject.card)
+                    // Add hover effects here
+                })
+
+                // Add pointerout event listener for when hovering ends
+                cardSprite.on('pointerout', () => {
+                    console.log('Card not hovered:', cardObject.card)
+                    // Remove hover effects here
+                })
+
+                // Listen for pointerdown event on the card
+                cardSprite.on('pointerdown', () => {
+                    console.log('Card clicked:', cardObject.card)
+                    // Add click functionality here
+                })
+            })
+
+            console.log(this.handSprites)
+        }
+    }
+    
+        
+
+    removeListeners() {
+        console.log('remove listeners')
+        // Remove event listeners for each card in handSprites
+        this.handSprites.forEach(cardObject => {
+            const cardSprite = cardObject.sprite
+            cardSprite.removeAllListeners('pointerover')
+            cardSprite.removeAllListeners('pointerout')
+            cardSprite.removeAllListeners('pointerdown')
+        })
+    }
+
     
 }
