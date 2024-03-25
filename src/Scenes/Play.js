@@ -510,19 +510,62 @@ class Play extends Phaser.Scene {
                 const cardSprite = cardObject.sprite
 
                 // Make the card sprite interactive
-                cardSprite.setInteractive()
+                cardSprite.setInteractive({ draggable: true})
+
+                // Listen for drag events on the card
+                cardSprite.on('drag', (pointer, dragX, dragY) => {
+                    cardSprite.x = dragX
+                    cardSprite.y = dragY
+
+                    // Check if the dragged card is within 1 pixel of another card sprite
+                    this.handSprites.forEach(otherCardObject => {
+                        const otherCardSprite = otherCardObject.sprite
+                        if (otherCardSprite !== cardSprite) {
+                            const distance = Phaser.Math.Distance.Between(cardSprite.x, cardSprite.y, otherCardSprite.x, otherCardSprite.y)
+                            //console.log('Distance:', distance)
+                            if (distance <= 50) {
+                                // Snap the dragged card to the position of the other card
+                                console.log("card snapped")
+                                cardSprite.x = otherCardSprite.x 
+                                cardSprite.y = otherCardSprite.y + 50
+                                cardObject.snapped = true
+                                otherCardObject.snapped = true
+
+                                // Check if the combination is valid
+                                const combinationValid = this.checkCombinationValidity()
+                                if (combinationValid) {
+                                    // Flash the cards green if the combination is valid
+                                    this.flashCard(cardSprite, 0x00FF00)
+                                    this.flashCard(otherCardSprite, 0x00FF00)
+                                    
+                                } else {
+                                    // Flash the cards red if the combination is not valid
+                                    this.flashCard(cardSprite, 0xFF0000)
+                                    this.flashCard(otherCardSprite, 0xFF0000)
+                                }
+                            }
+                        }
+                    })
+                })
+
+                // Listen for dragend event on the card
+                cardSprite.on('dragend', () => {
+                    // Perform any necessary actions when the drag ends
+                    // For example, check if the dropped card forms a valid combination on the table
+                    // and handle placing it accordingly
+                })
 
                 // Add pointerover event listener for hovering
                 cardSprite.on('pointerover', () => {
                     console.log('Card hovered:', cardObject.card)
                     // Add hover effects here
                     // Scale the card slightly larger
-                    this.tweens.add({
-                        targets: cardObject.sprite,
-                        y: cardObject.sprite.y - 92,
-                        duration: 200,
-                        ease: 'Linear'
-                    })
+                    // this.tweens.add({
+                    //     targets: cardObject.sprite,
+                    //     y: cardObject.sprite.y - 92,
+                    //     duration: 200,
+                    //     ease: 'Linear'
+                    // })
 
                 })
 
@@ -530,12 +573,12 @@ class Play extends Phaser.Scene {
                 cardSprite.on('pointerout', () => {
                     console.log('Card not hovered:', cardObject.card)
                     // Remove hover effects here
-                    this.tweens.add({
-                        targets: cardObject.sprite,
-                        y: cardObject.sprite.y + 92,
-                        duration: 200,
-                        ease: 'Linear'
-                    })
+                    // this.tweens.add({
+                    //     targets: cardObject.sprite,
+                    //     y: cardObject.sprite.y + 92,
+                    //     duration: 200,
+                    //     ease: 'Linear'
+                    // })
 
                 })
 
@@ -561,6 +604,87 @@ class Play extends Phaser.Scene {
             cardSprite.removeAllListeners('pointerout')
             cardSprite.removeAllListeners('pointerdown')
         })
+    }
+
+    checkCombinationValidity() {
+        const snappedCards = [];
+        // Collect all snapped cards
+        // Collect all snapped cards
+        this.handSprites.forEach(cardObject => {
+            if (cardObject.snapped) {
+                snappedCards.push(cardObject);
+            }
+        });
+
+        console.log(snappedCards)
+    
+        // Check if at least three cards are snapped together
+        if (snappedCards.length < 3) {
+            // Combination not valid if less than 3 cards are snapped together
+            return false;
+        }
+    
+        // Check for same rank and alternating suits
+        if (this.checkSameRankAlternatingSuits(snappedCards)) {
+            return true;
+        }
+    
+        // Check for ascending or descending numbers with the same suit
+        if (this.checkAscendingDescendingSameSuit(snappedCards)) {
+            return true;
+        }
+    
+        return false;
+    }
+    
+    checkSameRankAlternatingSuits(cards) {
+        // Check for same rank and alternating suits
+        const ranks = new Set(cards.map(cardObject => cardObject.card.rank));
+        if (ranks.size === 1) { // Same rank
+            const suits = new Set(cards.map(cardObject => cardObject.card.suit));
+            if (suits.size === cards.length) { // Alternating suits
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    checkAscendingDescendingSameSuit(cards) {
+        const rankOrder = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const sortedCards = cards.map(cardObject => cardObject.card).sort((a, b) => {
+            return rankOrder.indexOf(a.rank) - rankOrder.indexOf(b.rank);
+        });
+    
+        const firstSuit = sortedCards[0].suit;
+        let isAscending = true;
+        let isDescending = true;
+    
+        for (let i = 1; i < sortedCards.length; i++) {
+            if (sortedCards[i].suit !== firstSuit) {
+                return false; // Not same suit
+            }
+            const currentRankIndex = rankOrder.indexOf(sortedCards[i].rank);
+            const prevRankIndex = rankOrder.indexOf(sortedCards[i - 1].rank);
+            if (currentRankIndex !== prevRankIndex + 1) {
+                isAscending = false;
+            }
+            if (currentRankIndex !== prevRankIndex - 1) {
+                isDescending = false;
+            }
+        }
+    
+        return isAscending || isDescending;
+    }
+    
+    flashCard(cardSprite, color) {
+        cardSprite.setTint(color)
+        this.time.delayedCall(500, () => {
+            cardSprite.clearTint()
+        });
+    }
+    
+    resetCardColor(cardSprite) {
+        cardSprite.clearTint()
     }
 
     
