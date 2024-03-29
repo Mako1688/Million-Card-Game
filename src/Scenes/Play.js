@@ -54,6 +54,8 @@ class Play extends Phaser.Scene {
         this.p1Hand
         this.p2Hand
         this.handSprites = []
+        this.cardsSelected = []
+        this.tableCards = []
 
         //create deck
         this.deck = this.createDeck()
@@ -101,6 +103,8 @@ class Play extends Phaser.Scene {
             this.endTurnButton.setFrame(1, false)
             //display cards in hand
             this.displayHand()
+            //display table
+            this.displayTable()
         })
 
         
@@ -125,10 +129,13 @@ class Play extends Phaser.Scene {
         // Listen for pointerdown event on the card
         this.restart.on('pointerdown', () => {
             console.log('restart press')
+            this.cardsSelected = []
             //change to push frame
             this.restart.setFrame(1, false)
             //display cards in hand
             this.displayHand()
+            //display table
+            this.displayTable()
         })
 
         
@@ -171,6 +178,8 @@ class Play extends Phaser.Scene {
             this.turnValid = true
             //display cards in hand
             this.displayHand()
+            //display table
+            this.displayTable()
             
         })
 
@@ -201,6 +210,8 @@ class Play extends Phaser.Scene {
             this.sortRank.setFrame(1, false)
             //display cards in hand
             this.displayHand()
+            //display table
+            this.displayTable()
         })
 
         
@@ -230,6 +241,8 @@ class Play extends Phaser.Scene {
             this.sortSuit.setFrame(1, false)
             //display cards in hand
             this.displayHand()
+            //display table
+            this.displayTable()
         })
         
     }
@@ -237,6 +250,8 @@ class Play extends Phaser.Scene {
     update() {
         //display Player turn
         this.displayTurn()
+
+        
 
        
 
@@ -475,6 +490,8 @@ class Play extends Phaser.Scene {
             const cardIndex = this.getCardFrameIndex(card)
             const spriteName = 'cardSprite_' + this.spriteIndex // Generate unique name
             const cardSprite = this.add.sprite(x, this.scale.height - borderPadding, 'card_deck', cardIndex).setOrigin(0, 0.5).setScale(2).setName(spriteName)
+            this.handHeight = this.scale.height - borderPadding
+            this.selectHeight = this.handHeight - 92
             const cardObject = { card: card, sprite: cardSprite } // Create an object containing both the card and its sprite
             this.handSprites.push(cardObject) // Push the object into handSprites
 
@@ -487,11 +504,45 @@ class Play extends Phaser.Scene {
 
         console.log(this.handSprites)
     }
+
+    displayTable() {
+        let startx = 50
+        let endx = w - 100
+        let starty = 40
+        let row = 1
+        //display each array of card objects on the table at incrementing x levels
+        console.log(this.tableCards)
+        this.tableCards.forEach(array => {
+            startx = 20
+            array.forEach(object => {
+                const cardIndex = this.getCardFrameIndex(object.card)
+                object.sprite = this.add.sprite(startx, starty, 'card_deck', cardIndex).setOrigin(0.5, 0).setScale(2)
+                starty += 50
+            })
+            
+            if(row === 1){
+                startx += 150
+                starty = 20
+            } else if (row === 2) {
+                startx += 150
+                starty = 240
+            } else if (row === 3){
+                startx += 150
+                starty = 460
+            }
+
+            if(startx >= endx){
+                row += 1
+            }
+            
+        })
+    }
     
     
     
 
     getCardFrameIndex(card) {
+        console.log(card)
         const suitOrder = ['diamond', 'spade', 'heart', 'club']
         const rankOrder = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
         const suitIndex = suitOrder.indexOf(card.suit)
@@ -586,12 +637,56 @@ class Play extends Phaser.Scene {
                 cardSprite.on('pointerdown', () => {
                     console.log('Card clicked:', cardObject.card)
                     // Add click functionality here
+                    if(!this.cardsSelected.includes(cardObject)){
+                        // Scale the card slightly larger
+                        this.tweens.add({
+                            targets: cardObject.sprite,
+                            y: this.selectHeight,
+                            duration: 200,
+                            ease: 'Linear'
+                        })
+                        this.cardsSelected.push(cardObject)
+                        this.checkCardsSelected()
+                    }
                 })
             })
 
             console.log(this.handSprites)
         }
     }
+
+    checkCardsSelected() {
+        console.log(this.cardsSelected)
+        if(this.cardsSelected.length > 2){
+            // Check if the combination is valid
+            const rankValidity = this.checkSameRankAlternatingSuits(this.cardsSelected)
+            const suitValidity = this.checkAscendingDescendingSameSuit(this.cardsSelected)
+            this.cardsSelected.forEach(cardObject => {
+                if (rankValidity || suitValidity) {
+                    // Flash the cards green if the combination is valid
+                    this.flashCard(cardObject.sprite, 0x00FF00)
+                } else {
+                    this.tweens.add({
+                        targets: cardObject.sprite,
+                        y: this.handHeight,
+                        duration: 200,
+                        ease: 'Linear'
+                    })
+                    // Flash the cards red if the combination is not valid
+                    this.flashCard(cardObject.sprite, 0xFF0000)
+                }
+            })
+            console.log(this.tableCards)
+            if(rankValidity || suitValidity){
+                this.tableCards.push(this.cardsSelected)
+            }
+            this.cardsSelected = []
+            //display table
+            this.displayTable()
+        }
+    }
+
+    
     
         
 
@@ -607,80 +702,80 @@ class Play extends Phaser.Scene {
     }
 
     checkCombinationValidity() {
-        const snappedCards = [];
+        const snappedCards = []
         // Collect all snapped cards
         // Collect all snapped cards
         this.handSprites.forEach(cardObject => {
             if (cardObject.snapped) {
-                snappedCards.push(cardObject);
+                snappedCards.push(cardObject)
             }
-        });
+        })
 
         console.log(snappedCards)
     
         // Check if at least three cards are snapped together
         if (snappedCards.length < 3) {
             // Combination not valid if less than 3 cards are snapped together
-            return false;
+            return false
         }
     
         // Check for same rank and alternating suits
         if (this.checkSameRankAlternatingSuits(snappedCards)) {
-            return true;
+            return true
         }
     
         // Check for ascending or descending numbers with the same suit
         if (this.checkAscendingDescendingSameSuit(snappedCards)) {
-            return true;
+            return true
         }
     
-        return false;
+        return false
     }
     
     checkSameRankAlternatingSuits(cards) {
         // Check for same rank and alternating suits
-        const ranks = new Set(cards.map(cardObject => cardObject.card.rank));
+        const ranks = new Set(cards.map(cardObject => cardObject.card.rank))
         if (ranks.size === 1) { // Same rank
-            const suits = new Set(cards.map(cardObject => cardObject.card.suit));
+            const suits = new Set(cards.map(cardObject => cardObject.card.suit))
             if (suits.size === cards.length) { // Alternating suits
-                return true;
+                return true
             }
         }
-        return false;
+        return false
     }
     
     checkAscendingDescendingSameSuit(cards) {
-        const rankOrder = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const rankOrder = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         const sortedCards = cards.map(cardObject => cardObject.card).sort((a, b) => {
-            return rankOrder.indexOf(a.rank) - rankOrder.indexOf(b.rank);
-        });
+            return rankOrder.indexOf(a.rank) - rankOrder.indexOf(b.rank)
+        })
     
-        const firstSuit = sortedCards[0].suit;
-        let isAscending = true;
-        let isDescending = true;
+        const firstSuit = sortedCards[0].suit
+        let isAscending = true
+        let isDescending = true
     
         for (let i = 1; i < sortedCards.length; i++) {
             if (sortedCards[i].suit !== firstSuit) {
-                return false; // Not same suit
+                return false // Not same suit
             }
-            const currentRankIndex = rankOrder.indexOf(sortedCards[i].rank);
-            const prevRankIndex = rankOrder.indexOf(sortedCards[i - 1].rank);
+            const currentRankIndex = rankOrder.indexOf(sortedCards[i].rank)
+            const prevRankIndex = rankOrder.indexOf(sortedCards[i - 1].rank)
             if (currentRankIndex !== prevRankIndex + 1) {
-                isAscending = false;
+                isAscending = false
             }
             if (currentRankIndex !== prevRankIndex - 1) {
-                isDescending = false;
+                isDescending = false
             }
         }
     
-        return isAscending || isDescending;
+        return isAscending || isDescending
     }
     
     flashCard(cardSprite, color) {
         cardSprite.setTint(color)
         this.time.delayedCall(500, () => {
             cardSprite.clearTint()
-        });
+        })
     }
     
     resetCardColor(cardSprite) {
