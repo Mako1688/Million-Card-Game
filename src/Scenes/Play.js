@@ -313,7 +313,7 @@ class Play extends Phaser.Scene {
         
 
         // Only can draw if not drawn
-        if (this.p1Turn && !this.drawn) {
+        if (this.p1Turn && !this.drawn && !this.turnValid) {
             if (this.deck.length > 0) { // Check if the deck is not empty
                 this.p1Hand.push(this.deck.pop()) // Remove the top card from the deck and add it to player 1's hand
                 console.log("Player 1's Hand:", this.p1Hand)
@@ -322,7 +322,7 @@ class Play extends Phaser.Scene {
             } else {
                 console.log("The deck is empty. Cannot draw more cards.")
             }
-        } else if (this.p2Turn && !this.drawn) {
+        } else if (this.p2Turn && !this.drawn && !this.turnValid) {
             if (this.deck.length > 0) { // Check if the deck is not empty
                 this.p2Hand.push(this.deck.pop()) // Remove the top card from the deck and add it to player 2's hand
                 console.log("Player 2's Hand:", this.p2Hand)
@@ -506,37 +506,36 @@ class Play extends Phaser.Scene {
     }
 
     displayTable() {
-        let startx = 50
-        let endx = w - 100
-        let starty = 40
-        let row = 1
-        //display each array of card objects on the table at incrementing x levels
-        console.log(this.tableCards)
+        const startX = 80
+        const startY = 40
+        const verticalSpacing = 50
+        const horizontalSpacing = 150
+        const maxRowWidth = 10 // Maximum number of arrays in a row
+    
+        let currentX = startX
+        let currentY = startY
+        let rowWidth = 0
+        let rowMult = 1
+    
         this.tableCards.forEach(array => {
-            startx = 20
             array.forEach(object => {
                 const cardIndex = this.getCardFrameIndex(object.card)
-                object.sprite = this.add.sprite(startx, starty, 'card_deck', cardIndex).setOrigin(0.5, 0).setScale(2)
-                starty += 50
+                object.sprite = this.add.sprite(currentX, currentY, 'card_deck', cardIndex).setOrigin(0.5, 0).setScale(2);
+                currentY += verticalSpacing
             })
-            
-            if(row === 1){
-                startx += 150
-                starty = 20
-            } else if (row === 2) {
-                startx += 150
-                starty = 240
-            } else if (row === 3){
-                startx += 150
-                starty = 460
-            }
 
-            if(startx >= endx){
-                row += 1
+            currentY = startY * rowMult  // reset y position
+            currentX += horizontalSpacing // Move to the next column
+            rowWidth++
+            if (rowWidth === maxRowWidth) {
+                rowMult += 7
+                currentX = startX // Reset y position
+                currentY = startY * rowMult  // reset y position
+                rowWidth = 0 // Reset row width counter
             }
-            
-        })
+        });
     }
+    
     
     
     
@@ -563,48 +562,48 @@ class Play extends Phaser.Scene {
                 // Make the card sprite interactive
                 cardSprite.setInteractive({ draggable: true})
 
-                // Listen for drag events on the card
-                cardSprite.on('drag', (pointer, dragX, dragY) => {
-                    cardSprite.x = dragX
-                    cardSprite.y = dragY
+                // // Listen for drag events on the card
+                // cardSprite.on('drag', (pointer, dragX, dragY) => {
+                //     cardSprite.x = dragX
+                //     cardSprite.y = dragY
 
-                    // Check if the dragged card is within 1 pixel of another card sprite
-                    this.handSprites.forEach(otherCardObject => {
-                        const otherCardSprite = otherCardObject.sprite
-                        if (otherCardSprite !== cardSprite) {
-                            const distance = Phaser.Math.Distance.Between(cardSprite.x, cardSprite.y, otherCardSprite.x, otherCardSprite.y)
-                            //console.log('Distance:', distance)
-                            if (distance <= 50) {
-                                // Snap the dragged card to the position of the other card
-                                console.log("card snapped")
-                                cardSprite.x = otherCardSprite.x 
-                                cardSprite.y = otherCardSprite.y + 50
-                                cardObject.snapped = true
-                                otherCardObject.snapped = true
+                //     // Check if the dragged card is within 1 pixel of another card sprite
+                //     this.handSprites.forEach(otherCardObject => {
+                //         const otherCardSprite = otherCardObject.sprite
+                //         if (otherCardSprite !== cardSprite) {
+                //             const distance = Phaser.Math.Distance.Between(cardSprite.x, cardSprite.y, otherCardSprite.x, otherCardSprite.y)
+                //             //console.log('Distance:', distance)
+                //             if (distance <= 50) {
+                //                 // Snap the dragged card to the position of the other card
+                //                 console.log("card snapped")
+                //                 cardSprite.x = otherCardSprite.x 
+                //                 cardSprite.y = otherCardSprite.y + 50
+                //                 cardObject.snapped = true
+                //                 otherCardObject.snapped = true
 
-                                // Check if the combination is valid
-                                const combinationValid = this.checkCombinationValidity()
-                                if (combinationValid) {
-                                    // Flash the cards green if the combination is valid
-                                    this.flashCard(cardSprite, 0x00FF00)
-                                    this.flashCard(otherCardSprite, 0x00FF00)
+                //                 // Check if the combination is valid
+                //                 const combinationValid = this.checkCombinationValidity()
+                //                 if (combinationValid) {
+                //                     // Flash the cards green if the combination is valid
+                //                     this.flashCard(cardSprite, 0x00FF00)
+                //                     this.flashCard(otherCardSprite, 0x00FF00)
                                     
-                                } else {
-                                    // Flash the cards red if the combination is not valid
-                                    this.flashCard(cardSprite, 0xFF0000)
-                                    this.flashCard(otherCardSprite, 0xFF0000)
-                                }
-                            }
-                        }
-                    })
-                })
+                //                 } else {
+                //                     // Flash the cards red if the combination is not valid
+                //                     this.flashCard(cardSprite, 0xFF0000)
+                //                     this.flashCard(otherCardSprite, 0xFF0000)
+                //                 }
+                //             }
+                //         }
+                //     })
+                // })
 
-                // Listen for dragend event on the card
-                cardSprite.on('dragend', () => {
-                    // Perform any necessary actions when the drag ends
-                    // For example, check if the dropped card forms a valid combination on the table
-                    // and handle placing it accordingly
-                })
+                // // Listen for dragend event on the card
+                // cardSprite.on('dragend', () => {
+                //     // Perform any necessary actions when the drag ends
+                //     // For example, check if the dropped card forms a valid combination on the table
+                //     // and handle placing it accordingly
+                // })
 
                 // Add pointerover event listener for hovering
                 cardSprite.on('pointerover', () => {
@@ -678,7 +677,31 @@ class Play extends Phaser.Scene {
             })
             console.log(this.tableCards)
             if(rankValidity || suitValidity){
+                //remove the cards from player hand as well as handsprites
                 this.tableCards.push(this.cardsSelected)
+                
+                // Remove sprites from the screen for the cards in this.cardsSelected
+                this.cardsSelected.forEach(selectedCardObject => {
+                    const selectedSprite = selectedCardObject.sprite
+                    // Find the corresponding card in handSprites and remove its sprite
+                    const matchingCardObject = this.handSprites.find(cardObject => cardObject.card === selectedCardObject.card)
+                    if (matchingCardObject) {
+                        matchingCardObject.sprite.destroy() // Remove sprite from the screen
+                    }
+                })
+                // Remove selected cards from hand based on reference comparison
+                this.handSprites = this.handSprites.filter(cardObject => !this.cardsSelected.includes(cardObject))
+
+                if(this.p1Turn){
+                    // Remove selected cards from handSprites based on reference comparison
+                    this.p1Hand = this.p1Hand.filter(card => !this.cardsSelected.some(selectedCardObject => selectedCardObject.card === card))
+                } else if (this.p2Turn){
+                    // Remove selected cards from handSprites based on reference comparison
+                    this.p2Hand = this.p2Hand.filter(card => !this.cardsSelected.some(selectedCardObject => selectedCardObject.card === card))
+                }
+                
+                this.turnValid = true
+                console.log(this.cardsSelected, this.handSprites)
             }
             this.cardsSelected = []
             //display table
