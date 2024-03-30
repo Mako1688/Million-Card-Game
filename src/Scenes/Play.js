@@ -251,7 +251,16 @@ class Play extends Phaser.Scene {
         //display Player turn
         this.displayTurn()
 
-        
+        //if either hand is 0 transition to win scene
+        if(this.p1Hand.length === 0){
+            this.scene.start('winScene', {
+                p1Win: true
+            })
+        }else if (this.p2Hand.length === 0){
+            this.scene.start('winScene', {
+                p1Win: false
+            })
+        }
 
        
 
@@ -533,7 +542,7 @@ class Play extends Phaser.Scene {
                 currentY = startY * rowMult  // reset y position
                 rowWidth = 0 // Reset row width counter
             }
-        });
+        })
     }
     
     

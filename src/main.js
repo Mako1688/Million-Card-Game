@@ -14,7 +14,6 @@ Approx hours:
     - dragging and clicking with cards played working
     - draging cards in hand
     - Display each player hand count
-    - get reset button working
     - add sound effects to load (already in folder)
     - get some vibey musica
     - get iphone port working

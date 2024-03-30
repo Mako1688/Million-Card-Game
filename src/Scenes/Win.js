@@ -3,8 +3,8 @@ class Win extends Phaser.Scene {
         super('winScene')
     }
 
-    init() {
-
+    init(data) {
+        this.p1Win = data.p1Win
     }
 
     preload() {
