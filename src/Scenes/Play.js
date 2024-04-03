@@ -271,8 +271,8 @@ class Play extends Phaser.Scene {
         for (let suit of suits) {
             for (let rank of ranks) {
                 // Create two copies of each card
-                deck.push({ card: {suit, rank}, sprite: null, table: false })
-                deck.push({ card: {suit, rank}, sprite: null, table: false })
+                deck.push({ card: {suit, rank}, table: false })
+                deck.push({ card: {suit, rank}, table: false })
             }
         }
         return deck
@@ -360,13 +360,13 @@ class Play extends Phaser.Scene {
     sortRankHand() {
         let hand = this.p1Turn ? this.p1Hand : this.p2Hand // Select the current player's hand based on the turn
         hand.sort((a, b) => {
-            if (a.rank !== b.rank) {
+            if (a.card.rank !== b.card.rank) {
                 // If ranks are different, sort by rank
-                return this.getRankValue(a.rank) - this.getRankValue(b.rank)
+                return this.getRankValue(a.card.rank) - this.getRankValue(b.card.rank)
             } else {
                 // If ranks are the same, sort by suit in the order: diamond, spade, heart, club
                 const suitOrder = { 'diamond': 0, 'spade': 1, 'heart': 2, 'club': 3 }
-                return suitOrder[a.suit] - suitOrder[b.suit]
+                return suitOrder[a.card.suit] - suitOrder[b.card.suit]
             }
         })
         console.log("Sorted Hand by Rank:", hand)
@@ -375,13 +375,13 @@ class Play extends Phaser.Scene {
     sortSuitHand() {
         let hand = this.p1Turn ? this.p1Hand : this.p2Hand // Select the current player's hand based on the turn
         hand.sort((a, b) => {
-            if (a.suit !== b.suit) {
+            if (a.card.suit !== b.card.suit) {
                 // If suits are different, sort by suit in the order: diamond, spade, heart, club
                 const suitOrder = { 'diamond': 0, 'spade': 1, 'heart': 2, 'club': 3 }
-                return suitOrder[a.suit] - suitOrder[b.suit]
+                return suitOrder[a.card.suit] - suitOrder[b.card.suit]
             } else {
                 // If suits are the same, sort by rank
-                return this.getRankValue(a.rank) - this.getRankValue(b.rank)
+                return this.getRankValue(a.card.rank) - this.getRankValue(b.card.rank)
             }
         })
         console.log("Sorted Hand by Suit:", hand)
@@ -439,11 +439,13 @@ class Play extends Phaser.Scene {
                 this.p2Turn = true
                 this.drawn = false
                 this.turnValid = false
+                this.p1Hand.forEach(cardObject => {if(cardObject.sprite){cardObject.sprite.destroy()}})
             } else if(this.p2Turn){
                 this.p2Turn = false
                 this.p1Turn = true
                 this.drawn = false
                 this.turnValid = false
+                this.p2Hand.forEach(cardObject => {if(cardObject.sprite){cardObject.sprite.destroy()}})
             }
         }else {
             if(this.invalidText){
@@ -469,7 +471,7 @@ class Play extends Phaser.Scene {
         const minVisibleWidth = 10 // Minimum width visible for each card
     
         // Remove any existing card sprites
-        hand.forEach(cardObject => cardObject.sprite = null)
+        hand.forEach(cardObject => {if(cardObject.sprite){cardObject.sprite.destroy()}})
     
         // Calculate the total width taken by the cards
         const totalCardWidth = hand.length * minVisibleWidth
@@ -522,7 +524,8 @@ class Play extends Phaser.Scene {
         this.tableCards.forEach(array => {
             array.forEach(object => {
                 const cardIndex = this.getCardFrameIndex(object)
-                object.sprite = this.add.sprite(currentX, currentY, 'card_deck', cardIndex).setOrigin(0.5, 0).setScale(2);
+                object.sprite = this.add.sprite(currentX, currentY, 'card_deck', cardIndex).setOrigin(0.5, 0).setScale(2)
+                object.table = true
                 currentY += verticalSpacing
             })
 
@@ -535,9 +538,9 @@ class Play extends Phaser.Scene {
                 currentY = startY * rowMult  // reset y position
                 rowWidth = 0 // Reset row width counter
             }
-            
+            this.addListener(array)
         })
-        this.addListener(this.tableCards)
+        
         console.log(this.tableCards)
         
     }
@@ -658,19 +661,14 @@ class Play extends Phaser.Scene {
                             }
                         } else if(cardObject.table === true){
                             // Add click functionality here
-                            this.tweens.add({
-                                targets: cardObject.sprite,
-                                y: cardObject.sprite.x + 50,
-                                duration: 200,
-                                ease: 'Linear'
-                            })
+                            
                             cardObject.table = false
                             if(this.p1Turn){
                                 this.p1Hand.push(cardObject)
                             }else if(this.p2Turn){
                                 this.p2Hand.push(cardObject)
                             }
-                            cardObject.sprite.destroy()
+                            cardArray.splice(cardObject, 1)
                             this.turnValid = false
                             this.displayHand()
                             this.displayTable()
