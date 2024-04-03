@@ -53,7 +53,6 @@ class Play extends Phaser.Scene {
         //create hands
         this.p1Hand
         this.p2Hand
-        this.handSprites = []
         this.cardsSelected = []
         this.tableCards = []
 
@@ -272,8 +271,8 @@ class Play extends Phaser.Scene {
         for (let suit of suits) {
             for (let rank of ranks) {
                 // Create two copies of each card
-                deck.push({ suit, rank })
-                deck.push({ suit, rank })
+                deck.push({ card: {suit, rank}, sprite: null, table: false })
+                deck.push({ card: {suit, rank}, sprite: null, table: false })
             }
         }
         return deck
@@ -465,14 +464,12 @@ class Play extends Phaser.Scene {
     }
 
     displayHand() {
-        let hand = this.p1Turn ? this.p1Hand : this.p2Hand // Select the current player's hand based on the turn
+        var hand = this.p1Turn ? this.p1Hand : this.p2Hand // Select the current player's hand based on the turn
         const startX = this.sortRank.x + this.sortRank.width * 3 // Starting X position for the first card
         const minVisibleWidth = 10 // Minimum width visible for each card
     
         // Remove any existing card sprites
-        this.handSprites.forEach(cardObject => cardObject.sprite.destroy())
-
-        this.handSprites = []
+        hand.forEach(cardObject => cardObject.sprite = null)
     
         // Calculate the total width taken by the cards
         const totalCardWidth = hand.length * minVisibleWidth
@@ -495,23 +492,19 @@ class Play extends Phaser.Scene {
         let x = startX
 
         // Loop through each card in the hand and create a sprite for it
-        hand.forEach((card, index) => {
-            const cardIndex = this.getCardFrameIndex(card)
-            const spriteName = 'cardSprite_' + this.spriteIndex // Generate unique name
-            const cardSprite = this.add.sprite(x, this.scale.height - borderPadding, 'card_deck', cardIndex).setOrigin(0, 0.5).setScale(2).setName(spriteName)
+        hand.forEach((cardObject) => {
+            const cardIndex = this.getCardFrameIndex(cardObject)
+            cardObject.sprite = this.add.sprite(x, this.scale.height - borderPadding, 'card_deck', cardIndex).setOrigin(0, 0.5).setScale(2)
             this.handHeight = this.scale.height - borderPadding
             this.selectHeight = this.handHeight - 92
-            const cardObject = { card: card, sprite: cardSprite } // Create an object containing both the card and its sprite
-            this.handSprites.push(cardObject) // Push the object into handSprites
 
-    
             // Update the position of the next card
             x += minVisibleWidth + cardSpacing
         })
 
-        this.addListener()
+        this.addListener(hand)
 
-        console.log(this.handSprites)
+        console.log(hand)
     }
 
     displayTable() {
@@ -528,7 +521,7 @@ class Play extends Phaser.Scene {
     
         this.tableCards.forEach(array => {
             array.forEach(object => {
-                const cardIndex = this.getCardFrameIndex(object.card)
+                const cardIndex = this.getCardFrameIndex(object)
                 object.sprite = this.add.sprite(currentX, currentY, 'card_deck', cardIndex).setOrigin(0.5, 0).setScale(2);
                 currentY += verticalSpacing
             })
@@ -542,128 +535,157 @@ class Play extends Phaser.Scene {
                 currentY = startY * rowMult  // reset y position
                 rowWidth = 0 // Reset row width counter
             }
+            
         })
+        this.addListener(this.tableCards)
+        console.log(this.tableCards)
+        
     }
     
     
     
     
 
-    getCardFrameIndex(card) {
-        console.log(card)
+    getCardFrameIndex(cardObject) {
+        console.log(cardObject)
         const suitOrder = ['diamond', 'spade', 'heart', 'club']
         const rankOrder = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
-        const suitIndex = suitOrder.indexOf(card.suit)
-        const rankIndex = rankOrder.indexOf(card.rank)
+        const suitIndex = suitOrder.indexOf(cardObject.card.suit)
+        const rankIndex = rankOrder.indexOf(cardObject.card.rank)
         return suitIndex * 13 + rankIndex // Each suit has 13 cards in the sprite sheet
     }
 
-    addListener() {
+    addListener(cardArray) {
+        
         console.log('add listeners')
-        if (this.handSprites) {
-            console.log(this.handSprites)
+        if (cardArray) {
+            console.log(cardArray)
             // Remove any existing event listeners
-            this.removeListeners()
+            this.removeListeners(cardArray)
 
-            this.handSprites.forEach(cardObject => {
+            cardArray.forEach(cardObject => {
                 const cardSprite = cardObject.sprite
+                if(cardSprite != null) {
+                    // Make the card sprite interactive
+                    cardSprite.setInteractive({ draggable: true})
 
-                // Make the card sprite interactive
-                cardSprite.setInteractive({ draggable: true})
+                    // // Listen for drag events on the card
+                    // cardSprite.on('drag', (pointer, dragX, dragY) => {
+                    //     cardSprite.x = dragX
+                    //     cardSprite.y = dragY
 
-                // // Listen for drag events on the card
-                // cardSprite.on('drag', (pointer, dragX, dragY) => {
-                //     cardSprite.x = dragX
-                //     cardSprite.y = dragY
+                    //     // Check if the dragged card is within 1 pixel of another card sprite
+                    //     hand.forEach(otherCardObject => {
+                    //         const otherCardSprite = otherCardObject.sprite
+                    //         if (otherCardSprite !== cardSprite) {
+                    //             const distance = Phaser.Math.Distance.Between(cardSprite.x, cardSprite.y, otherCardSprite.x, otherCardSprite.y)
+                    //             //console.log('Distance:', distance)
+                    //             if (distance <= 50) {
+                    //                 // Snap the dragged card to the position of the other card
+                    //                 console.log("card snapped")
+                    //                 cardSprite.x = otherCardSprite.x 
+                    //                 cardSprite.y = otherCardSprite.y + 50
+                    //                 cardObject.snapped = true
+                    //                 otherCardObject.snapped = true
 
-                //     // Check if the dragged card is within 1 pixel of another card sprite
-                //     this.handSprites.forEach(otherCardObject => {
-                //         const otherCardSprite = otherCardObject.sprite
-                //         if (otherCardSprite !== cardSprite) {
-                //             const distance = Phaser.Math.Distance.Between(cardSprite.x, cardSprite.y, otherCardSprite.x, otherCardSprite.y)
-                //             //console.log('Distance:', distance)
-                //             if (distance <= 50) {
-                //                 // Snap the dragged card to the position of the other card
-                //                 console.log("card snapped")
-                //                 cardSprite.x = otherCardSprite.x 
-                //                 cardSprite.y = otherCardSprite.y + 50
-                //                 cardObject.snapped = true
-                //                 otherCardObject.snapped = true
-
-                //                 // Check if the combination is valid
-                //                 const combinationValid = this.checkCombinationValidity()
-                //                 if (combinationValid) {
-                //                     // Flash the cards green if the combination is valid
-                //                     this.flashCard(cardSprite, 0x00FF00)
-                //                     this.flashCard(otherCardSprite, 0x00FF00)
-                                    
-                //                 } else {
-                //                     // Flash the cards red if the combination is not valid
-                //                     this.flashCard(cardSprite, 0xFF0000)
-                //                     this.flashCard(otherCardSprite, 0xFF0000)
-                //                 }
-                //             }
-                //         }
-                //     })
-                // })
-
-                // // Listen for dragend event on the card
-                // cardSprite.on('dragend', () => {
-                //     // Perform any necessary actions when the drag ends
-                //     // For example, check if the dropped card forms a valid combination on the table
-                //     // and handle placing it accordingly
-                // })
-
-                // Add pointerover event listener for hovering
-                cardSprite.on('pointerover', () => {
-                    console.log('Card hovered:', cardObject.card)
-                    // Add hover effects here
-                    // Scale the card slightly larger
-                    // this.tweens.add({
-                    //     targets: cardObject.sprite,
-                    //     y: cardObject.sprite.y - 92,
-                    //     duration: 200,
-                    //     ease: 'Linear'
+                    //                 // Check if the combination is valid
+                    //                 const combinationValid = this.checkCombinationValidity()
+                    //                 if (combinationValid) {
+                    //                     // Flash the cards green if the combination is valid
+                    //                     this.flashCard(cardSprite, 0x00FF00)
+                    //                     this.flashCard(otherCardSprite, 0x00FF00)
+                                        
+                    //                 } else {
+                    //                     // Flash the cards red if the combination is not valid
+                    //                     this.flashCard(cardSprite, 0xFF0000)
+                    //                     this.flashCard(otherCardSprite, 0xFF0000)
+                    //                 }
+                    //             }
+                    //         }
+                    //     })
                     // })
 
-                })
-
-                // Add pointerout event listener for when hovering ends
-                cardSprite.on('pointerout', () => {
-                    console.log('Card not hovered:', cardObject.card)
-                    // Remove hover effects here
-                    // this.tweens.add({
-                    //     targets: cardObject.sprite,
-                    //     y: cardObject.sprite.y + 92,
-                    //     duration: 200,
-                    //     ease: 'Linear'
+                    // // Listen for dragend event on the card
+                    // cardSprite.on('dragend', () => {
+                    //     // Perform any necessary actions when the drag ends
+                    //     // For example, check if the dropped card forms a valid combination on the table
+                    //     // and handle placing it accordingly
                     // })
 
-                })
-
-                // Listen for pointerdown event on the card
-                cardSprite.on('pointerdown', () => {
-                    console.log('Card clicked:', cardObject.card)
-                    // Add click functionality here
-                    if(!this.cardsSelected.includes(cardObject)){
+                    // Add pointerover event listener for hovering
+                    cardSprite.on('pointerover', () => {
+                        console.log('Card hovered:', cardObject.card)
+                        // Add hover effects here
                         // Scale the card slightly larger
-                        this.tweens.add({
-                            targets: cardObject.sprite,
-                            y: this.selectHeight,
-                            duration: 200,
-                            ease: 'Linear'
-                        })
-                        this.cardsSelected.push(cardObject)
-                        this.checkCardsSelected()
-                    }
-                })
-            })
+                        // this.tweens.add({
+                        //     targets: cardObject.sprite,
+                        //     y: cardObject.sprite.y - 92,
+                        //     duration: 200,
+                        //     ease: 'Linear'
+                        // })
 
-            console.log(this.handSprites)
+                    })
+
+                    // Add pointerout event listener for when hovering ends
+                    cardSprite.on('pointerout', () => {
+                        console.log('Card not hovered:', cardObject.card)
+                        // Remove hover effects here
+                        // this.tweens.add({
+                        //     targets: cardObject.sprite,
+                        //     y: cardObject.sprite.y + 92,
+                        //     duration: 200,
+                        //     ease: 'Linear'
+                        // })
+
+                    })
+
+                    // Listen for pointerdown event on the card
+                    cardSprite.on('pointerdown', () => {
+                        
+                        console.log('Card clicked:', cardObject.card)
+                        if(cardObject.table === false){
+                            // Add click functionality here
+                            if(!this.cardsSelected.includes(cardObject)){
+                                // Scale the card slightly larger
+                                this.tweens.add({
+                                    targets: cardObject.sprite,
+                                    y: this.selectHeight,
+                                    duration: 200,
+                                    ease: 'Linear'
+                                })
+                                this.cardsSelected.push(cardObject)
+                                this.checkCardsSelected()
+                            }
+                        } else if(cardObject.table === true){
+                            // Add click functionality here
+                            this.tweens.add({
+                                targets: cardObject.sprite,
+                                y: cardObject.sprite.x + 50,
+                                duration: 200,
+                                ease: 'Linear'
+                            })
+                            cardObject.table = false
+                            if(this.p1Turn){
+                                this.p1Hand.push(cardObject)
+                            }else if(this.p2Turn){
+                                this.p2Hand.push(cardObject)
+                            }
+                            cardObject.sprite.destroy()
+                            this.turnValid = false
+                            this.displayHand()
+                            this.displayTable()
+                        }
+                    })
+
+                console.log(cardArray)
+        
+                }
+            })
         }
     }
 
     checkCardsSelected() {
+        var hand = this.p1Turn ? this.p1Hand : this.p2Hand // Select the current player's hand based on the turn
         console.log(this.cardsSelected)
         if(this.cardsSelected.length > 2){
             // Check if the combination is valid
@@ -671,6 +693,8 @@ class Play extends Phaser.Scene {
             const suitValidity = this.checkAscendingDescendingSameSuit(this.cardsSelected)
             this.cardsSelected.forEach(cardObject => {
                 if (rankValidity || suitValidity) {
+                    //add bool for table cards
+                    cardObject.table = true
                     // Flash the cards green if the combination is valid
                     this.flashCard(cardObject.sprite, 0x00FF00)
                 } else {
@@ -686,31 +710,32 @@ class Play extends Phaser.Scene {
             })
             console.log(this.tableCards)
             if(rankValidity || suitValidity){
-                //remove the cards from player hand as well as handsprites
+
+                //remove the cards from player hand as well as hand
                 this.tableCards.push(this.cardsSelected)
                 
                 // Remove sprites from the screen for the cards in this.cardsSelected
                 this.cardsSelected.forEach(selectedCardObject => {
                     const selectedSprite = selectedCardObject.sprite
-                    // Find the corresponding card in handSprites and remove its sprite
-                    const matchingCardObject = this.handSprites.find(cardObject => cardObject.card === selectedCardObject.card)
+                    // Find the corresponding card in hand and remove its sprite
+                    const matchingCardObject = hand.find(cardObject => cardObject.card === selectedCardObject.card)
                     if (matchingCardObject) {
                         matchingCardObject.sprite.destroy() // Remove sprite from the screen
                     }
                 })
                 // Remove selected cards from hand based on reference comparison
-                this.handSprites = this.handSprites.filter(cardObject => !this.cardsSelected.includes(cardObject))
+                hand = hand.filter(cardObject => !this.cardsSelected.includes(cardObject))
 
                 if(this.p1Turn){
-                    // Remove selected cards from handSprites based on reference comparison
+                    // Remove selected cards from hand based on reference comparison
                     this.p1Hand = this.p1Hand.filter(card => !this.cardsSelected.some(selectedCardObject => selectedCardObject.card === card))
                 } else if (this.p2Turn){
-                    // Remove selected cards from handSprites based on reference comparison
+                    // Remove selected cards from hand based on reference comparison
                     this.p2Hand = this.p2Hand.filter(card => !this.cardsSelected.some(selectedCardObject => selectedCardObject.card === card))
                 }
                 
                 this.turnValid = true
-                console.log(this.cardsSelected, this.handSprites)
+                console.log(this.cardsSelected, hand)
             }
             this.cardsSelected = []
             //display table
@@ -722,22 +747,27 @@ class Play extends Phaser.Scene {
     
         
 
-    removeListeners() {
+    removeListeners(cardArray) {
+        
         console.log('remove listeners')
-        // Remove event listeners for each card in handSprites
-        this.handSprites.forEach(cardObject => {
-            const cardSprite = cardObject.sprite
-            cardSprite.removeAllListeners('pointerover')
-            cardSprite.removeAllListeners('pointerout')
-            cardSprite.removeAllListeners('pointerdown')
+        // Remove event listeners for each card in hand
+        
+        cardArray.forEach(cardObject => {
+            if(cardObject.sprite != null){
+                const cardSprite = cardObject.sprite
+                cardSprite.removeAllListeners('pointerover')
+                cardSprite.removeAllListeners('pointerout')
+                cardSprite.removeAllListeners('pointerdown')
+            }
+            
         })
     }
 
-    checkCombinationValidity() {
+    checkCombinationValidity(cardArray) {
         const snappedCards = []
         // Collect all snapped cards
         // Collect all snapped cards
-        this.handSprites.forEach(cardObject => {
+        cardArray.forEach(cardObject => {
             if (cardObject.snapped) {
                 snappedCards.push(cardObject)
             }
