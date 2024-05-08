@@ -1,22 +1,15 @@
 class Win extends Phaser.Scene {
-    constructor() {
-        super('winScene')
-    }
+  constructor() {
+    super("winScene");
+  }
 
-    init(data) {
-        this.p1Win = data.p1Win
-    }
+  init(data) {
+    this.p1Win = data.p1Win;
+  }
 
-    preload() {
-        
-    }
+  preload() {}
 
-    create() {
-        
-    }
+  create() {}
 
-    update() {
-       
-
-    }
+  update() {}
 }
