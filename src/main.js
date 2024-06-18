@@ -58,6 +58,7 @@ const borderPadding = 20;
 // Define suits and ranks
 const suits = ["diamond", "spade", "heart", "club"];
 const ranks = [
+  "A",
   "2",
   "3",
   "4",
@@ -70,7 +71,6 @@ const ranks = [
   "J",
   "Q",
   "K",
-  "A",
 ];
 
 let cursors = null;

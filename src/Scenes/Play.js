@@ -10,18 +10,21 @@ class Play extends Phaser.Scene {
   create() {
     console.log("play scene started");
 
-    //create all sprites here
-    //place end turn button
+    // Create arrays for states cards can be in
+    this.handSelected = [];
+
+    // Create all sprites here
+    // Place end turn button
     this.endTurnButton = this.add
       .sprite(w - borderPadding, h - borderPadding, "end_turn", 0)
       .setOrigin(1, 1)
       .setScale(3);
-    //place restart button
+    // Place restart button
     this.restart = this.add
       .sprite(w - borderPadding, 0 + borderPadding, "restart", 0)
       .setOrigin(1, 0)
       .setScale(3);
-    //add deck to middle right
+    // Add deck to middle right
     this.deckSprite = this.add
       .sprite(w - borderPadding, centerY, "card_deck", 53)
       .setOrigin(1, 0.5)
@@ -42,16 +45,16 @@ class Play extends Phaser.Scene {
       .setOrigin(1, 0.5)
       .setScale(2)
       .setDepth(2);
-    //add sortRank to bottom left
+    // Add sortRank to bottom left
     this.sortRank = this.add
       .sprite(0 + borderPadding, h - borderPadding, "sort_rank", 0)
       .setOrigin(0, 1)
       .setScale(3);
-    //add deck to middle right
+    // Add sortSuit to bottom left
     this.sortSuit = this.add
       .sprite(
         0 + borderPadding,
-        h - borderPadding - this.sortRank.width - 5,
+        h - borderPadding - this.sortRank.height * 3 - 5,
         "sort_suit",
         0
       )
@@ -72,88 +75,103 @@ class Play extends Phaser.Scene {
       fixedWidth: 0,
     };
 
-    //create bools
+    // Create bools
     this.turnValid = false;
     this.p1Turn = true;
     this.p2Turn = false;
     this.drawn = false;
+    // Variables to track if a player has drawn or placed cards
+    this.drawnCard = false;
+    this.placedCards = false;
 
-    //create hands
-    this.p1Hand;
-    this.p2Hand;
+    // Create hands
+    this.p1Hand = [];
+    this.p2Hand = [];
     this.cardsSelected = [];
     this.tableCards = [];
 
-    //create deck
+    // Create deck
     this.deck = this.createDeck();
     this.deck = this.shuffle(this.deck);
     console.log(this.deck);
 
-    //deal cards
+    // Deal cards
     this.dealCards();
 
-    //display cards in hand
+    // Display cards in hand
     this.displayHand();
 
-    //print deck
+    // Print deck
     console.log(this.deck);
 
-    // Make the end turn clickable
+    // Create validation box (hidden initially)
+    this.validationBox = this.add
+      .rectangle(centerX, centerY - 200, 200, 100, 0x00ff00)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setVisible(false);
+
+    // Handle validation box click
+    this.validationBox.on("pointerdown", () => {
+      this.handleValidPlay();
+    });
+
+    // Make the end turn button clickable
     this.endTurnButton.setInteractive();
 
     // Add pointerover event listener for hovering
     this.endTurnButton.on("pointerover", () => {
       console.log("Turn Valid: " + this.turnValid);
       console.log("end turn hover");
-      //change to hover frame
-      this.endTurnButton.setFrame(2, false);
+      // Change to hover frame
+      this.endTurnButton.setFrame(2);
     });
 
     // Add pointerout event listener for when hovering ends
     this.endTurnButton.on("pointerout", () => {
       console.log("end turn not hover");
-      //change to none hover frame
-      this.endTurnButton.setFrame(0, false);
+      // Change to none hover frame
+      this.endTurnButton.setFrame(0);
     });
 
     // Listen for pointerdown event on the card
     this.endTurnButton.on("pointerdown", () => {
       this.endTurn();
       console.log("end turn press");
-      //change to push frame
-      this.endTurnButton.setFrame(1, false);
-      //display cards in hand
+      // Change to push frame
+      this.endTurnButton.setFrame(1);
+      // Display cards in hand
       this.displayHand();
-      //display table
+      // Display table
       this.displayTable();
     });
 
-    // Make the restart clickable
+    // Make the restart button clickable
     this.restart.setInteractive();
 
     // Add pointerover event listener for hovering
     this.restart.on("pointerover", () => {
       console.log("restart hover");
-      //change to hover frame
-      this.restart.setFrame(2, false);
+      // Change to hover frame
+      this.restart.setFrame(2);
     });
 
     // Add pointerout event listener for when hovering ends
     this.restart.on("pointerout", () => {
       console.log("restart not hover");
-      //change to none hover frame
-      this.restart.setFrame(0, false);
+      // Change to none hover frame
+      this.restart.setFrame(0);
     });
 
     // Listen for pointerdown event on the card
     this.restart.on("pointerdown", () => {
       console.log("restart press");
       this.cardsSelected = [];
-      //change to push frame
-      this.restart.setFrame(1, false);
-      //display cards in hand
+      // Change to push frame
+      this.restart.setFrame(1);
+      // Display cards in hand
       this.displayHand();
-      //display table
+      // Display table
       this.displayTable();
     });
 
@@ -193,76 +211,79 @@ class Play extends Phaser.Scene {
       console.log("deckSprite clicked!");
       this.drawCard();
       this.turnValid = true;
-      //display cards in hand
+      // Display cards in hand
       this.displayHand();
-      //display table
+      // Display table
       this.displayTable();
     });
 
-    // Make the restart clickable
+    // Make the sortRank button clickable
     this.sortRank.setInteractive();
 
     // Add pointerover event listener for hovering
     this.sortRank.on("pointerover", () => {
       console.log("sortRank hover");
-      //change to hover frame
-      this.sortRank.setFrame(2, false);
+      // Change to hover frame
+      this.sortRank.setFrame(2);
     });
 
     // Add pointerout event listener for when hovering ends
     this.sortRank.on("pointerout", () => {
       console.log("sortRank not hover");
-      //change to none hover frame
-      this.sortRank.setFrame(0, false);
+      // Change to none hover frame
+      this.sortRank.setFrame(0);
     });
 
     // Listen for pointerdown event on the card
     this.sortRank.on("pointerdown", () => {
       this.sortRankHand();
       console.log("sortRank press");
-      //change to push frame
-      this.sortRank.setFrame(1, false);
-      //display cards in hand
+      // Change to push frame
+      this.sortRank.setFrame(1);
+      // Display cards in hand
       this.displayHand();
-      //display table
+      // Display table
       this.displayTable();
     });
 
-    // Make the restart clickable
+    // Make the sortSuit button clickable
     this.sortSuit.setInteractive();
 
     // Add pointerover event listener for hovering
     this.sortSuit.on("pointerover", () => {
       console.log("sortSuit hover");
-      //change to hover frame
-      this.sortSuit.setFrame(2, false);
+      // Change to hover frame
+      this.sortSuit.setFrame(2);
     });
 
     // Add pointerout event listener for when hovering ends
     this.sortSuit.on("pointerout", () => {
       console.log("sortSuit not hover");
-      //change to none hover frame
-      this.sortSuit.setFrame(0, false);
+      // Change to none hover frame
+      this.sortSuit.setFrame(0);
     });
 
     // Listen for pointerdown event on the card
     this.sortSuit.on("pointerdown", () => {
       this.sortSuitHand();
       console.log("sortSuit press");
-      //change to push frame
-      this.sortSuit.setFrame(1, false);
-      //display cards in hand
+      // Change to push frame
+      this.sortSuit.setFrame(1);
+      // Display cards in hand
       this.displayHand();
-      //display table
+      // Display table
       this.displayTable();
     });
+
+    // Display initial hand
+    this.displayHand();
   }
 
   update() {
-    //display Player turn
+    // Display Player turn
     this.displayTurn();
 
-    //if either hand is 0 transition to win scene
+    // If either hand is 0, transition to win scene
     if (this.p1Hand.length === 0) {
       this.scene.start("winScene", {
         p1Win: true,
@@ -290,641 +311,322 @@ class Play extends Phaser.Scene {
   // Shuffle function (Fisher-Yates shuffle)
   shuffle(deck) {
     for (let i = deck.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const temp = deck[i];
-      deck[i] = deck[j];
-      deck[j] = temp;
+      let j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
     }
     return deck;
   }
 
+  // Function to deal 7 cards to each player
   dealCards() {
-    this.p1Hand = [];
-    this.p2Hand = [];
-    for (let i = 0; i < 5; i++) {
-      // Deal cards alternately between players
-      this.p1Hand.push(this.deck.pop()); // Take a card from the top of the deck and add it to player 1's hand
-      this.p2Hand.push(this.deck.pop()); // Take a card from the top of the deck and add it to player 2's hand
-    }
-    console.log("Player 1's Hand:", this.p1Hand);
-    console.log("Player 2's Hand:", this.p2Hand);
-    // //add event listener
-    // this.addListener()
-  }
-
-  drawCard() {
-    // Menu config
-    let menuConfig = {
-      fontFamily: "PressStart2P",
-      fontSize: "20px",
-      backgroundColor: "#000000",
-      color: "#FFFFFF",
-      align: "center",
-      padding: {
-        top: 5,
-        bottom: 5,
-      },
-      fixedWidth: 0,
-    };
-
-    // Only can draw if not drawn
-    if (this.p1Turn && !this.drawn && !this.turnValid) {
-      if (this.deck.length > 0) {
-        // Check if the deck is not empty
-        this.p1Hand.push(this.deck.pop()); // Remove the top card from the deck and add it to player 1's hand
-        console.log("Player 1's Hand:", this.p1Hand);
-        this.drawn = true;
-        this.turnValid = true;
-      } else {
-        console.log("The deck is empty. Cannot draw more cards.");
-      }
-    } else if (this.p2Turn && !this.drawn && !this.turnValid) {
-      if (this.deck.length > 0) {
-        // Check if the deck is not empty
-        this.p2Hand.push(this.deck.pop()); // Remove the top card from the deck and add it to player 2's hand
-        console.log("Player 2's Hand:", this.p2Hand);
-        this.drawn = true;
-        this.turnValid = true;
-      } else {
-        console.log("The deck is empty. Cannot draw more cards.");
-      }
-    } else if (this.drawn) {
-      this.endText = this.add
-        .text(
-          centerX,
-          centerY,
-          "YOU HAVE ALREADY DRAWN\nYOU MUST END TURN",
-          menuConfig
-        )
-        .setOrigin(0.5, 0.5);
-      this.time.delayedCall(2000, () => {
-        this.tweens.add({
-          targets: this.endText,
-          alpha: 0,
-          duration: 500,
-          onComplete: () => {
-            this.endText.destroy(); // Destroy the text object after fading out
-          },
-        });
-      });
-    }
-
-    // //add event listener
-    // this.addListener()
-  }
-
-  sortRankHand() {
-    let hand = this.p1Turn ? this.p1Hand : this.p2Hand; // Select the current player's hand based on the turn
-    hand.sort((a, b) => {
-      if (a.card.rank !== b.card.rank) {
-        // If ranks are different, sort by rank
-        return this.getRankValue(a.card.rank) - this.getRankValue(b.card.rank);
-      } else {
-        // If ranks are the same, sort by suit in the order: diamond, spade, heart, club
-        const suitOrder = { diamond: 0, spade: 1, heart: 2, club: 3 };
-        return suitOrder[a.card.suit] - suitOrder[b.card.suit];
-      }
-    });
-    console.log("Sorted Hand by Rank:", hand);
-  }
-
-  sortSuitHand() {
-    let hand = this.p1Turn ? this.p1Hand : this.p2Hand; // Select the current player's hand based on the turn
-    hand.sort((a, b) => {
-      if (a.card.suit !== b.card.suit) {
-        // If suits are different, sort by suit in the order: diamond, spade, heart, club
-        const suitOrder = { diamond: 0, spade: 1, heart: 2, club: 3 };
-        return suitOrder[a.card.suit] - suitOrder[b.card.suit];
-      } else {
-        // If suits are the same, sort by rank
-        return this.getRankValue(a.card.rank) - this.getRankValue(b.card.rank);
-      }
-    });
-    console.log("Sorted Hand by Suit:", hand);
-  }
-
-  getRankValue(rank) {
-    // Return numerical value for rank, starting from 2 to A
-    const rankOrder = {
-      2: 0,
-      3: 1,
-      4: 2,
-      5: 3,
-      6: 4,
-      7: 5,
-      8: 6,
-      9: 7,
-      10: 8,
-      J: 9,
-      Q: 10,
-      K: 11,
-      A: 12,
-    };
-    return rankOrder[rank];
-  }
-
-  displayTurn() {
-    // Menu config
-    let menuConfig = {
-      fontFamily: "PressStart2P",
-      fontSize: "20px",
-      backgroundColor: "#000000",
-      color: "#FFFFFF",
-      align: "center",
-      padding: {
-        top: 5,
-        bottom: 5,
-      },
-      fixedWidth: 0,
-    };
-    if (this.p1Turn) {
-      //display text
-      this.add
-        .text(centerX, 0 + borderPadding, "PLAYER 1 TURN", menuConfig)
-        .setOrigin(0.5, 0);
-    } else if (this.p2Turn) {
-      //display text
-      this.add
-        .text(centerX, 0 + borderPadding, "PLAYER 2 TURN", menuConfig)
-        .setOrigin(0.5, 0);
+    for (let i = 0; i < 7; i++) {
+      this.p1Hand.push(this.deck.pop());
+      this.p2Hand.push(this.deck.pop());
     }
   }
 
-  endTurn() {
-    // Menu config
-    let menuConfig = {
-      fontFamily: "PressStart2P",
-      fontSize: "20px",
-      backgroundColor: "#000000",
-      color: "#FFFFFF",
-      align: "center",
-      padding: {
-        top: 5,
-        bottom: 5,
-      },
-      fixedWidth: 0,
-    };
+// Function to display the current player's hand
+displayHand() {
+  const minX = 200;
+  const maxX = 1450;
+  const cardWidth = 75; // Width of each card sprite
+  const borderUISize = -25;
 
-    if (this.turnValid) {
-      //switch turn
-      if (this.p1Turn) {
-        this.p1Turn = false;
-        this.p2Turn = true;
-        this.drawn = false;
-        this.turnValid = false;
-        this.p1Hand.forEach((cardObject) => {
-          if (cardObject.sprite) {
-            cardObject.sprite.destroy();
-          }
-        });
-      } else if (this.p2Turn) {
-        this.p2Turn = false;
-        this.p1Turn = true;
-        this.drawn = false;
-        this.turnValid = false;
-        this.p2Hand.forEach((cardObject) => {
-          if (cardObject.sprite) {
-            cardObject.sprite.destroy();
-          }
-        });
-      }
-    } else {
-      if (this.invalidText) {
-        this.invalidText.destroy(); // Destroy the text object
-      }
-      this.invalidText = this.add
-        .text(centerX, centerY, "INVALID TURN", menuConfig)
-        .setOrigin(0.5, 0.5);
-      this.time.delayedCall(2000, () => {
-        this.tweens.add({
-          targets: this.invalidText,
-          alpha: 0,
-          duration: 500,
-          onComplete: () => {
-            this.invalidText.destroy(); // Destroy the text object after fading out
-          },
-        });
-      });
-    }
+  // Determine the current hand
+  const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
+
+  // Clear existing cards in handSelected
+  this.handSelected.forEach((card) => {
+    card.destroy();
+  });
+
+  // Calculate total width of the hand
+  const totalHandWidth = currentHand.length * cardWidth;
+
+  // Adjust spacing if cards would exceed the bounds
+  let spacing = cardWidth;
+  if (totalHandWidth > (maxX - minX)) {
+    spacing = (maxX - minX) / currentHand.length;
   }
 
-  displayHand() {
-    var hand = this.p1Turn ? this.p1Hand : this.p2Hand; // Select the current player's hand based on the turn
-    const startX = this.sortRank.x + this.sortRank.width * 3; // Starting X position for the first card
-    const minVisibleWidth = 10; // Minimum width visible for each card
+  // Calculate starting x position to center the hand
+  let startX = (this.scale.width - (currentHand.length - 1) * spacing) / 2;
 
-    // Remove any existing card sprites
-    hand.forEach((cardObject) => {
-      if (cardObject.sprite) {
-        cardObject.sprite.destroy();
-      }
+  // Display current player's hand
+  this.handSelected = [];
+  for (let i = 0; i < currentHand.length; i++) {
+    // Calculate position based on adjusted spacing
+    let xPosition = startX + i * spacing;
+    let frameIndex = suits.indexOf(currentHand[i].card.suit) * 13 + ranks.indexOf(currentHand[i].card.rank);
+    let cardSprite = this.add
+      .sprite(xPosition, h - borderUISize * 2, "card_deck", frameIndex)
+      .setOrigin(0.5, 1)
+      .setScale(2)
+      .setInteractive();
+
+    // Add click event listener to the card
+    cardSprite.on("pointerdown", () => {
+      console.log("Card selected: ", currentHand[i].card);
+      this.selectCard(i, this.p1Turn ? "p1Hand" : "p2Hand", cardSprite);
     });
 
-    // Calculate the total width taken by the cards
-    const totalCardWidth = hand.length * minVisibleWidth;
-
-    // Calculate the available space between startX and endX
-    const availableSpace = this.endTurnButton.x - 250 - startX;
-
-    // Calculate the number of spaces between the cards
-    const numSpaces = hand.length - 1;
-
-    // Calculate the card spacing
-    let cardSpacing = 0;
-    if (numSpaces > 0) {
-      cardSpacing = (availableSpace - totalCardWidth) / numSpaces;
-    }
-
-    // Ensure that card spacing is not less than minVisibleWidth
-    cardSpacing = Math.max(cardSpacing, minVisibleWidth);
-
-    let x = startX;
-
-    // Loop through each card in the hand and create a sprite for it
-    hand.forEach((cardObject) => {
-      const cardIndex = this.getCardFrameIndex(cardObject);
-      cardObject.sprite = this.add
-        .sprite(x, this.scale.height - borderPadding, "card_deck", cardIndex)
-        .setOrigin(0, 0.5)
-        .setScale(2);
-      this.handHeight = this.scale.height - borderPadding;
-      this.selectHeight = this.handHeight - 92;
-
-      // Update the position of the next card
-      x += minVisibleWidth + cardSpacing;
-    });
-
-    this.addListener(hand);
-
-    console.log(hand);
+    this.handSelected.push(cardSprite);
   }
+}
 
+
+  // Function to display table cards
   displayTable() {
-    const startX = 80;
-    const startY = 40;
-    const verticalSpacing = 50;
-    const horizontalSpacing = 150;
-    const maxRowWidth = 10; // Maximum number of arrays in a row
-
-    let currentX = startX;
-    let currentY = startY;
-    let rowWidth = 0;
-    let rowMult = 1;
-
-    this.tableCards.forEach((array) => {
-      array.forEach((object) => {
-        const cardIndex = this.getCardFrameIndex(object);
-        object.sprite = this.add
-          .sprite(currentX, currentY, "card_deck", cardIndex)
-          .setOrigin(0.5, 0)
-          .setScale(2);
-        object.table = true;
-        currentY += verticalSpacing;
-      });
-
-      currentY = startY * rowMult; // reset y position
-      currentX += horizontalSpacing; // Move to the next column
-      rowWidth++;
-      if (rowWidth === maxRowWidth) {
-        rowMult += 7;
-        currentX = startX; // Reset y position
-        currentY = startY * rowMult; // reset y position
-        rowWidth = 0; // Reset row width counter
-      }
-      this.addListener(array);
-    });
-
     console.log(this.tableCards);
   }
 
-  getCardFrameIndex(cardObject) {
-    console.log(cardObject);
-    const suitOrder = ["diamond", "spade", "heart", "club"];
-    const rankOrder = [
-      "A",
-      "2",
-      "3",
-      "4",
-      "5",
-      "6",
-      "7",
-      "8",
-      "9",
-      "10",
-      "J",
-      "Q",
-      "K",
-    ];
-    const suitIndex = suitOrder.indexOf(cardObject.card.suit);
-    const rankIndex = rankOrder.indexOf(cardObject.card.rank);
-    return suitIndex * 13 + rankIndex; // Each suit has 13 cards in the sprite sheet
-  }
-
-  addListener(cardArray) {
-    console.log("add listeners");
-    if (cardArray) {
-      console.log(cardArray);
-      // Remove any existing event listeners
-      this.removeListeners(cardArray);
-
-      cardArray.forEach((cardObject) => {
-        const cardSprite = cardObject.sprite;
-        if (cardSprite != null) {
-          // Make the card sprite interactive
-          cardSprite.setInteractive({ draggable: true });
-
-          // // Listen for drag events on the card
-          // cardSprite.on('drag', (pointer, dragX, dragY) => {
-          //     cardSprite.x = dragX
-          //     cardSprite.y = dragY
-
-          //     // Check if the dragged card is within 1 pixel of another card sprite
-          //     hand.forEach(otherCardObject => {
-          //         const otherCardSprite = otherCardObject.sprite
-          //         if (otherCardSprite !== cardSprite) {
-          //             const distance = Phaser.Math.Distance.Between(cardSprite.x, cardSprite.y, otherCardSprite.x, otherCardSprite.y)
-          //             //console.log('Distance:', distance)
-          //             if (distance <= 50) {
-          //                 // Snap the dragged card to the position of the other card
-          //                 console.log("card snapped")
-          //                 cardSprite.x = otherCardSprite.x
-          //                 cardSprite.y = otherCardSprite.y + 50
-          //                 cardObject.snapped = true
-          //                 otherCardObject.snapped = true
-
-          //                 // Check if the combination is valid
-          //                 const combinationValid = this.checkCombinationValidity()
-          //                 if (combinationValid) {
-          //                     // Flash the cards green if the combination is valid
-          //                     this.flashCard(cardSprite, 0x00FF00)
-          //                     this.flashCard(otherCardSprite, 0x00FF00)
-
-          //                 } else {
-          //                     // Flash the cards red if the combination is not valid
-          //                     this.flashCard(cardSprite, 0xFF0000)
-          //                     this.flashCard(otherCardSprite, 0xFF0000)
-          //                 }
-          //             }
-          //         }
-          //     })
-          // })
-
-          // // Listen for dragend event on the card
-          // cardSprite.on('dragend', () => {
-          //     // Perform any necessary actions when the drag ends
-          //     // For example, check if the dropped card forms a valid combination on the table
-          //     // and handle placing it accordingly
-          // })
-
-          // Add pointerover event listener for hovering
-          cardSprite.on("pointerover", () => {
-            console.log("Card hovered:", cardObject.card);
-            // Add hover effects here
-            // Scale the card slightly larger
-            // this.tweens.add({
-            //     targets: cardObject.sprite,
-            //     y: cardObject.sprite.y - 92,
-            //     duration: 200,
-            //     ease: 'Linear'
-            // })
-          });
-
-          // Add pointerout event listener for when hovering ends
-          cardSprite.on("pointerout", () => {
-            console.log("Card not hovered:", cardObject.card);
-            // Remove hover effects here
-            // this.tweens.add({
-            //     targets: cardObject.sprite,
-            //     y: cardObject.sprite.y + 92,
-            //     duration: 200,
-            //     ease: 'Linear'
-            // })
-          });
-
-          // Listen for pointerdown event on the card
-          cardSprite.on("pointerdown", () => {
-            console.log("Card clicked:", cardObject.card);
-            if (cardObject.table === false) {
-              // Add click functionality here
-              if (!this.cardsSelected.includes(cardObject)) {
-                // Scale the card slightly larger
-                this.tweens.add({
-                  targets: cardObject.sprite,
-                  y: this.selectHeight,
-                  duration: 200,
-                  ease: "Linear",
-                });
-                this.cardsSelected.push(cardObject);
-                this.checkCardsSelected();
-              }
-            } else if (cardObject.table === true) {
-              // Add click functionality here
-
-              cardObject.table = false;
-              if (this.p1Turn) {
-                this.p1Hand.push(cardObject);
-              } else if (this.p2Turn) {
-                this.p2Hand.push(cardObject);
-              }
-              cardArray.splice(cardObject, 1);
-              this.turnValid = false;
-              this.displayHand();
-              this.displayTable();
-            }
-          });
-
-          console.log(cardArray);
-        }
-      });
+// Function to draw a card from the deck
+drawCard() {
+  if (this.deck.length > 0 && !this.drawnCard && !this.placedCards) {
+    if (this.p1Turn) {
+      this.p1Hand.push(this.deck.pop());
+    } else {
+      this.p2Hand.push(this.deck.pop());
     }
+    this.drawnCard = true;
+    this.turnValid = true;
+  } else if (this.drawnCard) {
+    console.log("You can only draw once per turn.");
+  } else if (this.placedCards) {
+    console.log("You cannot draw cards after placing cards.");
+  }
+}
+
+// Function to check if a group of cards is valid
+checkValidGroup(cards = []) {
+  if (cards.length < 3) {
+    return false;
   }
 
-  checkCardsSelected() {
-    var hand = this.p1Turn ? this.p1Hand : this.p2Hand; // Select the current player's hand based on the turn
-    console.log(this.cardsSelected);
-    if (this.cardsSelected.length > 2) {
-      // Check if the combination is valid
-      const rankValidity = this.checkSameRankAlternatingSuits(
-        this.cardsSelected
-      );
-      const suitValidity = this.checkAscendingDescendingSameSuit(
-        this.cardsSelected
-      );
-      this.cardsSelected.forEach((cardObject) => {
-        if (rankValidity || suitValidity) {
-          //add bool for table cards
-          cardObject.table = true;
-          // Flash the cards green if the combination is valid
-          this.flashCard(cardObject.sprite, 0x00ff00);
+  // Check for sandwiching suits of the same rank
+  const ranks = cards.map(card => card.card.rank);
+  const suits = cards.map(card => card.card.suit);
+  const uniqueRanks = new Set(ranks);
+  const uniqueSuits = new Set(suits);
+
+  if (uniqueRanks.size === 1 && uniqueSuits.size === cards.length) {
+    return true;
+  }
+
+  // Check for ascending rank same suit
+  if (uniqueSuits.size === 1) {
+    const sortedRanks = cards
+      .map(card => ranks.indexOf(card.card.rank))
+      .sort((a, b) => a - b);
+
+    for (let i = 1; i < sortedRanks.length; i++) {
+      if (sortedRanks[i] !== sortedRanks[i - 1] + 1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
+// Function to display table cards
+displayTable() {
+  console.log(this.tableCards);
+  // Clear previous table card containers
+  if (this.tableSprites) {
+    this.tableSprites.forEach((group) => {
+      group.destroy();
+    });
+  }
+  this.tableSprites = [];
+
+  this.tableCards.forEach((group, groupIndex) => {
+    this.displayTableGroup(group, groupIndex);
+  });
+}
+
+// Function to display a group of cards on the table
+displayTableGroup(group, groupIndex) {
+  let groupContainer = this.add.container(100 + groupIndex * 200, 100);
+
+  group.forEach((card, cardIndex) => {
+    let frameIndex = suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
+    let cardSprite = this.add
+      .sprite(cardIndex * 50, 0, "card_deck", frameIndex)
+      .setOrigin(0.5)
+      .setScale(2)
+      .setInteractive();
+
+    // Add click event listener to the card in the table group
+    cardSprite.on("pointerdown", () => {
+      console.log("Card clicked on table: ", card.card);
+      if (this.cardsSelected.length > 0 && !card.selected) {
+        const selectedCard = this.cardsSelected.pop();
+        if (this.addToGroup(selectedCard, groupIndex)) {
+          this.p1Turn ? this.p1Hand : this.p2Hand = this.p1Turn ? this.p1Hand.filter(c => c !== selectedCard) : this.p2Hand.filter(c => c !== selectedCard);
+          this.displayHand();
         } else {
-          this.tweens.add({
-            targets: cardObject.sprite,
-            y: this.handHeight,
-            duration: 200,
-            ease: "Linear",
-          });
-          // Flash the cards red if the combination is not valid
-          this.flashCard(cardObject.sprite, 0xff0000);
+          this.cardsSelected.push(selectedCard); // Re-add the card if adding to group fails
         }
-      });
-      console.log(this.tableCards);
-      if (rankValidity || suitValidity) {
-        //remove the cards from player hand as well as hand
-        this.tableCards.push(this.cardsSelected);
-
-        // Remove sprites from the screen for the cards in this.cardsSelected
-        this.cardsSelected.forEach((selectedCardObject) => {
-          const selectedSprite = selectedCardObject.sprite;
-          // Find the corresponding card in hand and remove its sprite
-          const matchingCardObject = hand.find(
-            (cardObject) => cardObject.card === selectedCardObject.card
-          );
-          if (matchingCardObject) {
-            matchingCardObject.sprite.destroy(); // Remove sprite from the screen
-          }
-        });
-        // Remove selected cards from hand based on reference comparison
-        hand = hand.filter(
-          (cardObject) => !this.cardsSelected.includes(cardObject)
-        );
-
-        if (this.p1Turn) {
-          // Remove selected cards from hand based on reference comparison
-          this.p1Hand = this.p1Hand.filter(
-            (card) =>
-              !this.cardsSelected.some(
-                (selectedCardObject) => selectedCardObject.card === card
-              )
-          );
-        } else if (this.p2Turn) {
-          // Remove selected cards from hand based on reference comparison
-          this.p2Hand = this.p2Hand.filter(
-            (card) =>
-              !this.cardsSelected.some(
-                (selectedCardObject) => selectedCardObject.card === card
-              )
-          );
-        }
-
-        this.turnValid = true;
-        console.log(this.cardsSelected, hand);
-      }
-      this.cardsSelected = [];
-      //display table
-      this.displayTable();
-    }
-  }
-
-  removeListeners(cardArray) {
-    console.log("remove listeners");
-    // Remove event listeners for each card in hand
-
-    cardArray.forEach((cardObject) => {
-      if (cardObject.sprite != null) {
-        const cardSprite = cardObject.sprite;
-        cardSprite.removeAllListeners("pointerover");
-        cardSprite.removeAllListeners("pointerout");
-        cardSprite.removeAllListeners("pointerdown");
-      }
-    });
-  }
-
-  checkCombinationValidity(cardArray) {
-    const snappedCards = [];
-    // Collect all snapped cards
-    // Collect all snapped cards
-    cardArray.forEach((cardObject) => {
-      if (cardObject.snapped) {
-        snappedCards.push(cardObject);
       }
     });
 
-    console.log(snappedCards);
+    groupContainer.add(cardSprite);
+  });
 
-    // Check if at least three cards are snapped together
-    if (snappedCards.length < 3) {
-      // Combination not valid if less than 3 cards are snapped together
-      return false;
-    }
+  // Add the container to the display list and make it draggable
+  this.add.existing(groupContainer);
+  groupContainer.setInteractive(new Phaser.Geom.Rectangle(0, 0, groupContainer.width, groupContainer.height), Phaser.Geom.Rectangle.Contains);
+  this.input.setDraggable(groupContainer);
 
-    // Check for same rank and alternating suits
-    if (this.checkSameRankAlternatingSuits(snappedCards)) {
-      return true;
-    }
+  // Handle drag event
+  groupContainer.on('drag', (pointer, dragX, dragY) => {
+    groupContainer.x = dragX;
+    groupContainer.y = dragY;
+  });
 
-    // Check for ascending or descending numbers with the same suit
-    if (this.checkAscendingDescendingSameSuit(snappedCards)) {
-      return true;
-    }
+  this.tableSprites.push(groupContainer);
+}
 
-    return false;
+// Function to handle valid play
+handleValidPlay() {
+  // Remove selected cards from player's hand and push to table array
+  if (this.p1Turn) {
+    this.p1Hand = this.p1Hand.filter(card => !this.cardsSelected.includes(card));
+  } else {
+    this.p2Hand = this.p2Hand.filter(card => !this.cardsSelected.includes(card));
   }
 
-  checkSameRankAlternatingSuits(cards) {
-    // Check for same rank and alternating suits
-    const ranks = new Set(cards.map((cardObject) => cardObject.card.rank));
-    if (ranks.size === 1) {
-      // Same rank
-      const suits = new Set(cards.map((cardObject) => cardObject.card.suit));
-      if (suits.size === cards.length) {
-        // Alternating suits
-        return true;
-      }
-    }
-    return false;
-  }
+  this.tableCards.push([...this.cardsSelected]);
+  this.displayTable();
 
-  checkAscendingDescendingSameSuit(cards) {
-    const rankOrder = [
-      "2",
-      "3",
-      "4",
-      "5",
-      "6",
-      "7",
-      "8",
-      "9",
-      "10",
-      "J",
-      "Q",
-      "K",
-      "A",
-    ];
-    const sortedCards = cards
-      .map((cardObject) => cardObject.card)
-      .sort((a, b) => {
-        return rankOrder.indexOf(a.rank) - rankOrder.indexOf(b.rank);
-      });
+  // Reset selected cards array and hide validation box
+  this.cardsSelected.forEach(card => card.selected = false);
+  this.cardsSelected = [];
+  this.validationBox.setVisible(false);
 
-    const firstSuit = sortedCards[0].suit;
-    let isAscending = true;
-    let isDescending = true;
+  // Update hand display
+  this.displayHand();
 
-    for (let i = 1; i < sortedCards.length; i++) {
-      if (sortedCards[i].suit !== firstSuit) {
-        return false; // Not same suit
-      }
-      const currentRankIndex = rankOrder.indexOf(sortedCards[i].rank);
-      const prevRankIndex = rankOrder.indexOf(sortedCards[i - 1].rank);
-      if (currentRankIndex !== prevRankIndex + 1) {
-        isAscending = false;
-      }
-      if (currentRankIndex !== prevRankIndex - 1) {
-        isDescending = false;
-      }
-    }
+  // Mark that the player has placed cards
+  this.placedCards = true;
+}
 
-    return isAscending || isDescending;
-  }
-
-  flashCard(cardSprite, color) {
-    cardSprite.setTint(color);
-    this.time.delayedCall(500, () => {
-      cardSprite.clearTint();
-    });
-  }
-
-  resetCardColor(cardSprite) {
+// Function to select a card
+selectCard(index, hand, cardSprite) {
+  if (this[hand][index].selected) {
+    // Deselect the card
+    this[hand][index].selected = false;
+    this.cardsSelected = this.cardsSelected.filter(
+      (card) => card !== this[hand][index]
+    );
+    // Remove tint and move card back to original position
     cardSprite.clearTint();
+    this.tweens.add({
+      targets: cardSprite,
+      y: cardSprite.y + 50,
+      duration: 200,
+      ease: "Linear",
+    });
+  } else {
+    // Select the card
+    this[hand][index].selected = true;
+    this.cardsSelected.push(this[hand][index]);
+    // Add green tint and move card up
+    cardSprite.setTint(0x00ff00);
+    this.tweens.add({
+      targets: cardSprite,
+      y: cardSprite.y - 50,
+      duration: 200,
+      ease: "Linear",
+    });
+    console.log(this.cardsSelected);
   }
+
+  // Check if selected cards form a valid group
+  if (this.cardsSelected.length >= 3) {
+    const isValidGroup = this.checkValidGroup(this.cardsSelected);
+    console.log(`Is valid group: ${isValidGroup}`);
+    // Show or hide validation box based on validity of group
+    this.validationBox.setVisible(isValidGroup);
+  } else {
+    this.validationBox.setVisible(false);
+  }
+}
+
+// Function to handle end turn
+endTurn() {
+  if (this.turnValid) {
+    this.p1Turn = !this.p1Turn;
+    this.turnValid = false;
+    this.drawnCard = false;
+    this.placedCards = false;
+    this.validationBox.setVisible(false);
+  } else {
+    console.log("You must complete a valid action before ending your turn.");
+  }
+}
+
+  // Function to sort hand by rank
+  sortRankHand() {
+    if (this.p1Turn) {
+      this.p1Hand.sort(
+        (a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank)
+      );
+    } else {
+      this.p2Hand.sort(
+        (a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank)
+      );
+    }
+  }
+
+  // Function to sort hand by suit
+  sortSuitHand() {
+    if (this.p1Turn) {
+      this.p1Hand.sort(
+        (a, b) => suits.indexOf(a.card.suit) - suits.indexOf(b.card.suit)
+      );
+    } else {
+      this.p2Hand.sort(
+        (a, b) => suits.indexOf(a.card.suit) - suits.indexOf(b.card.suit)
+      );
+    }
+  }
+
+  // Function to display current player's turn
+  displayTurn() {
+    // Display current turn
+    let turnText = this.p1Turn ? "Player 1's Turn" : "Player 2's Turn";
+    console.log(turnText);
+  }
+
+  // Function to handle invalid groups
+checkTableValidity() {
+  let allValid = true;
+  this.tableSprites.forEach((groupContainer, groupIndex) => {
+    const group = this.tableCards[groupIndex];
+    const isValid = this.checkValidGroup(group);
+    groupContainer.list.forEach(cardSprite => {
+      cardSprite.setTint(isValid ? 0xffffff : 0xff0000); // Set tint to red if invalid
+    });
+    if (!isValid) allValid = false;
+  });
+  this.turnValid = allValid;
+}
+
+
+// Function to add a card to a group on the table
+addToGroup(card, groupIndex) {
+  const group = this.tableCards[groupIndex];
+  const isValid = this.checkValidGroup([...group, card]);
+  if (isValid) {
+    group.push(card);
+    this.tableCards[groupIndex] = group;
+    this.displayTable();
+    this.checkTableValidity();
+    return true;
+  }
+  return false;
+}
 }
