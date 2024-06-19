@@ -163,9 +163,10 @@ class Play extends Phaser.Scene {
       this.restart.setFrame(0);
     });
 
-    // Listen for pointerdown event on the card
+    // Function to handle restart button click
     this.restart.on("pointerdown", () => {
       console.log("restart press");
+      this.resetHandToTable();
       this.cardsSelected = [];
       // Change to push frame
       this.restart.setFrame(1);
@@ -489,19 +490,11 @@ class Play extends Phaser.Scene {
       // Add click event listener to the card in the table group
       cardSprite.on("pointerdown", () => {
         console.log("Card clicked on table: ", card.card);
-        if (this.cardsSelected.length > 0 && !card.selected) {
-          const selectedCard = this.cardsSelected.pop();
-          if (this.addToGroup(selectedCard, groupIndex)) {
-            this.p1Turn
-              ? this.p1Hand
-              : (this.p2Hand = this.p1Turn
-                  ? this.p1Hand.filter((c) => c !== selectedCard)
-                  : this.p2Hand.filter((c) => c !== selectedCard));
-            this.displayHand();
-          } else {
-            this.cardsSelected.push(selectedCard); // Re-add the card if adding to group fails
-          }
+        if (this.drawnCard) {
+          console.log("You cannot select cards after drawing. End your turn.");
+          return;
         }
+        this.addToHand(card, groupIndex);
       });
 
       groupContainer.add(cardSprite);
@@ -509,6 +502,7 @@ class Play extends Phaser.Scene {
 
     // Add the container to the display list and make it draggable
     this.add.existing(groupContainer);
+    groupContainer.setSize(groupContainer.width, groupContainer.height); // Set the size for dragging
     groupContainer.setInteractive(
       new Phaser.Geom.Rectangle(
         0,
@@ -606,7 +600,7 @@ class Play extends Phaser.Scene {
 
   // Function to handle end turn
   endTurn() {
-    if (this.turnValid) {
+    if (this.turnValid && !this.cardsSelected.some((card) => !card.table)) {
       this.p1Turn = !this.p1Turn;
       this.turnValid = false;
       this.drawnCard = false;
@@ -679,5 +673,112 @@ class Play extends Phaser.Scene {
       return true;
     }
     return false;
+  }
+
+  // Function to add a card from the table to the player's hand
+  addToHand(card, groupIndex) {
+    const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
+    const group = this.tableCards[groupIndex];
+    const cardIndex = group.indexOf(card);
+
+    if (cardIndex !== -1) {
+      group.splice(cardIndex, 1);
+      currentHand.push(card);
+      this.turnValid = false; // Prevent ending the turn
+      this.displayHand();
+      this.displayTable();
+      this.checkTableValidity();
+    }
+  }
+
+  // Function to check if selected cards form a valid group
+  checkCardsSelected() {
+    var hand = this.p1Turn ? this.p1Hand : this.p2Hand; // Select the current player's hand based on the turn
+    console.log(this.cardsSelected);
+    if (this.cardsSelected.length >= 3) {
+      // Check if the combination is valid
+      const isValidGroup = this.checkValidGroup(this.cardsSelected);
+      this.cardsSelected.forEach((cardObject) => {
+        if (isValidGroup) {
+          // Add bool for table cards
+          cardObject.table = true;
+          // Flash the cards green if the combination is valid
+          this.flashCard(cardObject.sprite, 0x00ff00);
+        } else {
+          this.tweens.add({
+            targets: cardObject.sprite,
+            y: this.handHeight,
+            duration: 200,
+            ease: "Linear",
+          });
+          // Flash the cards red if the combination is not valid
+          this.flashCard(cardObject.sprite, 0xff0000);
+        }
+      });
+
+      if (isValidGroup) {
+        // Remove the cards from player hand as well as hand
+        this.tableCards.push(this.cardsSelected);
+
+        // Remove selected cards from hand based on reference comparison
+        if (this.p1Turn) {
+          this.p1Hand = this.p1Hand.filter(
+            (card) =>
+              !this.cardsSelected.some(
+                (selectedCardObject) => selectedCardObject.card === card
+              )
+          );
+        } else if (this.p2Turn) {
+          this.p2Hand = this.p2Hand.filter(
+            (card) =>
+              !this.cardsSelected.some(
+                (selectedCardObject) => selectedCardObject.card === card
+              )
+          );
+        }
+
+        this.turnValid = true;
+        console.log(this.cardsSelected, hand);
+      }
+
+      this.cardsSelected = [];
+      // Display table
+      this.displayTable();
+    }
+  }
+
+  // Function to reset hand to table
+  resetHandToTable() {
+    const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
+
+    // Iterate through the player's hand
+    for (let i = currentHand.length - 1; i >= 0; i--) {
+      const card = currentHand[i];
+      if (card.table) {
+        // Find the original group on the table where the card belongs
+        let groupIndex = -1;
+        for (let j = 0; j < this.tableCards.length; j++) {
+          const group = this.tableCards[j];
+          if (group.includes(card)) {
+            groupIndex = j;
+            break;
+          }
+        }
+        if (groupIndex !== -1) {
+          this.tableCards[groupIndex].push(card);
+        } else {
+          this.tableCards.push([card]);
+        }
+        currentHand.splice(i, 1); // Remove the card from the player's hand
+      }
+    }
+
+    // Clear all selected cards
+    this.cardsSelected.forEach((cardObject) => {
+      if (cardObject.sprite) {
+        cardObject.sprite.clearTint(); // Remove tint
+      }
+    });
+    this.cardsSelected = [];
   }
 }
