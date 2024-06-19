@@ -374,12 +374,6 @@ displayHand() {
   }
 }
 
-
-  // Function to display table cards
-  displayTable() {
-    console.log(this.tableCards);
-  }
-
 // Function to draw a card from the deck
 drawCard() {
   if (this.deck.length > 0 && !this.drawnCard && !this.placedCards) {
@@ -390,10 +384,42 @@ drawCard() {
     }
     this.drawnCard = true;
     this.turnValid = true;
+
+    // Disable card selection after drawing a card
+    this.disableCardInteractivity();
   } else if (this.drawnCard) {
     console.log("You can only draw once per turn.");
   } else if (this.placedCards) {
     console.log("You cannot draw cards after placing cards.");
+  }
+}
+
+// Function to disable card interactivity
+disableCardInteractivity() {
+  this.handSelected.forEach((cardSprite) => {
+    cardSprite.disableInteractive();
+  });
+  if(this.tableSprites){
+    this.tableSprites.forEach((groupContainer) => {
+      groupContainer.list.forEach((cardSprite) => {
+        cardSprite.disableInteractive();
+      });
+    });
+  }
+  
+}
+
+// Function to enable card interactivity
+enableCardInteractivity() {
+  this.handSelected.forEach((cardSprite) => {
+    cardSprite.setInteractive();
+  });
+  if(this.tableSprites){
+    this.tableSprites.forEach((groupContainer) => {
+      groupContainer.list.forEach((cardSprite) => {
+        cardSprite.setInteractive();
+      });
+    });
   }
 }
 
@@ -515,6 +541,11 @@ handleValidPlay() {
 
 // Function to select a card
 selectCard(index, hand, cardSprite) {
+  if (this.drawnCard) {
+    console.log("You cannot select cards after drawing. End your turn.");
+    return;
+  }
+
   if (this[hand][index].selected) {
     // Deselect the card
     this[hand][index].selected = false;
@@ -563,6 +594,9 @@ endTurn() {
     this.drawnCard = false;
     this.placedCards = false;
     this.validationBox.setVisible(false);
+
+    // Enable card selection at the start of the next turn
+    this.enableCardInteractivity();
   } else {
     console.log("You must complete a valid action before ending your turn.");
   }
