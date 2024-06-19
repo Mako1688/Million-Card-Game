@@ -325,282 +325,300 @@ class Play extends Phaser.Scene {
     }
   }
 
-// Function to display the current player's hand
-displayHand() {
-  const minX = 200;
-  const maxX = 1450;
-  const cardWidth = 75; // Width of each card sprite
-  const borderUISize = -25;
+  // Function to display the current player's hand
+  displayHand() {
+    const minX = 200;
+    const maxX = 1450;
+    const cardWidth = 75; // Width of each card sprite
+    const borderUISize = -25;
 
-  // Determine the current hand
-  const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
+    // Determine the current hand
+    const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
 
-  // Clear existing cards in handSelected
-  this.handSelected.forEach((card) => {
-    card.destroy();
-  });
-
-  // Calculate total width of the hand
-  const totalHandWidth = currentHand.length * cardWidth;
-
-  // Adjust spacing if cards would exceed the bounds
-  let spacing = cardWidth;
-  if (totalHandWidth > (maxX - minX)) {
-    spacing = (maxX - minX) / currentHand.length;
-  }
-
-  // Calculate starting x position to center the hand
-  let startX = (this.scale.width - (currentHand.length - 1) * spacing) / 2;
-
-  // Display current player's hand
-  this.handSelected = [];
-  for (let i = 0; i < currentHand.length; i++) {
-    // Calculate position based on adjusted spacing
-    let xPosition = startX + i * spacing;
-    let frameIndex = suits.indexOf(currentHand[i].card.suit) * 13 + ranks.indexOf(currentHand[i].card.rank);
-    let cardSprite = this.add
-      .sprite(xPosition, h - borderUISize * 2, "card_deck", frameIndex)
-      .setOrigin(0.5, 1)
-      .setScale(2)
-      .setInteractive();
-
-    // Add click event listener to the card
-    cardSprite.on("pointerdown", () => {
-      console.log("Card selected: ", currentHand[i].card);
-      this.selectCard(i, this.p1Turn ? "p1Hand" : "p2Hand", cardSprite);
+    // Clear existing cards in handSelected
+    this.handSelected.forEach((card) => {
+      card.destroy();
     });
 
-    this.handSelected.push(cardSprite);
-  }
-}
+    // Calculate total width of the hand
+    const totalHandWidth = currentHand.length * cardWidth;
 
-// Function to draw a card from the deck
-drawCard() {
-  if (this.deck.length > 0 && !this.drawnCard && !this.placedCards) {
-    if (this.p1Turn) {
-      this.p1Hand.push(this.deck.pop());
-    } else {
-      this.p2Hand.push(this.deck.pop());
+    // Adjust spacing if cards would exceed the bounds
+    let spacing = cardWidth;
+    if (totalHandWidth > maxX - minX) {
+      spacing = (maxX - minX) / currentHand.length;
     }
-    this.drawnCard = true;
-    this.turnValid = true;
 
-    // Disable card selection after drawing a card
-    this.disableCardInteractivity();
-  } else if (this.drawnCard) {
-    console.log("You can only draw once per turn.");
-  } else if (this.placedCards) {
-    console.log("You cannot draw cards after placing cards.");
-  }
-}
+    // Calculate starting x position to center the hand
+    let startX = (this.scale.width - (currentHand.length - 1) * spacing) / 2;
 
-// Function to disable card interactivity
-disableCardInteractivity() {
-  this.handSelected.forEach((cardSprite) => {
-    cardSprite.disableInteractive();
-  });
-  if(this.tableSprites){
-    this.tableSprites.forEach((groupContainer) => {
-      groupContainer.list.forEach((cardSprite) => {
-        cardSprite.disableInteractive();
+    // Display current player's hand
+    this.handSelected = [];
+    for (let i = 0; i < currentHand.length; i++) {
+      // Calculate position based on adjusted spacing
+      let xPosition = startX + i * spacing;
+      let frameIndex =
+        suits.indexOf(currentHand[i].card.suit) * 13 +
+        ranks.indexOf(currentHand[i].card.rank);
+      let cardSprite = this.add
+        .sprite(xPosition, h - borderUISize * 2, "card_deck", frameIndex)
+        .setOrigin(0.5, 1)
+        .setScale(2)
+        .setInteractive();
+
+      // Add click event listener to the card
+      cardSprite.on("pointerdown", () => {
+        console.log("Card selected: ", currentHand[i].card);
+        this.selectCard(i, this.p1Turn ? "p1Hand" : "p2Hand", cardSprite);
       });
-    });
-  }
-  
-}
 
-// Function to enable card interactivity
-enableCardInteractivity() {
-  this.handSelected.forEach((cardSprite) => {
-    cardSprite.setInteractive();
-  });
-  if(this.tableSprites){
-    this.tableSprites.forEach((groupContainer) => {
-      groupContainer.list.forEach((cardSprite) => {
-        cardSprite.setInteractive();
+      this.handSelected.push(cardSprite);
+    }
+  }
+
+  // Function to draw a card from the deck
+  drawCard() {
+    if (this.deck.length > 0 && !this.drawnCard && !this.placedCards) {
+      if (this.p1Turn) {
+        this.p1Hand.push(this.deck.pop());
+      } else {
+        this.p2Hand.push(this.deck.pop());
+      }
+      this.drawnCard = true;
+      this.turnValid = true;
+
+      // Disable card selection after drawing a card
+      this.disableCardInteractivity();
+    } else if (this.drawnCard) {
+      console.log("You can only draw once per turn.");
+    } else if (this.placedCards) {
+      console.log("You cannot draw cards after placing cards.");
+    }
+  }
+
+  // Function to disable card interactivity
+  disableCardInteractivity() {
+    this.handSelected.forEach((cardSprite) => {
+      cardSprite.disableInteractive();
+    });
+    if (this.tableSprites) {
+      this.tableSprites.forEach((groupContainer) => {
+        groupContainer.list.forEach((cardSprite) => {
+          cardSprite.disableInteractive();
+        });
       });
-    });
+    }
   }
-}
 
-// Function to check if a group of cards is valid
-checkValidGroup(cards = []) {
-  if (cards.length < 3) {
+  // Function to enable card interactivity
+  enableCardInteractivity() {
+    this.handSelected.forEach((cardSprite) => {
+      cardSprite.setInteractive();
+    });
+    if (this.tableSprites) {
+      this.tableSprites.forEach((groupContainer) => {
+        groupContainer.list.forEach((cardSprite) => {
+          cardSprite.setInteractive();
+        });
+      });
+    }
+  }
+
+  // Function to check if a group of cards is valid
+  checkValidGroup(cards = []) {
+    if (cards.length < 3) {
+      return false;
+    }
+
+    // Check for sandwiching suits of the same rank
+    const ranks = cards.map((card) => card.card.rank);
+    const suits = cards.map((card) => card.card.suit);
+    const uniqueRanks = new Set(ranks);
+    const uniqueSuits = new Set(suits);
+
+    if (uniqueRanks.size === 1 && uniqueSuits.size === cards.length) {
+      return true;
+    }
+
+    // Check for ascending rank same suit
+    if (uniqueSuits.size === 1) {
+      const sortedRanks = cards
+        .map((card) => ranks.indexOf(card.card.rank))
+        .sort((a, b) => a - b);
+
+      for (let i = 1; i < sortedRanks.length; i++) {
+        if (sortedRanks[i] !== sortedRanks[i - 1] + 1) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     return false;
   }
 
-  // Check for sandwiching suits of the same rank
-  const ranks = cards.map(card => card.card.rank);
-  const suits = cards.map(card => card.card.suit);
-  const uniqueRanks = new Set(ranks);
-  const uniqueSuits = new Set(suits);
-
-  if (uniqueRanks.size === 1 && uniqueSuits.size === cards.length) {
-    return true;
-  }
-
-  // Check for ascending rank same suit
-  if (uniqueSuits.size === 1) {
-    const sortedRanks = cards
-      .map(card => ranks.indexOf(card.card.rank))
-      .sort((a, b) => a - b);
-
-    for (let i = 1; i < sortedRanks.length; i++) {
-      if (sortedRanks[i] !== sortedRanks[i - 1] + 1) {
-        return false;
-      }
+  // Function to display table cards
+  displayTable() {
+    console.log(this.tableCards);
+    // Clear previous table card containers
+    if (this.tableSprites) {
+      this.tableSprites.forEach((group) => {
+        group.destroy();
+      });
     }
-    return true;
-  }
+    this.tableSprites = [];
 
-  return false;
-}
-
-// Function to display table cards
-displayTable() {
-  console.log(this.tableCards);
-  // Clear previous table card containers
-  if (this.tableSprites) {
-    this.tableSprites.forEach((group) => {
-      group.destroy();
+    this.tableCards.forEach((group, groupIndex) => {
+      this.displayTableGroup(group, groupIndex);
     });
   }
-  this.tableSprites = [];
 
-  this.tableCards.forEach((group, groupIndex) => {
-    this.displayTableGroup(group, groupIndex);
-  });
-}
+  // Function to display a group of cards on the table
+  displayTableGroup(group, groupIndex) {
+    let groupContainer = this.add.container(100 + groupIndex * 200, 100);
 
-// Function to display a group of cards on the table
-displayTableGroup(group, groupIndex) {
-  let groupContainer = this.add.container(100 + groupIndex * 200, 100);
+    group.forEach((card, cardIndex) => {
+      let frameIndex =
+        suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
+      let cardSprite = this.add
+        .sprite(cardIndex * 50, 0, "card_deck", frameIndex)
+        .setOrigin(0.5)
+        .setScale(2)
+        .setInteractive();
 
-  group.forEach((card, cardIndex) => {
-    let frameIndex = suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
-    let cardSprite = this.add
-      .sprite(cardIndex * 50, 0, "card_deck", frameIndex)
-      .setOrigin(0.5)
-      .setScale(2)
-      .setInteractive();
-
-    // Add click event listener to the card in the table group
-    cardSprite.on("pointerdown", () => {
-      console.log("Card clicked on table: ", card.card);
-      if (this.cardsSelected.length > 0 && !card.selected) {
-        const selectedCard = this.cardsSelected.pop();
-        if (this.addToGroup(selectedCard, groupIndex)) {
-          this.p1Turn ? this.p1Hand : this.p2Hand = this.p1Turn ? this.p1Hand.filter(c => c !== selectedCard) : this.p2Hand.filter(c => c !== selectedCard);
-          this.displayHand();
-        } else {
-          this.cardsSelected.push(selectedCard); // Re-add the card if adding to group fails
+      // Add click event listener to the card in the table group
+      cardSprite.on("pointerdown", () => {
+        console.log("Card clicked on table: ", card.card);
+        if (this.cardsSelected.length > 0 && !card.selected) {
+          const selectedCard = this.cardsSelected.pop();
+          if (this.addToGroup(selectedCard, groupIndex)) {
+            this.p1Turn
+              ? this.p1Hand
+              : (this.p2Hand = this.p1Turn
+                  ? this.p1Hand.filter((c) => c !== selectedCard)
+                  : this.p2Hand.filter((c) => c !== selectedCard));
+            this.displayHand();
+          } else {
+            this.cardsSelected.push(selectedCard); // Re-add the card if adding to group fails
+          }
         }
-      }
+      });
+
+      groupContainer.add(cardSprite);
     });
 
-    groupContainer.add(cardSprite);
-  });
-
-  // Add the container to the display list and make it draggable
-  this.add.existing(groupContainer);
-  groupContainer.setInteractive(new Phaser.Geom.Rectangle(0, 0, groupContainer.width, groupContainer.height), Phaser.Geom.Rectangle.Contains);
-  this.input.setDraggable(groupContainer);
-
-  // Handle drag event
-  groupContainer.on('drag', (pointer, dragX, dragY) => {
-    groupContainer.x = dragX;
-    groupContainer.y = dragY;
-  });
-
-  this.tableSprites.push(groupContainer);
-}
-
-// Function to handle valid play
-handleValidPlay() {
-  // Remove selected cards from player's hand and push to table array
-  if (this.p1Turn) {
-    this.p1Hand = this.p1Hand.filter(card => !this.cardsSelected.includes(card));
-  } else {
-    this.p2Hand = this.p2Hand.filter(card => !this.cardsSelected.includes(card));
-  }
-
-  this.tableCards.push([...this.cardsSelected]);
-  this.displayTable();
-
-  // Reset selected cards array and hide validation box
-  this.cardsSelected.forEach(card => card.selected = false);
-  this.cardsSelected = [];
-  this.validationBox.setVisible(false);
-
-  // Update hand display
-  this.displayHand();
-
-  // Mark that the player has placed cards
-  this.placedCards = true;
-}
-
-// Function to select a card
-selectCard(index, hand, cardSprite) {
-  if (this.drawnCard) {
-    console.log("You cannot select cards after drawing. End your turn.");
-    return;
-  }
-
-  if (this[hand][index].selected) {
-    // Deselect the card
-    this[hand][index].selected = false;
-    this.cardsSelected = this.cardsSelected.filter(
-      (card) => card !== this[hand][index]
+    // Add the container to the display list and make it draggable
+    this.add.existing(groupContainer);
+    groupContainer.setInteractive(
+      new Phaser.Geom.Rectangle(
+        0,
+        0,
+        groupContainer.width,
+        groupContainer.height
+      ),
+      Phaser.Geom.Rectangle.Contains
     );
-    // Remove tint and move card back to original position
-    cardSprite.clearTint();
-    this.tweens.add({
-      targets: cardSprite,
-      y: cardSprite.y + 50,
-      duration: 200,
-      ease: "Linear",
+    this.input.setDraggable(groupContainer);
+
+    // Handle drag event
+    groupContainer.on("drag", (pointer, dragX, dragY) => {
+      groupContainer.x = dragX;
+      groupContainer.y = dragY;
     });
-  } else {
-    // Select the card
-    this[hand][index].selected = true;
-    this.cardsSelected.push(this[hand][index]);
-    // Add green tint and move card up
-    cardSprite.setTint(0x00ff00);
-    this.tweens.add({
-      targets: cardSprite,
-      y: cardSprite.y - 50,
-      duration: 200,
-      ease: "Linear",
-    });
-    console.log(this.cardsSelected);
+
+    this.tableSprites.push(groupContainer);
   }
 
-  // Check if selected cards form a valid group
-  if (this.cardsSelected.length >= 3) {
-    const isValidGroup = this.checkValidGroup(this.cardsSelected);
-    console.log(`Is valid group: ${isValidGroup}`);
-    // Show or hide validation box based on validity of group
-    this.validationBox.setVisible(isValidGroup);
-  } else {
-    this.validationBox.setVisible(false);
-  }
-}
+  // Function to handle valid play
+  handleValidPlay() {
+    // Remove selected cards from player's hand and push to table array
+    if (this.p1Turn) {
+      this.p1Hand = this.p1Hand.filter(
+        (card) => !this.cardsSelected.includes(card)
+      );
+    } else {
+      this.p2Hand = this.p2Hand.filter(
+        (card) => !this.cardsSelected.includes(card)
+      );
+    }
 
-// Function to handle end turn
-endTurn() {
-  if (this.turnValid) {
-    this.p1Turn = !this.p1Turn;
-    this.turnValid = false;
-    this.drawnCard = false;
-    this.placedCards = false;
+    this.tableCards.push([...this.cardsSelected]);
+    this.displayTable();
+
+    // Reset selected cards array and hide validation box
+    this.cardsSelected.forEach((card) => (card.selected = false));
+    this.cardsSelected = [];
     this.validationBox.setVisible(false);
 
-    // Enable card selection at the start of the next turn
-    this.enableCardInteractivity();
-  } else {
-    console.log("You must complete a valid action before ending your turn.");
+    // Update hand display
+    this.displayHand();
+
+    // Mark that the player has placed cards
+    this.placedCards = true;
   }
-}
+
+  // Function to select a card
+  selectCard(index, hand, cardSprite) {
+    if (this.drawnCard) {
+      console.log("You cannot select cards after drawing. End your turn.");
+      return;
+    }
+
+    if (this[hand][index].selected) {
+      // Deselect the card
+      this[hand][index].selected = false;
+      this.cardsSelected = this.cardsSelected.filter(
+        (card) => card !== this[hand][index]
+      );
+      // Remove tint and move card back to original position
+      cardSprite.clearTint();
+      this.tweens.add({
+        targets: cardSprite,
+        y: cardSprite.y + 50,
+        duration: 200,
+        ease: "Linear",
+      });
+    } else {
+      // Select the card
+      this[hand][index].selected = true;
+      this.cardsSelected.push(this[hand][index]);
+      // Add green tint and move card up
+      cardSprite.setTint(0x00ff00);
+      this.tweens.add({
+        targets: cardSprite,
+        y: cardSprite.y - 50,
+        duration: 200,
+        ease: "Linear",
+      });
+      console.log(this.cardsSelected);
+    }
+
+    // Check if selected cards form a valid group
+    if (this.cardsSelected.length >= 3) {
+      const isValidGroup = this.checkValidGroup(this.cardsSelected);
+      console.log(`Is valid group: ${isValidGroup}`);
+      // Show or hide validation box based on validity of group
+      this.validationBox.setVisible(isValidGroup);
+    } else {
+      this.validationBox.setVisible(false);
+    }
+  }
+
+  // Function to handle end turn
+  endTurn() {
+    if (this.turnValid) {
+      this.p1Turn = !this.p1Turn;
+      this.turnValid = false;
+      this.drawnCard = false;
+      this.placedCards = false;
+      this.validationBox.setVisible(false);
+
+      // Enable card selection at the start of the next turn
+      this.enableCardInteractivity();
+    } else {
+      console.log("You must complete a valid action before ending your turn.");
+    }
+  }
 
   // Function to sort hand by rank
   sortRankHand() {
@@ -636,31 +654,30 @@ endTurn() {
   }
 
   // Function to handle invalid groups
-checkTableValidity() {
-  let allValid = true;
-  this.tableSprites.forEach((groupContainer, groupIndex) => {
-    const group = this.tableCards[groupIndex];
-    const isValid = this.checkValidGroup(group);
-    groupContainer.list.forEach(cardSprite => {
-      cardSprite.setTint(isValid ? 0xffffff : 0xff0000); // Set tint to red if invalid
+  checkTableValidity() {
+    let allValid = true;
+    this.tableSprites.forEach((groupContainer, groupIndex) => {
+      const group = this.tableCards[groupIndex];
+      const isValid = this.checkValidGroup(group);
+      groupContainer.list.forEach((cardSprite) => {
+        cardSprite.setTint(isValid ? 0xffffff : 0xff0000); // Set tint to red if invalid
+      });
+      if (!isValid) allValid = false;
     });
-    if (!isValid) allValid = false;
-  });
-  this.turnValid = allValid;
-}
-
-
-// Function to add a card to a group on the table
-addToGroup(card, groupIndex) {
-  const group = this.tableCards[groupIndex];
-  const isValid = this.checkValidGroup([...group, card]);
-  if (isValid) {
-    group.push(card);
-    this.tableCards[groupIndex] = group;
-    this.displayTable();
-    this.checkTableValidity();
-    return true;
+    this.turnValid = allValid;
   }
-  return false;
-}
+
+  // Function to add a card to a group on the table
+  addToGroup(card, groupIndex) {
+    const group = this.tableCards[groupIndex];
+    const isValid = this.checkValidGroup([...group, card]);
+    if (isValid) {
+      group.push(card);
+      this.tableCards[groupIndex] = group;
+      this.displayTable();
+      this.checkTableValidity();
+      return true;
+    }
+    return false;
+  }
 }
