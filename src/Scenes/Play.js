@@ -176,6 +176,9 @@ class Play extends Phaser.Scene {
       console.log("Table groups before reset:", this.tableCards);
       this.resetPressed = true; // Set the flag to prevent win scene transition
       this.resetHandToTable();
+      this.cardsSelected = [];
+      this.p1Hand.forEach(card => card.selected = false);
+      this.p2Hand.forEach(card => card.selected = false);
       console.log("resetHandToTable called");
       console.log("Player 1 hand after reset:", this.p1Hand.length);
       console.log("Player 2 hand after reset:", this.p2Hand.length);
@@ -499,19 +502,27 @@ class Play extends Phaser.Scene {
 
   // Function to display a group of cards on the table
   displayTableGroup(group, groupIndex) {
-    let rowHeight = 150; // height of each row
-    let colWidth = 200; // width of each column
-    let maxColumns = Math.floor(this.scale.width / colWidth); // max columns per row
+    const minX = 80;
+    const minY = 112;
+    const maxX = this.deckSprite.x - 20;
+    const maxY = h - borderPadding - 100;
 
-    let rowIndex = Math.floor(groupIndex / maxColumns); // current row index
-    let colIndex = groupIndex % maxColumns; // current column index
+    const rowHeight = 150; // height of each row
+    const colWidth = 200; // width of each column
+    const maxColumns = Math.floor((maxX - minX) / colWidth); // max columns per row
 
-    let groupContainer = this.add.container(colIndex * colWidth, rowIndex * rowHeight + 150);
+    const rowIndex = Math.floor(groupIndex / maxColumns); // current row index
+    const colIndex = groupIndex % maxColumns; // current column index
+
+    const startX = minX + colIndex * colWidth;
+    const startY = minY + rowIndex * rowHeight;
+
+    let groupContainer = this.add.container(startX, startY);
 
     group.forEach((card, cardIndex) => {
-      let frameIndex =
+      const frameIndex =
         suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
-      let cardSprite = this.add
+      const cardSprite = this.add
         .sprite(cardIndex * 50, 0, "card_deck", frameIndex)
         .setOrigin(0.5)
         .setScale(2)
@@ -525,17 +536,20 @@ class Play extends Phaser.Scene {
           return;
         }
         if (this.cardsSelected.length > 0) {
-          // Attempt to place selected card in the group
-          const selectedCard = this.cardsSelected.pop();
-          const result = this.addToGroup(selectedCard, groupIndex);
-          if (!result) {
-            // If placement fails, re-add the card to the selected array
-            this.cardsSelected.push(selectedCard);
-          } else {
-            // If placement succeeds, remove the card from hand and clear selection
+          // Attempt to place selected cards in the group
+          const result = this.addToGroup(this.cardsSelected, groupIndex);
+          if (result) {
+            // If placement succeeds, remove the cards from hand and clear selection
             const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
-            currentHand.splice(currentHand.indexOf(selectedCard), 1);
+            this.cardsSelected.forEach(card => {
+              const indexInHand = currentHand.indexOf(card);
+              if (indexInHand !== -1) {
+                currentHand.splice(indexInHand, 1);
+              }
+            });
+            this.cardsSelected = [];
             this.displayHand();
+            this.validationBox.setVisible(false);
           }
         } else {
           // Add clicked card to hand
@@ -562,21 +576,43 @@ class Play extends Phaser.Scene {
 
     // Handle drag event
     groupContainer.on("drag", (pointer, dragX, dragY) => {
-      groupContainer.x = dragX;
-      groupContainer.y = dragY;
+      groupContainer.x = Phaser.Math.Clamp(dragX, minX, maxX - groupContainer.width);
+      groupContainer.y = Phaser.Math.Clamp(dragY, minY, maxY - groupContainer.height);
     });
 
     this.tableSprites.push(groupContainer);
   }
 
-  // Function to handle valid play
+  shiftTableGroups() {
+    const minX = 80;
+    const minY = 112;
+    const maxX = this.deckSprite.x - 20;
+    const maxY = h - borderPadding - 100;
+
+    const rowHeight = 150; // height of each row
+    const colWidth = 200; // width of each column
+    const maxColumns = Math.floor((maxX - minX) / colWidth); // max columns per row
+
+    this.tableSprites.forEach((groupContainer, groupIndex) => {
+      const rowIndex = Math.floor(groupIndex / maxColumns); // current row index
+      const colIndex = groupIndex % maxColumns; // current column index
+
+      const startX = minX + colIndex * colWidth;
+      const startY = minY + rowIndex * rowHeight;
+
+      groupContainer.x = startX;
+      groupContainer.y = startY;
+    });
+  }
+
+
   handleValidPlay() {
     const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
 
     // Remove selected cards from player's hand and push to table array
     this.tableCards.push([...this.cardsSelected]);
 
-    // Ensure original positions are not changed until turn is ended
+    // Mark the cards as placed on the table but do not change their original position
     this.cardsSelected.forEach(card => {
       card.table = true;
       // Remove card from hand
@@ -587,6 +623,7 @@ class Play extends Phaser.Scene {
     });
 
     this.displayTable();
+    this.shiftTableGroups();
 
     // Reset selected cards array and hide validation box
     this.cardsSelected.forEach((card) => (card.selected = false));
@@ -600,7 +637,6 @@ class Play extends Phaser.Scene {
     this.placedCards = true;
   }
 
-  // Function to select a card
   selectCard(index, hand, cardSprite) {
     if (this.drawnCard) {
       console.log("You cannot select cards after drawing. End your turn.");
@@ -647,9 +683,8 @@ class Play extends Phaser.Scene {
     }
   }
 
-  // Function to end the turn
   endTurn() {
-    if (this.turnValid && !this.cardsSelected.some((card) => !card.table) && this.checkAllGroupsValid()) {
+    if (this.checkTurnValidity()) {
       // Update the originalPosition for all cards on the table
       this.tableCards.forEach((group, groupIndex) => {
         group.forEach(card => {
@@ -718,18 +753,20 @@ class Play extends Phaser.Scene {
     this.turnValid = allValid && this.checkAllGroupsValid();
   }
 
-  addToGroup(card, groupIndex) {
+  addToGroup(cards, groupIndex) {
     const group = this.tableCards[groupIndex];
-    const isValid = this.checkValidGroup([...group, card]);
+    const isValid = this.checkValidGroup([...group, ...cards]);
     if (isValid) {
-      group.push(card);
+      group.push(...cards);
       this.tableCards[groupIndex] = group;
       this.displayTable();
+      this.shiftTableGroups();
       this.checkTableValidity();
       return true;
     }
     return false;
   }
+
 
   addToHand(card, groupIndex) {
     const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
@@ -738,9 +775,8 @@ class Play extends Phaser.Scene {
 
     if (cardIndex !== -1) {
       group.splice(cardIndex, 1);
-      card.originalGroupIndex = groupIndex; // Track the original group index
-      card.originalPosition = { type: 'table', groupIndex: groupIndex }; // Track original position
       card.table = false; // Mark the card as not on the table
+      card.selected = false;
       currentHand.push(card);
       this.turnValid = false; // Prevent ending the turn
 
@@ -755,7 +791,6 @@ class Play extends Phaser.Scene {
     }
   }
 
-  // Function to reset hand to table
   resetHandToTable() {
     const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
 
@@ -822,8 +857,6 @@ class Play extends Phaser.Scene {
     this.resetPressed = false;
   }
 
-
-  // Function to start a new turn
   startNewTurn() {
     // Track original positions at the start of the turn
     this.p1Hand.forEach(card => card.originalPosition = { type: 'hand' });
@@ -838,5 +871,28 @@ class Play extends Phaser.Scene {
   // Function to check if all groups on the table are valid
   checkAllGroupsValid() {
     return this.tableCards.every(group => group.length >= 3);
+  }
+
+  checkTurnValidity() {
+    if (this.drawnCard) {
+      console.log("Turn is valid because a card has been drawn.");
+      return true;
+    }
+
+    if (this.placedCards) {
+      // Check if all groups on the table are valid
+      let allGroupsValid = this.checkAllGroupsValid();
+
+      // Check if cards placed on the table were from the initial hand
+      let placedFromInitialHand = this.cardsSelected.every(card => card.originalPosition.type === 'hand');
+
+      if (allGroupsValid && placedFromInitialHand) {
+        console.log("Turn is valid because cards have been placed from the initial hand and all groups are valid.");
+        return true;
+      }
+    }
+
+    console.log("Turn is not valid.");
+    return false;
   }
 }
