@@ -502,6 +502,7 @@ class Play extends Phaser.Scene {
 
   // Function to display a group of cards on the table
   displayTableGroup(group, groupIndex) {
+    this.sortGroup(group);
     const minX = 80;
     const minY = 112;
     const maxX = this.deckSprite.x - 20;
@@ -527,6 +528,8 @@ class Play extends Phaser.Scene {
         .setOrigin(0.5)
         .setScale(2)
         .setInteractive();
+
+      cardSprite.input.dropZone = true; // Allow drop zones
 
       // Add click event listener to the card in the table group
       cardSprite.on("pointerdown", () => {
@@ -604,7 +607,6 @@ class Play extends Phaser.Scene {
       groupContainer.y = startY;
     });
   }
-
 
   handleValidPlay() {
     const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
@@ -759,6 +761,7 @@ class Play extends Phaser.Scene {
     if (isValid) {
       group.push(...cards);
       this.tableCards[groupIndex] = group;
+      this.sortGroup(group); // Sort and alternate colors
       this.displayTable();
       this.shiftTableGroups();
       this.checkTableValidity();
@@ -894,5 +897,38 @@ class Play extends Phaser.Scene {
 
     console.log("Turn is not valid.");
     return false;
+  }
+
+  sortGroup(group) {
+    // Sort the group by rank
+    group.sort((a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank));
+
+    // Alternate colors: red and black
+    let lastColorRed = null;
+    const sortedGroup = [];
+
+    group.forEach((card, index) => {
+      const isRed = card.card.suit === "heart" || card.card.suit === "diamond";
+      if (lastColorRed === null) {
+        // Initialize the first color based on the first card
+        lastColorRed = isRed;
+      } else {
+        // Ensure the color alternates
+        lastColorRed = !lastColorRed;
+      }
+      if (isRed === lastColorRed) {
+        // Add card to the sorted group in the correct color position
+        sortedGroup.push(card);
+      } else {
+        // Insert card at the next position to alternate the color
+        const nextIndex = sortedGroup.findIndex((c, idx) => idx % 2 !== isRed);
+        sortedGroup.splice(nextIndex, 0, card);
+      }
+    });
+
+    // Reassign the sorted group back to the original group array
+    for (let i = 0; i < group.length; i++) {
+      group[i] = sortedGroup[i];
+    }
   }
 }
