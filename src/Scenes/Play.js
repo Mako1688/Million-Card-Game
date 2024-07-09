@@ -712,9 +712,15 @@ class Play extends Phaser.Scene {
   sortRankHand() {
     if (this.p1Turn) {
       this.p1Hand.sort(
+        (a, b) => suits.indexOf(a.card.suit) - suits.indexOf(b.card.suit)
+      );
+      this.p1Hand.sort(
         (a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank)
       );
     } else {
+      this.p2Hand.sort(
+        (a, b) => suits.indexOf(a.card.suit) - suits.indexOf(b.card.suit)
+      );
       this.p2Hand.sort(
         (a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank)
       );
@@ -725,9 +731,15 @@ class Play extends Phaser.Scene {
   sortSuitHand() {
     if (this.p1Turn) {
       this.p1Hand.sort(
+        (a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank)
+      );
+      this.p1Hand.sort(
         (a, b) => suits.indexOf(a.card.suit) - suits.indexOf(b.card.suit)
       );
     } else {
+      this.p2Hand.sort(
+        (a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank)
+      );
       this.p2Hand.sort(
         (a, b) => suits.indexOf(a.card.suit) - suits.indexOf(b.card.suit)
       );
@@ -760,6 +772,7 @@ class Play extends Phaser.Scene {
     const isValid = this.checkValidGroup([...group, ...cards]);
     if (isValid) {
       group.push(...cards);
+      this.placedCards = true;
       this.tableCards[groupIndex] = group;
       this.sortGroup(group); // Sort and alternate colors
       this.displayTable();
@@ -900,32 +913,72 @@ class Play extends Phaser.Scene {
   }
 
   sortGroup(group) {
-    // Sort the group by rank
-    group.sort((a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank));
-
-    // Alternate colors: red and black
-    let lastColorRed = null;
-    const sortedGroup = [];
-
-    group.forEach((card, index) => {
-      const isRed = card.card.suit === "heart" || card.card.suit === "diamond";
-      if (lastColorRed === null) {
-        // Initialize the first color based on the first card
-        lastColorRed = isRed;
-      } else {
-        // Ensure the color alternates
-        lastColorRed = !lastColorRed;
-      }
-      if (isRed === lastColorRed) {
-        // Add card to the sorted group in the correct color position
-        sortedGroup.push(card);
-      } else {
-        // Insert card at the next position to alternate the color
-        const nextIndex = sortedGroup.findIndex((c, idx) => idx % 2 !== isRed);
-        sortedGroup.splice(nextIndex, 0, card);
-      }
+    const hasSameRank = group.some((card, index) =>
+      group.some((otherCard, otherIndex) => index !== otherIndex && card.card.rank === otherCard.card.rank)
+    );
+  
+    if (hasSameRank) {
+      this.sortByAlternatingColors(group);
+    } else {
+      this.sortByRank(group);
+    }
+  }
+  
+  sortByRank(group) {
+    // Sort the group by rank considering Ace as both high and low
+    group.sort((a, b) => {
+      let rankA = a.card.rank;
+      let rankB = b.card.rank;
+  
+      // Handle Ace as both high and low
+      if (rankA === "A" && rankB !== "2") rankA = "1";
+      if (rankB === "A" && rankA !== "2") rankB = "1";
+  
+      // Compare ranks
+      return ranks.indexOf(rankA) - ranks.indexOf(rankB);
     });
-
+  }
+  
+  sortByAlternatingColors(group) {
+    // Sort the group by rank first
+    group.sort((a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank));
+  
+    // Then sort by alternating colors
+    const sortedGroup = [];
+    let redCards = group.filter(card => card.card.suit === "heart" || card.card.suit === "diamond");
+    let blackCards = group.filter(card => card.card.suit === "spade" || card.card.suit === "club");
+  
+    let lastColorRed = null;
+    while (redCards.length || blackCards.length) {
+      if (lastColorRed === null) {
+        if (redCards.length) {
+          sortedGroup.push(redCards.shift());
+          lastColorRed = true;
+        } else {
+          sortedGroup.push(blackCards.shift());
+          lastColorRed = false;
+        }
+      } else {
+        if (lastColorRed) {
+          if (blackCards.length) {
+            sortedGroup.push(blackCards.shift());
+            lastColorRed = false;
+          } else {
+            sortedGroup.push(redCards.shift());
+            lastColorRed = true;
+          }
+        } else {
+          if (redCards.length) {
+            sortedGroup.push(redCards.shift());
+            lastColorRed = true;
+          } else {
+            sortedGroup.push(blackCards.shift());
+            lastColorRed = false;
+          }
+        }
+      }
+    }
+  
     // Reassign the sorted group back to the original group array
     for (let i = 0; i < group.length; i++) {
       group[i] = sortedGroup[i];
