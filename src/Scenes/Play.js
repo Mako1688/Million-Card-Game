@@ -507,17 +507,15 @@ class Play extends Phaser.Scene {
     const minX = 80;
     const minY = 112;
     const maxX = this.deckSprite.x - 20;
-    const maxY = h - borderPadding - 100;
-
     const rowHeight = 150; // height of each row
-    const colWidth = 200; // width of each column
+    const colWidth = 50 * group.length; // dynamic width based on group size
     const maxColumns = Math.floor((maxX - minX) / colWidth); // max columns per row
 
     const rowIndex = Math.floor(groupIndex / maxColumns); // current row index
     const colIndex = groupIndex % maxColumns; // current column index
 
-    const startX = group[0]?.newPosition?.x ?? (minX + colIndex * colWidth);
-    const startY = group[0]?.newPosition?.y ?? (minY + rowIndex * rowHeight);
+    const startX = minX + colIndex * colWidth;
+    const startY = minY + rowIndex * rowHeight;
 
     let initialDragPosition = { x: 0, y: 0 };
     let totalDragDistance = 0;
@@ -534,8 +532,8 @@ class Play extends Phaser.Scene {
         suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
       const cardSprite = this.add
         .sprite(
-          startX + (card.newPosition ? card.newPosition.x : cardIndex * 50),
-          startY + (card.newPosition ? card.newPosition.y : 0),
+          card.newPosition ? card.newPosition.x : startX + cardIndex * 50,
+          card.newPosition ? card.newPosition.y : startY,
           "card_deck",
           frameIndex
         )
@@ -554,10 +552,12 @@ class Play extends Phaser.Scene {
         const deltaX = dragX - initialDragPosition.x;
         const deltaY = dragY - initialDragPosition.y;
         totalDragDistance += Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        group.forEach((groupCard, index) => {
+        group.forEach((groupCard) => {
           const sprite = groupCard.sprite;
           sprite.x += deltaX;
           sprite.y += deltaY;
+          sprite.x = Phaser.Math.Clamp(sprite.x, 20, this.deckSprite.x - 20);
+          sprite.y = Phaser.Math.Clamp(sprite.y, 112, h - borderPadding - 100);
         });
         initialDragPosition = { x: dragX, y: dragY };
       });
@@ -588,7 +588,7 @@ class Play extends Phaser.Scene {
             card.sprite.destroy();
           }
         } else {
-          group.forEach((groupCard, index) => {
+          group.forEach((groupCard) => {
             groupCard.newPosition = { x: groupCard.sprite.x, y: groupCard.sprite.y };
           });
         }
@@ -597,6 +597,7 @@ class Play extends Phaser.Scene {
       card.sprite = cardSprite;
     });
   }
+
 
   handleValidPlay() {
     const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
@@ -869,6 +870,9 @@ class Play extends Phaser.Scene {
     this.cardsSelected = [];
     this.placedCards = false;
 
+    // Reset table card positions
+    this.resetTableCardPositions();
+
     // Redraw the hand and table
     this.displayHand();
     this.displayTable();
@@ -876,6 +880,30 @@ class Play extends Phaser.Scene {
     // Reset the resetPressed flag after the reset function is done
     this.resetPressed = false;
   }
+
+  resetTableCardPositions() {
+    const minX = 80;
+    const minY = 112;
+    const maxX = this.deckSprite.x - 20;
+    const rowHeight = 150; // height of each row
+    const colWidth = 50; // width of each card
+    let currentX = minX;
+    let currentY = minY;
+
+    this.tableCards.forEach((group) => {
+      if (currentX + group.length * colWidth > maxX) {
+        currentX = minX;
+        currentY += rowHeight;
+      }
+
+      group.forEach((card, cardIndex) => {
+        card.newPosition = { x: currentX + cardIndex * colWidth, y: currentY };
+      });
+
+      currentX += group.length * colWidth + colWidth; // increment for the next group
+    });
+  }
+
 
   startNewTurn() {
     // Track original positions at the start of the turn
