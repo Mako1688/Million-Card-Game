@@ -516,8 +516,8 @@ class Play extends Phaser.Scene {
     const rowIndex = Math.floor(groupIndex / maxColumns); // current row index
     const colIndex = groupIndex % maxColumns; // current column index
 
-    const startX = minX + colIndex * colWidth;
-    const startY = minY + rowIndex * rowHeight;
+    const startX = group[0]?.newPosition?.x ?? (minX + colIndex * colWidth);
+    const startY = group[0]?.newPosition?.y ?? (minY + rowIndex * rowHeight);
 
     let initialDragPosition = { x: 0, y: 0 };
     let totalDragDistance = 0;
@@ -534,8 +534,8 @@ class Play extends Phaser.Scene {
         suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
       const cardSprite = this.add
         .sprite(
-          startX + cardIndex * 50,
-          startY,
+          startX + (card.newPosition ? card.newPosition.x : cardIndex * 50),
+          startY + (card.newPosition ? card.newPosition.y : 0),
           "card_deck",
           frameIndex
         )
@@ -551,8 +551,8 @@ class Play extends Phaser.Scene {
       });
 
       cardSprite.on("drag", (pointer, dragX, dragY) => {
-        const deltaX = dragX - cardSprite.x;
-        const deltaY = dragY - cardSprite.y;
+        const deltaX = dragX - initialDragPosition.x;
+        const deltaY = dragY - initialDragPosition.y;
         totalDragDistance += Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         group.forEach((groupCard, index) => {
           const sprite = groupCard.sprite;
@@ -598,9 +598,6 @@ class Play extends Phaser.Scene {
     });
   }
 
-
-
-
   handleValidPlay() {
     const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
 
@@ -617,6 +614,7 @@ class Play extends Phaser.Scene {
       }
     });
 
+    // Refresh table display
     this.displayTable();
 
     // Reset selected cards array and hide validation box
@@ -630,6 +628,7 @@ class Play extends Phaser.Scene {
     // Mark that the player has placed cards
     this.placedCards = true;
   }
+
 
 
   selectCard(index, hand, cardSprite) {
@@ -777,8 +776,6 @@ class Play extends Phaser.Scene {
     return false;
   }
 
-
-
   addToHand(card, groupIndex) {
     const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
     const group = this.tableCards[groupIndex];
@@ -808,6 +805,16 @@ class Play extends Phaser.Scene {
 
     // Temporarily store cards to be reset
     const cardsToReset = [];
+
+    // Destroy the sprites of reset cards on the table
+    this.tableCards.forEach(group => {
+      group.forEach(card => {
+        if (card.sprite) {
+          card.sprite.destroy();
+          delete card.sprite; // Remove reference to the destroyed sprite
+        }
+      });
+    });
 
     // Iterate through the player's hand
     for (let i = currentHand.length - 1; i >= 0; i--) {
