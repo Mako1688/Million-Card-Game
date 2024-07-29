@@ -92,7 +92,7 @@ class Play extends Phaser.Scene {
 
     // Create deck
     this.deck = this.createDeck();
-    this.deck = this.shuffle(this.deck);
+    // this.deck = this.shuffle(this.deck);
     console.log(this.deck);
 
     // Deal cards
@@ -467,10 +467,10 @@ class Play extends Phaser.Scene {
       return true;
     }
 
-    // Check for ascending rank same suit
+    // Check for ascending rank same suit with the correct sequence
     if (uniqueSuits.size === 1) {
       const sortedRanks = cards
-        .map((card) => ranks.indexOf(card.card.rank))
+        .map((card) => this.getRankValue(card.card.rank))
         .sort((a, b) => a - b);
 
       for (let i = 1; i < sortedRanks.length; i++) {
@@ -483,6 +483,50 @@ class Play extends Phaser.Scene {
 
     return false;
   }
+
+  // Helper function to get the value of a rank, considering Aces high or low
+  getRankValue(rank) {
+    if (rank === "A") {
+      return 1; // For low Ace
+    }
+    if (rank === "2") {
+      return 2;
+    }
+    if (rank === "3") {
+      return 3;
+    }
+    if (rank === "4") {
+      return 4;
+    }
+    if (rank === "5") {
+      return 5;
+    }
+    if (rank === "6") {
+      return 6;
+    }
+    if (rank === "7") {
+      return 7;
+    }
+    if (rank === "8") {
+      return 8;
+    }
+    if (rank === "9") {
+      return 9;
+    }
+    if (rank === "10") {
+      return 10;
+    }
+    if (rank === "J") {
+      return 11;
+    }
+    if (rank === "Q") {
+      return 12;
+    }
+    if (rank === "K") {
+      return 13;
+    }
+  }
+
 
   // Function to display table cards
   displayTable() {
@@ -520,9 +564,6 @@ class Play extends Phaser.Scene {
         card.sprite.destroy();
       }
     });
-
-    // Sort the group before displaying
-    this.sortGroup(group);
 
     group.forEach((card, cardIndex) => {
       const frameIndex = suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
@@ -599,7 +640,6 @@ class Play extends Phaser.Scene {
       card.sprite.setDepth(index);
     });
   }
-
 
 
   handleValidPlay() {
@@ -991,7 +1031,7 @@ class Play extends Phaser.Scene {
       if (rankB === "A" && rankA !== "2") rankB = "1";
 
       // Compare ranks
-      return ranks.indexOf(rankA) - ranks.indexOf(rankB);
+      return this.getRankValue(rankA) - this.getRankValue(rankB);
     });
 
     // Sort by alternating colors
@@ -999,16 +1039,19 @@ class Play extends Phaser.Scene {
 
     // Update positions based on sorting
     const colWidth = 50;
+    const initialX = group[0].sprite ? group[0].sprite.x : 0;
+    const initialY = group[0].sprite ? group[0].sprite.y : 0;
+
     group.forEach((card, index) => {
       if (card.sprite) {
-        card.sprite.x = group[0].sprite.x + index * colWidth;
+        card.sprite.x = initialX + index * colWidth;
         card.sprite.setDepth(index);
       }
     });
   }
 
   sortByAlternatingColors(group) {
-    group.sort((a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank));
+    group.sort((a, b) => this.getRankValue(a.card.rank) - this.getRankValue(b.card.rank));
 
     const sortedGroup = [];
     let redCards = group.filter(card => card.card.suit === "heart" || card.card.suit === "diamond");
