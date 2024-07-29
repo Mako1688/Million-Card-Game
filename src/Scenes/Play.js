@@ -508,14 +508,8 @@ class Play extends Phaser.Scene {
     const minY = 112;
     const maxX = this.deckSprite.x - 20;
     const rowHeight = 150; // height of each row
-    const colWidth = 50 * group.length; // dynamic width based on group size
-    const maxColumns = Math.floor((maxX - minX) / colWidth); // max columns per row
-
-    const rowIndex = Math.floor(groupIndex / maxColumns); // current row index
-    const colIndex = groupIndex % maxColumns; // current column index
-
-    const startX = minX + colIndex * colWidth;
-    const startY = minY + rowIndex * rowHeight;
+    const colWidth = 50; // width of each card
+    const maxColumns = Math.floor((maxX - minX) / colWidth);
 
     let initialDragPosition = { x: 0, y: 0 };
     let totalDragDistance = 0;
@@ -527,13 +521,15 @@ class Play extends Phaser.Scene {
       }
     });
 
+    // Sort the group before displaying
+    this.sortGroup(group);
+
     group.forEach((card, cardIndex) => {
-      const frameIndex =
-        suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
+      const frameIndex = suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
       const cardSprite = this.add
         .sprite(
-          card.newPosition ? card.newPosition.x : startX + cardIndex * 50,
-          card.newPosition ? card.newPosition.y : startY,
+          card.newPosition ? card.newPosition.x : minX + cardIndex * colWidth,
+          card.newPosition ? card.newPosition.y : minY + groupIndex * rowHeight,
           "card_deck",
           frameIndex
         )
@@ -596,7 +592,14 @@ class Play extends Phaser.Scene {
 
       card.sprite = cardSprite;
     });
+
+    // Ensure the display order is correct
+    this.sortGroup(group);
+    group.forEach((card, index) => {
+      card.sprite.setDepth(index);
+    });
   }
+
 
 
   handleValidPlay() {
@@ -766,16 +769,44 @@ class Play extends Phaser.Scene {
     const group = this.tableCards[groupIndex];
     const isValid = this.checkValidGroup([...group, ...cards]);
     if (isValid) {
+      // Update the positions of cards in the group
+      const currentX = group[0].sprite.x;
+      const currentY = group[0].sprite.y;
+      const cardWidth = 50; // Assuming card width is 50
+
+      // Destroy existing sprites
+      group.forEach((card) => {
+        card.sprite.destroy();
+      });
+
+      // Add the new cards to the group
       group.push(...cards);
+
+      // Sort the group and set new positions
+      this.sortGroup(group);
+      group.forEach((card, index) => {
+        card.newPosition = { x: currentX + index * cardWidth, y: currentY };
+        const frameIndex =
+          suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
+        card.sprite = this.add.sprite(
+          card.newPosition.x,
+          card.newPosition.y,
+          "card_deck",
+          frameIndex
+        ).setOrigin(0.5).setScale(2).setInteractive();
+
+        this.input.setDraggable(card.sprite);
+      });
+
       this.placedCards = true;
-      this.tableCards[groupIndex] = group;
-      this.sortGroup(group); // Sort and alternate colors
       this.displayTable();
       this.checkTableValidity();
       return true;
     }
     return false;
   }
+
+
 
   addToHand(card, groupIndex) {
     const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
@@ -799,6 +830,7 @@ class Play extends Phaser.Scene {
       this.checkTableValidity();
     }
   }
+
 
 
   resetHandToTable() {
@@ -881,6 +913,9 @@ class Play extends Phaser.Scene {
     this.resetPressed = false;
   }
 
+
+
+
   resetTableCardPositions() {
     const minX = 80;
     const minY = 112;
@@ -903,6 +938,7 @@ class Play extends Phaser.Scene {
       currentX += group.length * colWidth + colWidth; // increment for the next group
     });
   }
+
 
 
   startNewTurn() {
@@ -945,18 +981,6 @@ class Play extends Phaser.Scene {
   }
 
   sortGroup(group) {
-    const hasSameRank = group.some((card, index) =>
-      group.some((otherCard, otherIndex) => index !== otherIndex && card.card.rank === otherCard.card.rank)
-    );
-
-    if (hasSameRank) {
-      this.sortByAlternatingColors(group);
-    } else {
-      this.sortByRank(group);
-    }
-  }
-
-  sortByRank(group) {
     // Sort the group by rank considering Ace as both high and low
     group.sort((a, b) => {
       let rankA = a.card.rank;
@@ -969,13 +993,23 @@ class Play extends Phaser.Scene {
       // Compare ranks
       return ranks.indexOf(rankA) - ranks.indexOf(rankB);
     });
+
+    // Sort by alternating colors
+    this.sortByAlternatingColors(group);
+
+    // Update positions based on sorting
+    const colWidth = 50;
+    group.forEach((card, index) => {
+      if (card.sprite) {
+        card.sprite.x = group[0].sprite.x + index * colWidth;
+        card.sprite.setDepth(index);
+      }
+    });
   }
 
   sortByAlternatingColors(group) {
-    // Sort the group by rank first
     group.sort((a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank));
 
-    // Then sort by alternating colors
     const sortedGroup = [];
     let redCards = group.filter(card => card.card.suit === "heart" || card.card.suit === "diamond");
     let blackCards = group.filter(card => card.card.suit === "spade" || card.card.suit === "club");
@@ -1011,9 +1045,9 @@ class Play extends Phaser.Scene {
       }
     }
 
-    // Reassign the sorted group back to the original group array
     for (let i = 0; i < group.length; i++) {
       group[i] = sortedGroup[i];
     }
   }
+
 }
