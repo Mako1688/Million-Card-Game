@@ -109,7 +109,7 @@ class Play extends Phaser.Scene {
 
     // Create validation box (hidden initially)
     this.validationBox = this.add
-      .rectangle(centerX, centerY - 200, 200, 100, 0x00ff00)
+      .rectangle(centerX, centerY + 100, 200, 100, 0x00ff00)
       .setOrigin(0.5)
       .setInteractive()
       .setVisible(false);
@@ -540,20 +540,26 @@ class Play extends Phaser.Scene {
       });
     }
     this.tableSprites = [];
-
-    this.tableCards.forEach((group, groupIndex) => {
-      this.displayTableGroup(group, groupIndex);
-    });
-  }
-
-  displayTableGroup(group, groupIndex) {
-    this.sortGroup(group);
     const minX = 80;
     const minY = 112;
     const maxX = this.deckSprite.x - 20;
     const rowHeight = 150; // height of each row
     const colWidth = 50; // width of each card
-    const maxColumns = Math.floor((maxX - minX) / colWidth);
+    let currentX = minX;
+    let currentY = minY;
+    this.tableCards.forEach((group, groupIndex) => {
+      if (currentX + group.length * colWidth > maxX) {
+        currentX = minX;
+        currentY += rowHeight;
+      }
+      this.displayTableGroup(group, groupIndex, currentX, currentY);
+      currentX += group.length * colWidth + colWidth + colWidth; // increment for the next group
+    });
+  }
+
+  displayTableGroup(group, groupIndex, currentX, currentY) {
+    this.sortGroup(group);
+    const colWidth = 50; // width of each card
 
     let initialDragPosition = { x: 0, y: 0 };
     let totalDragDistance = 0;
@@ -564,13 +570,12 @@ class Play extends Phaser.Scene {
         card.sprite.destroy();
       }
     });
-
     group.forEach((card, cardIndex) => {
       const frameIndex = suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
       const cardSprite = this.add
         .sprite(
-          card.newPosition ? card.newPosition.x : minX + cardIndex * colWidth,
-          card.newPosition ? card.newPosition.y : minY + groupIndex * rowHeight,
+          card.newPosition ? card.newPosition.x : currentX + cardIndex * colWidth,
+          card.newPosition ? card.newPosition.y : currentY,
           "card_deck",
           frameIndex
         )
@@ -633,6 +638,7 @@ class Play extends Phaser.Scene {
 
       card.sprite = cardSprite;
     });
+
 
     // Ensure the display order is correct
     this.sortGroup(group);
@@ -975,7 +981,7 @@ class Play extends Phaser.Scene {
         card.newPosition = { x: currentX + cardIndex * colWidth, y: currentY };
       });
 
-      currentX += group.length * colWidth + colWidth; // increment for the next group
+      currentX += group.length * colWidth + colWidth + colWidth; // increment for the next group
     });
   }
 
@@ -1058,6 +1064,7 @@ class Play extends Phaser.Scene {
       }
     });
   }
+
 
   sortByAlternatingColors(group) {
     group.sort((a, b) => this.getRankValue(a.card.rank) - this.getRankValue(b.card.rank));
