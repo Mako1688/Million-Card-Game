@@ -600,7 +600,7 @@ class Play extends Phaser.Scene {
       });
 
       cardSprite.on("dragend", (pointer, dragX, dragY) => {
-        if (totalDragDistance < 10) {
+        if (totalDragDistance < 20) {
           console.log("Card clicked on table: ", card.card);
           if (this.drawnCard) {
             console.log("You cannot select cards after drawing. End your turn.");
@@ -640,7 +640,6 @@ class Play extends Phaser.Scene {
       card.sprite.setDepth(index);
     });
   }
-
 
   handleValidPlay() {
     const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
@@ -743,6 +742,7 @@ class Play extends Phaser.Scene {
       console.log("You must complete a valid action before ending your turn.");
     }
   }
+
 
   // Function to sort hand by rank
   sortRankHand() {
@@ -992,10 +992,16 @@ class Play extends Phaser.Scene {
     });
   }
 
-  // Function to check if all groups on the table are valid
   checkAllGroupsValid() {
-    return this.tableCards.every(group => group.length >= 3);
+    let allGroupsValid = true;
+    this.tableCards.forEach(group => {
+      if (group.length < 3 || !this.checkValidGroup(group)) {
+        allGroupsValid = false;
+      }
+    });
+    return allGroupsValid;
   }
+
 
   checkTurnValidity() {
     if (this.drawnCard) {
@@ -1008,7 +1014,9 @@ class Play extends Phaser.Scene {
       let allGroupsValid = this.checkAllGroupsValid();
 
       // Check if cards placed on the table were from the initial hand
-      let placedFromInitialHand = this.cardsSelected.every(card => card.originalPosition.type === 'hand');
+      let placedFromInitialHand = this.tableCards.some(group =>
+        group.some(card => card.originalPosition.type === 'hand')
+      );
 
       if (allGroupsValid && placedFromInitialHand) {
         console.log("Turn is valid because cards have been placed from the initial hand and all groups are valid.");
@@ -1019,6 +1027,7 @@ class Play extends Phaser.Scene {
     console.log("Turn is not valid.");
     return false;
   }
+
 
   sortGroup(group) {
     // Sort the group by rank considering Ace as both high and low
