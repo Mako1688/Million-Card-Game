@@ -92,7 +92,7 @@ class Play extends Phaser.Scene {
 
     // Create deck
     this.deck = this.createDeck();
-    // this.deck = this.shuffle(this.deck);
+    this.deck = this.shuffle(this.deck);
     console.log(this.deck);
 
     // Deal cards
