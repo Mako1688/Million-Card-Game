@@ -349,7 +349,6 @@ class Play extends Phaser.Scene {
     });
   }
 
-  // Function to display the current player's hand
   displayHand() {
     const minX = 200;
     const maxX = 1450;
@@ -389,6 +388,28 @@ class Play extends Phaser.Scene {
         .setOrigin(0.5, 1)
         .setScale(2)
         .setInteractive();
+
+      // Hover event to raise the card to a fixed position
+      cardSprite.on("pointerover", () => {
+        this.tweens.add({
+          targets: cardSprite,
+          y: h - borderUISize * 2 - 50,
+          duration: 200,
+          ease: "Linear",
+        });
+      });
+
+      // Hover out event to lower the card back if not clicked
+      cardSprite.on("pointerout", () => {
+        if (!currentHand[i].selected) {
+          this.tweens.add({
+            targets: cardSprite,
+            y: h - borderUISize * 2,
+            duration: 200,
+            ease: "Linear",
+          });
+        }
+      });
 
       // Add click event listener to the card
       cardSprite.on("pointerdown", () => {
@@ -713,34 +734,12 @@ class Play extends Phaser.Scene {
         ease: "Linear",
       });
     } else {
-      // New condition to check if the card is in its default position but was visually reset
-      if (this.cardsSelected.includes(card)) {
-        // The card was in the selected state but visually reset, so we need to handle this
-        console.log("Card was visually reset, correcting state...");
-        this.cardsSelected = this.cardsSelected.filter(
-          (selectedCard) => selectedCard !== card
-        );
-        // Reapply the visual reset for correct behavior
-        cardSprite.clearTint();
-        this.tweens.add({
-          targets: cardSprite,
-          y: cardSprite.y + 50,
-          duration: 200,
-          ease: "Linear",
-        });
-      } else {
-        // Select the card
-        card.selected = true;
-        this.cardsSelected.push(card);
-        // Add green tint and move card up
-        cardSprite.setTint(0x00ff00);
-        this.tweens.add({
-          targets: cardSprite,
-          y: cardSprite.y - 50,
-          duration: 200,
-          ease: "Linear",
-        });
-      }
+      // Select the card
+      card.selected = true;
+      this.cardsSelected.push(card);
+      // Add green tint and move card up
+      cardSprite.setTint(0x00ff00);
+      // Keep the card in the raised position
     }
 
     // Check if selected cards form a valid group
