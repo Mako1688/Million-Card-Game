@@ -1086,49 +1086,31 @@ class Play extends Phaser.Scene {
   }
 
   sortByAlternatingColors(group) {
+    // Sort the group by rank first
     group.sort(
       (a, b) => this.getRankValue(a.card.rank) - this.getRankValue(b.card.rank)
     );
 
-    const sortedGroup = [];
-    let redCards = group.filter(
+    const redCards = group.filter(
       (card) => card.card.suit === "heart" || card.card.suit === "diamond"
     );
-    let blackCards = group.filter(
+    const blackCards = group.filter(
       (card) => card.card.suit === "spade" || card.card.suit === "club"
     );
 
-    let lastColorRed = null;
-    while (redCards.length || blackCards.length) {
-      if (lastColorRed === null) {
-        if (redCards.length) {
-          sortedGroup.push(redCards.shift());
-          lastColorRed = true;
-        } else {
-          sortedGroup.push(blackCards.shift());
-          lastColorRed = false;
-        }
-      } else {
-        if (lastColorRed) {
-          if (blackCards.length) {
-            sortedGroup.push(blackCards.shift());
-            lastColorRed = false;
-          } else {
-            sortedGroup.push(redCards.shift());
-            lastColorRed = true;
-          }
-        } else {
-          if (redCards.length) {
-            sortedGroup.push(redCards.shift());
-            lastColorRed = true;
-          } else {
-            sortedGroup.push(blackCards.shift());
-            lastColorRed = false;
-          }
-        }
+    const sortedGroup = [];
+    let useRed = redCards.length >= blackCards.length; // Start with the color group that has more cards
+
+    while (redCards.length > 0 || blackCards.length > 0) {
+      if (useRed && redCards.length > 0) {
+        sortedGroup.push(redCards.shift());
+      } else if (!useRed && blackCards.length > 0) {
+        sortedGroup.push(blackCards.shift());
       }
+      useRed = !useRed; // Alternate color for the next card
     }
 
+    // Reassign sorted cards to the original group array
     for (let i = 0; i < group.length; i++) {
       group[i] = sortedGroup[i];
     }
