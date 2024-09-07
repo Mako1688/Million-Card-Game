@@ -3,12 +3,14 @@ class Play extends Phaser.Scene {
     super("playScene");
   }
 
-  init() {}
+  init() { }
 
-  preload() {}
+  preload() { }
 
   create() {
     console.log("play scene started");
+
+    this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0)
 
     // Create arrays for states cards can be in
     this.handSelected = [];
@@ -16,7 +18,7 @@ class Play extends Phaser.Scene {
     // Create all sprites here
     // Place end turn button
     this.endTurnButton = this.add
-      .sprite(w - borderPadding, h - borderPadding, "end_turn", 0)
+      .sprite(w - borderPadding, h - borderPadding * 3, "end_turn", 0)
       .setOrigin(1, 1)
       .setScale(3);
     // Place restart button
@@ -26,7 +28,7 @@ class Play extends Phaser.Scene {
       .setScale(3);
     // Add deck to middle right
     this.deckSprite = this.add
-      .sprite(w - borderPadding, centerY, "card_deck", 53)
+      .sprite(w - borderPadding, centerY - borderPadding * 3, "card_deck", 53)
       .setOrigin(1, 0.5)
       .setScale(2)
       .setDepth(5);
@@ -47,24 +49,24 @@ class Play extends Phaser.Scene {
       .setDepth(2);
     // Add sortRank to bottom left
     this.sortRank = this.add
-      .sprite(0 + borderPadding, h - borderPadding, "sort_rank", 0)
-      .setOrigin(0, 1)
+      .sprite(this.endTurnButton.x, this.endTurnButton.y - this.endTurnButton.height - 50, "sort_rank", 0)
+      .setOrigin(1, 1)
       .setScale(3);
     // Add sortSuit to bottom left
     this.sortSuit = this.add
       .sprite(
-        0 + borderPadding,
-        h - borderPadding - this.sortRank.height * 3 - 5,
+        this.sortRank.x, 
+        this.sortRank.y - this.sortRank.height - 50,
         "sort_suit",
         0
       )
-      .setOrigin(0, 1)
+      .setOrigin(1, 1)
       .setScale(3);
 
     // Menu config
     let menuConfig = {
       fontFamily: "PressStart2P",
-      fontSize: "20px",
+      fontSize: "25px",
       backgroundColor: "#000000",
       color: "#FFFFFF",
       align: "center",
@@ -74,6 +76,9 @@ class Play extends Phaser.Scene {
       },
       fixedWidth: 0,
     };
+
+    // Add text for displaying the current player's turn
+    this.turnText = this.add.text(0 + borderPadding * 4, h - borderPadding * 7, "Turn:\nP1", menuConfig).setOrigin(0.5, 0.5);
 
     // Create bools
     this.turnValid = false;
@@ -814,12 +819,12 @@ class Play extends Phaser.Scene {
     }
   }
 
-  // Function to display current player's turn
   displayTurn() {
-    // Display current turn
-    let turnText = this.p1Turn ? "Player 1's Turn" : "Player 2's Turn";
-    console.log(turnText);
-  }
+    // Update text based on the current player's turn
+    let turnText = this.p1Turn ? "Turn:\nP1" : "Turn:\nP2";
+    this.turnText.setText(turnText);
+}
+
 
   // Function to check the validity of all groups on the table
   checkTableValidity() {

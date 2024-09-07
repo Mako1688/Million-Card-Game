@@ -6,6 +6,13 @@ class Load extends Phaser.Scene {
   init() {}
 
   preload() {
+    //load background
+    this.load.spritesheet("play_background", "./assets/SpriteSheets/Million_CG.png", {
+      frameWidth: 1688,
+      frameHeight: 780,
+      startFrame: 0,
+      endFrame: 0
+    })
     //load card spritesheet
     this.load.spritesheet("card_deck", "./assets/SpriteSheets/Card_Deck.png", {
       frameWidth: 60,
