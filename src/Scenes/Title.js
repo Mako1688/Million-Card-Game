@@ -3,9 +3,9 @@ class Title extends Phaser.Scene {
     super("titleScene");
   }
 
-  init() {}
+  init() { }
 
-  preload() {}
+  preload() { }
 
   create() {
     //add any button to start text
@@ -74,5 +74,5 @@ class Title extends Phaser.Scene {
     });
   }
 
-  update() {}
+  update() { }
 }

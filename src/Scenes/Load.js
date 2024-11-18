@@ -3,7 +3,7 @@ class Load extends Phaser.Scene {
     super("loadScene");
   }
 
-  init() {}
+  init() { }
 
   preload() {
     //load background

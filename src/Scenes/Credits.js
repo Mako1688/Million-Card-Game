@@ -3,11 +3,11 @@ class Credits extends Phaser.Scene {
     super("creditsScene");
   }
 
-  init() {}
+  init() { }
 
-  preload() {}
+  preload() { }
 
-  create() {}
+  create() { }
 
-  update() {}
+  update() { }
 }
