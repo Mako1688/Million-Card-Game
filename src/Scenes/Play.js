@@ -1,5 +1,5 @@
 /*
-This code is for the play scene of the game. It is responsible for the main gameplay loop and logic.
+This code is for the play scene of the game. It is responsible for the main gameplay loop and logic in the phaser framework.
 
 The rules of the game are as follows:
 - The game is played with a two decks of cards and two players
@@ -9,6 +9,7 @@ The rules of the game are as follows:
 - Players can take cards from the table and ad them to their hand momentarily to make valid plays with previously unplayed cards (All cards taken must be placed back in the same turn does not have to be in the same spot)
 - Players can only draw one card per turn
 - Players cannot draw a card after placing cards on the table and vice versa
+- The table at all times must have a valid group of cards (groups must have at least 3 cards to be valid and be either a run or a set)
 - The game continues until one player has no cards left in their hand
 - The player with no cards left in their hand wins the game
 
@@ -45,58 +46,65 @@ class Play extends Phaser.Scene {
   create() {
     console.log("play scene started");
 
-    this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0)
+    this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0);
 
-    // Create arrays for states cards can be in
+    // Initialize variables
+    this.initializeVariables();
+
+    // Create UI elements
+    this.createUIElements();
+
+    // Create deck and deal cards
+    this.deck = this.createDeck();
+    this.deck = this.shuffle(this.deck);
+    console.log(this.deck);
+    this.dealCards();
+
+    // Display initial hand and start new turn
+    this.displayHand();
+    this.startNewTurn();
+
+    // Print deck
+    console.log(this.deck);
+
+    // Create validation box
+    this.createValidationBox();
+
+    // Add interactivity to buttons and deck
+    this.addInteractivity();
+  }
+
+  initializeVariables() {
     this.handSelected = [];
+    this.borderUISize = -25;
+    this.turnValid = false;
+    this.p1Turn = true;
+    this.p2Turn = false;
+    this.drawn = false;
+    this.drawnCard = false;
+    this.placedCards = false;
+    this.resetPressed = false;
+    this.p1Hand = [];
+    this.p2Hand = [];
+    this.cardsSelected = [];
+    this.tableCards = [];
+  }
+
+  createUIElements() {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    const centerX = this.scale.width / 2;
+    const centerY = this.scale.height / 2;
+    const borderPadding = 10;
 
     // Create all sprites here
-    // Place end turn button
-    this.endTurnButton = this.add
-      .sprite(w - borderPadding, h - borderPadding * 3, "end_turn", 0)
-      .setOrigin(1, 1)
-      .setScale(3);
-    // Place restart button
-    this.restart = this.add
-      .sprite(w - borderPadding, 0 + borderPadding, "restart", 0)
-      .setOrigin(1, 0)
-      .setScale(3);
-    // Add deck to middle right
-    this.deckSprite = this.add
-      .sprite(w - borderPadding, centerY - borderPadding * 3, "card_deck", 53)
-      .setOrigin(1, 0.5)
-      .setScale(2)
-      .setDepth(5);
-    this.add
-      .sprite(this.deckSprite.x - 4, this.deckSprite.y + 4, "card_deck", 53)
-      .setOrigin(1, 0.5)
-      .setScale(2)
-      .setDepth(4);
-    this.add
-      .sprite(this.deckSprite.x - 8, this.deckSprite.y + 8, "card_deck", 53)
-      .setOrigin(1, 0.5)
-      .setScale(2)
-      .setDepth(3);
-    this.add
-      .sprite(this.deckSprite.x - 12, this.deckSprite.y + 12, "card_deck", 53)
-      .setOrigin(1, 0.5)
-      .setScale(2)
-      .setDepth(2);
-    // Add sortRank to bottom left
-    this.sortRank = this.add
-      .sprite(this.endTurnButton.x, this.endTurnButton.y - this.endTurnButton.height - 50, "sort_rank", 0)
-      .setOrigin(1, 1)
-      .setScale(3);
-    // Add sortSuit to bottom left
-    this.sortSuit = this.add
-      .sprite(
-        this.sortRank.x,
-        this.sortRank.y - this.sortRank.height - 50,
-        "sort_suit",
-        0
-      )
-      .setOrigin(1, 1)
-      .setScale(3);
+    this.endTurnButton = this.createButton(w - borderPadding, h - borderPadding * 6, "end_turn", 3, 1, 1);
+    this.restart = this.createButton(w - borderPadding, borderPadding, "restart", 3, 1, 0);
+    this.deckSprite = this.createDeckSprite(w - borderPadding, centerY - borderPadding * 5, 2, 5);
+
+    // Add sort buttons
+    this.sortRank = this.createButton(this.endTurnButton.x, this.endTurnButton.y - this.endTurnButton.height - 50, "sort_rank", 3, 1, 1);
+    this.sortSuit = this.createButton(this.sortRank.x, this.sortRank.y - this.sortRank.height - 50, "sort_suit", 3, 1, 1);
 
     // Menu config
     let menuConfig = {
@@ -113,259 +121,124 @@ class Play extends Phaser.Scene {
     };
 
     // Add text for displaying the current player's turn
-    this.turnText = this.add.text(0 + borderPadding * 4, h - borderPadding * 7, "Turn:\nP1", menuConfig).setOrigin(0.5, 0.5);
+    this.turnText = this.add.text(25 + borderPadding * 4, h - borderPadding * 15, "Turn:\nP1", menuConfig).setOrigin(0.5, 0.5);
+  }
 
-    // Create bools
-    this.turnValid = false;
-    this.p1Turn = true;
-    this.p2Turn = false;
-    this.drawn = false;
-    this.drawnCard = false;
-    this.placedCards = false;
-    this.resetPressed = false;
+  createButton(x, y, texture, scale, originX, originY) {
+    return this.add.sprite(x, y, texture, 0).setOrigin(originX, originY).setScale(scale);
+  }
 
-    // Create hands
-    this.p1Hand = [];
-    this.p2Hand = [];
-    this.cardsSelected = [];
-    this.tableCards = [];
+  createDeckSprite(x, y, scale, depth) {
+    const deckSprite = this.add.sprite(x, y, "card_deck", 53).setOrigin(1, 0.5).setScale(scale).setDepth(depth);
+    for (let i = 1; i <= 4; i++) {
+      this.add.sprite(deckSprite.x - 4 * i, deckSprite.y + 4 * i, "card_deck", 53).setOrigin(1, 0.5).setScale(scale).setDepth(depth - i);
+    }
+    return deckSprite;
+  }
 
-    // Create deck
-    this.deck = this.createDeck();
-    this.deck = this.shuffle(this.deck);
-    console.log(this.deck);
-
-    // Deal cards
-    this.dealCards();
-
-    // Display cards in hand
-    this.displayHand();
-
-    // Call startNewTurn to set initial positions for cards at the start of the game
-    this.startNewTurn();
-
-    // Print deck
-    console.log(this.deck);
-
-    // Create validation box (hidden initially)
-    this.validationBox = this.add
-      .rectangle(centerX, centerY + 100, 200, 100, 0x00ff00)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setVisible(false);
-
-    // Handle validation box click
+  createValidationBox() {
+    const centerX = this.scale.width / 2;
+    const centerY = this.scale.height / 2;
+    this.validationBox = this.add.rectangle(centerX, centerY + 100, 200, 100, 0x00ff00).setOrigin(0.5).setInteractive().setVisible(false);
     this.validationBox.on("pointerdown", () => {
       this.handleValidPlay();
       this.turnValid = true;
     });
+  }
 
-    // Make the end turn button clickable
-    this.endTurnButton.setInteractive();
+  addInteractivity() {
+    this.addButtonInteractivity(this.endTurnButton, this.endTurn, this.displayHand, this.displayTable);
+    this.addButtonInteractivity(this.restart, this.resetHandToTable);
+    this.addDeckInteractivity(this.deckSprite);
+    this.addButtonInteractivity(this.sortRank, this.sortRankHand, this.displayHand, this.displayTable);
+    this.addButtonInteractivity(this.sortSuit, this.sortSuitHand, this.displayHand, this.displayTable);
+  }
 
-    // Add pointerover event listener for hovering
-    this.endTurnButton.on("pointerover", () => {
-      console.log("Turn Valid: " + this.turnValid);
-      console.log("end turn hover");
-      // Change to hover frame
-      this.endTurnButton.setFrame(2);
+  addButtonInteractivity(button, onClick, ...callbacks) {
+    button.setInteractive();
+    button.on("pointerover", () => {
+      console.log(`${button.texture.key} hover`);
+      button.setFrame(2);
     });
-
-    // Add pointerout event listener for when hovering ends
-    this.endTurnButton.on("pointerout", () => {
-      console.log("end turn not hover");
-      // Change to none hover frame
-      this.endTurnButton.setFrame(0);
+    button.on("pointerout", () => {
+      console.log(`${button.texture.key} not hover`);
+      button.setFrame(0);
     });
-
-    // Listen for pointerdown event on the card
-    this.endTurnButton.on("pointerdown", () => {
-      console.log("End turn button pressed");
-      this.endTurn();
-      console.log("End turn completed");
-      // Change to push frame
-      this.endTurnButton.setFrame(1);
-      // Display cards in hand
-      this.displayHand();
-      // Display table
-      this.displayTable();
+    button.on("pointerdown", () => {
+      console.log(`${button.texture.key} press`);
+      onClick.call(this);
+      button.setFrame(1);
+      callbacks.forEach(callback => callback.call(this));
     });
+  }
 
-    // Make the restart button clickable
-    this.restart.setInteractive();
-
-    // Add pointerover event listener for hovering
-    this.restart.on("pointerover", () => {
-      console.log("restart hover");
-      // Change to hover frame
-      this.restart.setFrame(2);
-    });
-
-    // Add pointerout event listener for when hovering ends
-    this.restart.on("pointerout", () => {
-      console.log("restart not hover");
-      // Change to none hover frame
-      this.restart.setFrame(0);
-    });
-
-    // Function to handle restart button click
-    this.restart.on("pointerdown", () => {
-      console.log("restart press");
-      console.log("Player 1 hand before reset:", this.p1Hand.length);
-      console.log("Player 2 hand before reset:", this.p2Hand.length);
-      console.log("Table groups before reset:", this.tableCards);
-      this.resetPressed = true; // Set the flag to prevent win scene transition
-      this.resetHandToTable();
-      this.cardsSelected = [];
-      this.p1Hand.forEach((card) => (card.selected = false));
-      this.p2Hand.forEach((card) => (card.selected = false));
-      console.log("resetHandToTable called");
-      console.log("Player 1 hand after reset:", this.p1Hand.length);
-      console.log("Player 2 hand after reset:", this.p2Hand.length);
-      console.log("Table groups after reset:", this.tableCards);
-      // Change to push frame
-      this.restart.setFrame(1);
-    });
-
-    // Make the deck clickable
-    this.deckSprite.setInteractive();
-
-    // Add pointerover event listener for hovering
-    this.deckSprite.on("pointerover", () => {
+  addDeckInteractivity(deckSprite) {
+    deckSprite.setInteractive();
+    deckSprite.on("pointerover", () => {
       console.log(this.deck);
       console.log("deckSprite hovered");
-      // Scale the card slightly larger
       this.tweens.add({
-        targets: this.deckSprite,
+        targets: deckSprite,
         scaleX: 2.1,
         scaleY: 2.1,
         duration: 200,
         ease: "Linear",
       });
     });
-
-    // Add pointerout event listener for when hovering ends
-    this.deckSprite.on("pointerout", () => {
+    deckSprite.on("pointerout", () => {
       console.log("deckSprite not hovered");
-      // Restore the deckSprite to its original scale
       this.tweens.add({
-        targets: this.deckSprite,
+        targets: deckSprite,
         scaleX: 2,
         scaleY: 2,
         duration: 200,
         ease: "Linear",
       });
     });
-
-    // Listen for pointerdown event on the deck
-    this.deckSprite.on("pointerdown", () => {
-      // Code to execute when the deckSprite is clicked
+    deckSprite.on("pointerdown", () => {
       console.log("deckSprite clicked!");
       this.drawCard();
       this.turnValid = true;
-      // Display cards in hand
       this.displayHand();
-      // Display table
       this.displayTable();
     });
-
-    // Make the sortRank button clickable
-    this.sortRank.setInteractive();
-
-    // Add pointerover event listener for hovering
-    this.sortRank.on("pointerover", () => {
-      console.log("sortRank hover");
-      // Change to hover frame
-      this.sortRank.setFrame(2);
-    });
-
-    // Add pointerout event listener for when hovering ends
-    this.sortRank.on("pointerout", () => {
-      console.log("sortRank not hover");
-      // Change to none hover frame
-      this.sortRank.setFrame(0);
-    });
-
-    // Listen for pointerdown event on the card
-    this.sortRank.on("pointerdown", () => {
-      this.sortRankHand();
-      console.log("sortRank press");
-      // Change to push frame
-      this.sortRank.setFrame(1);
-      // Display cards in hand
-      this.displayHand();
-      // Display table
-      this.displayTable();
-    });
-
-    // Make the sortSuit button clickable
-    this.sortSuit.setInteractive();
-
-    // Add pointerover event listener for hovering
-    this.sortSuit.on("pointerover", () => {
-      console.log("sortSuit hover");
-      // Change to hover frame
-      this.sortSuit.setFrame(2);
-    });
-
-    // Add pointerout event listener for when hovering ends
-    this.sortSuit.on("pointerout", () => {
-      console.log("sortSuit not hover");
-      // Change to none hover frame
-      this.sortSuit.setFrame(0);
-    });
-
-    // Listen for pointerdown event on the card
-    this.sortSuit.on("pointerdown", () => {
-      this.sortSuitHand();
-      console.log("sortSuit press");
-      // Change to push frame
-      this.sortSuit.setFrame(1);
-      // Display cards in hand
-      this.displayHand();
-      // Display table
-      this.displayTable();
-    });
-
-    // Display initial hand
-    this.displayHand();
   }
 
-  // Updated update function to prevent win scene transition
   update() {
-    // Display Player turn
     this.displayTurn();
+    this.checkWinCondition();
+  }
 
-    // Only transition to win scene if the hand is empty and reset button was not just pressed
+  checkWinCondition() {
     if (!this.resetPressed) {
       if (this.p1Hand.length === 0) {
-        console.log("Player 1 wins");
-        this.scene.start("winScene", {
-          p1Win: true,
-        });
+        this.handleWin(true);
       } else if (this.p2Hand.length === 0) {
-        console.log("Player 2 wins");
-        this.scene.start("winScene", {
-          p1Win: false,
-        });
+        this.handleWin(false);
       }
     }
   }
 
-  // Function to create a deck with two copies of each card
+  handleWin(p1Win) {
+    console.log(p1Win ? "Player 1 wins" : "Player 2 wins");
+    this.scene.start("winScene", { p1Win });
+  }
+
   createDeck() {
     let deck = [];
     for (let suit of suits) {
       for (let rank of ranks) {
-        // Create two copies of each card
-        deck.push({ card: { suit, rank }, table: false });
-        deck.push({ card: { suit, rank }, table: false });
+        deck.push(this.createCard(suit, rank));
+        deck.push(this.createCard(suit, rank));
       }
     }
     return deck;
   }
 
-  // Shuffle function (Fisher-Yates shuffle)
+  createCard(suit, rank) {
+    return { card: { suit, rank }, table: false };
+  }
+
   shuffle(deck) {
     for (let i = deck.length - 1; i > 0; i--) {
       let j = Math.floor(Math.random() * (i + 1));
@@ -374,123 +247,145 @@ class Play extends Phaser.Scene {
     return deck;
   }
 
-  // Function to deal 7 cards to each player
   dealCards() {
     for (let i = 0; i < 7; i++) {
-      this.p1Hand.push(this.deck.pop());
-      this.p2Hand.push(this.deck.pop());
+      this.dealCardToPlayer(this.p1Hand);
+      this.dealCardToPlayer(this.p2Hand);
     }
-    // Ensure all dealt cards have their original position set to 'hand'
-    this.p1Hand.forEach((card) => {
-      card.originalPosition = { type: "hand" };
-    });
-    this.p2Hand.forEach((card) => {
-      card.originalPosition = { type: "hand" };
-    });
+  }
+
+  dealCardToPlayer(hand) {
+    const card = this.deck.pop();
+    card.originalPosition = { type: "hand" };
+    hand.push(card);
   }
 
   displayHand() {
-    const minX = 200;
-    const maxX = 1450;
-    const cardWidth = 75; // Width of each card sprite
-    const borderUISize = -25;
+    const currentHand = this.getCurrentHand();
+    this.clearExistingHandSprites();
+    const spacing = this.calculateCardSpacing(currentHand.length);
+    const startX = this.calculateStartX(currentHand.length, spacing);
+    this.handSelected = this.createHandSprites(currentHand, startX, spacing);
+  }
 
-    // Determine the current hand
-    const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
+  getCurrentHand() {
+    return this.p1Turn ? this.p1Hand : this.p2Hand;
+  }
 
-    // Clear existing cards in handSelected
+  clearExistingHandSprites() {
     this.handSelected.forEach((card) => {
       card.destroy();
     });
+  }
 
-    // Calculate total width of the hand
-    const totalHandWidth = currentHand.length * cardWidth;
+  calculateCardSpacing(handLength) {
+    const minX = 200;
+    const maxX = 1450;
+    const cardWidth = 75;
+    const totalHandWidth = handLength * cardWidth;
 
-    // Adjust spacing if cards would exceed the bounds
-    let spacing = cardWidth;
-    if (totalHandWidth > maxX - minX) {
-      spacing = (maxX - minX) / currentHand.length;
-    }
+    return totalHandWidth > maxX - minX ? (maxX - minX) / handLength : cardWidth;
+  }
 
-    // Calculate starting x position to center the hand
-    let startX = (this.scale.width - (currentHand.length - 1) * spacing) / 2;
+  calculateStartX(handLength, spacing) {
+    return (this.scale.width - (handLength - 1) * spacing) / 2;
+  }
 
-    // Display current player's hand
-    this.handSelected = [];
+  createHandSprites(currentHand, startX, spacing) {
+    const handSprites = [];
     for (let i = 0; i < currentHand.length; i++) {
-      // Calculate position based on adjusted spacing
-      let xPosition = startX + i * spacing;
-      let frameIndex =
-        suits.indexOf(currentHand[i].card.suit) * 13 +
-        ranks.indexOf(currentHand[i].card.rank);
-      let cardSprite = this.add
-        .sprite(xPosition, h - borderUISize * 2, "card_deck", frameIndex)
-        .setOrigin(0.5, 1)
-        .setScale(2)
-        .setInteractive();
-
-      // Hover event to raise the card to a fixed position
-      cardSprite.on("pointerover", () => {
-        this.tweens.add({
-          targets: cardSprite,
-          y: h - borderUISize * 2 - 50,
-          duration: 200,
-          ease: "Linear",
-        });
-      });
-
-      // Hover out event to lower the card back if not clicked
-      cardSprite.on("pointerout", () => {
-        if (!currentHand[i].selected) {
-          this.tweens.add({
-            targets: cardSprite,
-            y: h - borderUISize * 2,
-            duration: 200,
-            ease: "Linear",
-          });
-        }
-      });
-
-      // Add click event listener to the card
-      cardSprite.on("pointerdown", () => {
-        console.log("Card selected: ", currentHand[i].card);
-        this.selectCard(i, this.p1Turn ? "p1Hand" : "p2Hand", cardSprite);
-      });
-
-      this.handSelected.push(cardSprite);
+      const xPosition = startX + i * spacing;
+      const frameIndex = this.getCardFrameIndex(currentHand[i]);
+      const cardSprite = this.createCardSprite(xPosition, frameIndex);
+      this.addCardInteractivity(cardSprite, currentHand[i], i);
+      handSprites.push(cardSprite);
     }
+    return handSprites;
+  }
+
+  getCardFrameIndex(card) {
+    return suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
+  }
+
+  createCardSprite(xPosition, frameIndex) {
+
+    return this.add
+      .sprite(xPosition, this.scale.height - this.borderUISize * 2, "card_deck", frameIndex)
+      .setOrigin(0.5, 1)
+      .setScale(2)
+      .setInteractive();
+  }
+
+  addCardInteractivity(cardSprite, card, index) {
+    cardSprite.on("pointerover", () => this.handlePointerOver(cardSprite));
+    cardSprite.on("pointerout", () => this.handlePointerOut(cardSprite, card));
+    cardSprite.on("pointerdown", () => this.handlePointerDown(card, index, cardSprite));
+  }
+
+  handlePointerOver(cardSprite) {
+    this.tweens.add({
+      targets: cardSprite,
+      y: this.scale.height - this.borderUISize * 2 - 50,
+      duration: 200,
+      ease: "Linear",
+    });
+  }
+
+  handlePointerOut(cardSprite, card) {
+    if (!card.selected) {
+      this.tweens.add({
+        targets: cardSprite,
+        y: this.scale.height - this.borderUISize * 2,
+        duration: 200,
+        ease: "Linear",
+      });
+    }
+  }
+
+  handlePointerDown(card, index, cardSprite) {
+    console.log("Card selected: ", card.card);
+    this.selectCard(index, this.p1Turn ? "p1Hand" : "p2Hand", cardSprite);
   }
 
   //Snoopert fry pic lmao
 
   drawCard() {
-    let hasPlacedInitialHandCard = this.tableCards.some((group) =>
-      group.some((card) => card.originalPosition.type === "hand")
-    );
-
-    if (this.deck.length > 0 && !this.drawnCard && !hasPlacedInitialHandCard) {
+    if (this.canDrawCard()) {
       const newCard = this.deck.pop();
-      newCard.originalPosition = { type: "hand" }; // Set original position to 'hand'
-      if (this.p1Turn) {
-        this.p1Hand.push(newCard);
-      } else {
-        this.p2Hand.push(newCard);
-      }
+      this.addCardToHand(newCard);
       this.drawnCard = true;
       this.turnValid = true;
-
-      // Disable card selection after drawing a card
       this.disableCardInteractivity();
-    } else if (this.drawnCard) {
-      console.log("You can only draw once per turn.");
-    } else if (hasPlacedInitialHandCard) {
-      console.log(
-        "You cannot draw cards after placing cards from your initial hand."
-      );
+    } else {
+      this.handleInvalidDraw();
     }
   }
 
-  // Function to disable card interactivity
+  canDrawCard() {
+    const hasPlacedInitialHandCard = this.tableCards.some((group) =>
+      group.some((card) => card.originalPosition.type === "hand")
+    );
+    return this.deck.length > 0 && !this.drawnCard && !hasPlacedInitialHandCard;
+  }
+
+  addCardToHand(newCard) {
+    newCard.originalPosition = { type: "hand" };
+    if (this.p1Turn) {
+      this.p1Hand.push(newCard);
+    } else {
+      this.p2Hand.push(newCard);
+    }
+  }
+
+  handleInvalidDraw() {
+    if (this.drawnCard) {
+      console.log("You can only draw once per turn.");
+    } else {
+      console.log("You cannot draw cards after placing cards from your initial hand.");
+    }
+  }
+
+
   disableCardInteractivity() {
     this.handSelected.forEach((cardSprite) => {
       cardSprite.disableInteractive();
@@ -518,13 +413,11 @@ class Play extends Phaser.Scene {
     }
   }
 
-  // Function to check if a group of cards is valid
   checkValidGroup(cards = []) {
     if (cards.length < 3) {
       return false;
     }
 
-    // Check for sandwiching suits of the same rank
     const ranks = cards.map((card) => card.card.rank);
     const suits = cards.map((card) => card.card.suit);
     const uniqueRanks = new Set(ranks);
@@ -534,7 +427,6 @@ class Play extends Phaser.Scene {
       return true;
     }
 
-    // Check for ascending rank same suit with the correct sequence
     if (uniqueSuits.size === 1) {
       const sortedRanks = cards
         .map((card) => this.getRankValue(card.card.rank))
@@ -594,23 +486,11 @@ class Play extends Phaser.Scene {
     }
   }
 
-  // Function to display table cards
   displayTable() {
     console.log(this.tableCards);
-    // Clear previous table card containers
-    if (this.tableSprites) {
-      this.tableSprites.forEach((group) => {
-        group.forEach((cardSprite) => {
-          cardSprite.destroy();
-        });
-      });
-    }
+    this.clearPreviousTableSprites();
     this.tableSprites = [];
-    const minX = 80;
-    const minY = 112;
-    const maxX = this.deckSprite.x - 20;
-    const rowHeight = 150; // height of each row
-    const colWidth = 50; // width of each card
+    const { minX, minY, maxX, rowHeight, colWidth } = this.getTableDimensions();
     let currentX = minX;
     let currentY = minY;
     this.tableCards.forEach((group, groupIndex) => {
@@ -621,6 +501,26 @@ class Play extends Phaser.Scene {
       this.displayTableGroup(group, groupIndex, currentX, currentY);
       currentX += group.length * colWidth + colWidth + colWidth; // increment for the next group
     });
+  }
+
+  clearPreviousTableSprites() {
+    if (this.tableSprites) {
+      this.tableSprites.forEach((group) => {
+        group.forEach((cardSprite) => {
+          cardSprite.destroy();
+        });
+      });
+    }
+  }
+
+  getTableDimensions() {
+    return {
+      minX: 80,
+      minY: 112,
+      maxX: this.deckSprite.x - 20,
+      rowHeight: 150, // height of each row
+      colWidth: 50 // width of each card
+    };
   }
 
   displayTableGroup(group, groupIndex, currentX, currentY) {
@@ -636,80 +536,11 @@ class Play extends Phaser.Scene {
         card.sprite.destroy();
       }
     });
+
     group.forEach((card, cardIndex) => {
-      const frameIndex =
-        suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
-      const cardSprite = this.add
-        .sprite(
-          card.newPosition
-            ? card.newPosition.x
-            : currentX + cardIndex * colWidth,
-          card.newPosition ? card.newPosition.y : currentY,
-          "card_deck",
-          frameIndex
-        )
-        .setOrigin(0.5)
-        .setScale(2)
-        .setInteractive();
-
-      this.input.setDraggable(cardSprite);
-
-      cardSprite.on("pointerdown", (pointer) => {
-        initialDragPosition = { x: pointer.x, y: pointer.y };
-        totalDragDistance = 0;
-      });
-
-      cardSprite.on("drag", (pointer, dragX, dragY) => {
-        const deltaX = dragX - initialDragPosition.x;
-        const deltaY = dragY - initialDragPosition.y;
-        totalDragDistance += Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        group.forEach((groupCard) => {
-          const sprite = groupCard.sprite;
-          sprite.x += deltaX;
-          sprite.y += deltaY;
-          sprite.x = Phaser.Math.Clamp(sprite.x, 20, this.deckSprite.x - 20);
-          sprite.y = Phaser.Math.Clamp(sprite.y, 112, h - borderPadding - 100);
-        });
-        initialDragPosition = { x: dragX, y: dragY };
-      });
-
-      cardSprite.on("dragend", (pointer, dragX, dragY) => {
-        if (totalDragDistance < 20) {
-          console.log("Card clicked on table: ", card.card);
-          if (this.drawnCard) {
-            console.log(
-              "You cannot select cards after drawing. End your turn."
-            );
-            return;
-          }
-          if (this.cardsSelected.length > 0) {
-            const result = this.addToGroup(this.cardsSelected, groupIndex);
-            if (result) {
-              const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
-              this.cardsSelected.forEach((card) => {
-                const indexInHand = currentHand.indexOf(card);
-                if (indexInHand !== -1) {
-                  currentHand.splice(indexInHand, 1);
-                }
-              });
-              this.cardsSelected = [];
-              this.displayHand();
-              this.validationBox.setVisible(false);
-            }
-          } else {
-            this.addToHand(card, groupIndex);
-            card.sprite.destroy();
-          }
-        } else {
-          group.forEach((groupCard) => {
-            groupCard.newPosition = {
-              x: groupCard.sprite.x,
-              y: groupCard.sprite.y,
-            };
-          });
-        }
-      });
-
+      const frameIndex = this.getCardFrameIndex(card);
+      const cardSprite = this.createCardSpriteForTable(card, frameIndex, currentX, currentY, cardIndex, colWidth);
+      this.addCardDragInteractivity(cardSprite, card, group, groupIndex, initialDragPosition, totalDragDistance);
       card.sprite = cardSprite;
     });
 
@@ -720,34 +551,119 @@ class Play extends Phaser.Scene {
     });
   }
 
-  handleValidPlay() {
-    const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
+  createCardSpriteForTable(card, frameIndex, currentX, currentY, cardIndex, colWidth) {
+    return this.add
+      .sprite(
+        card.newPosition ? card.newPosition.x : currentX + cardIndex * colWidth,
+        card.newPosition ? card.newPosition.y : currentY,
+        "card_deck",
+        frameIndex
+      )
+      .setOrigin(0.5)
+      .setScale(2)
+      .setInteractive();
+  }
 
-    // Remove selected cards from player's hand and push to table array
-    this.tableCards.push([...this.cardsSelected]);
+  addCardDragInteractivity(cardSprite, card, group, groupIndex, initialDragPosition, totalDragDistance) {
+    this.input.setDraggable(cardSprite);
 
-    // Mark the cards as placed on the table but do not change their original position
-    this.cardsSelected.forEach((card) => {
-      card.table = true;
-      // Remove card from hand
-      const indexInHand = currentHand.indexOf(card);
-      if (indexInHand !== -1) {
-        currentHand.splice(indexInHand, 1);
-      }
+    cardSprite.on("pointerdown", (pointer) => {
+      initialDragPosition = { x: pointer.x, y: pointer.y };
+      totalDragDistance = 0;
     });
 
-    // Refresh table display
-    this.displayTable();
+    cardSprite.on("drag", (pointer, dragX, dragY) => {
+      const deltaX = dragX - initialDragPosition.x;
+      const deltaY = dragY - initialDragPosition.y;
+      totalDragDistance += Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      group.forEach((groupCard) => {
+        const sprite = groupCard.sprite;
+        sprite.x += deltaX;
+        sprite.y += deltaY;
+        sprite.x = Phaser.Math.Clamp(sprite.x, 20, this.deckSprite.x - 20);
+        sprite.y = Phaser.Math.Clamp(sprite.y, 112, this.scale.height - this.borderUISize - 100);
+      });
+      initialDragPosition = { x: dragX, y: dragY };
+    });
 
-    // Reset selected cards array and hide validation box
+    cardSprite.on("dragend", (pointer, dragX, dragY) => {
+      if (totalDragDistance < 20) {
+        this.handleCardClickOnTable(card, group, groupIndex);
+      } else {
+        this.updateGroupCardPositions(group);
+      }
+    });
+  }
+
+  handleCardClickOnTable(card, group, groupIndex) {
+    if (this.drawnCard) {
+      console.log("You cannot select cards after drawing. End your turn.");
+      return;
+    }
+    if (this.cardsSelected.length > 0) {
+      const result = this.addToGroup(this.cardsSelected, groupIndex);
+      if (result) {
+        const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
+        this.cardsSelected.forEach((card) => {
+          const indexInHand = currentHand.indexOf(card);
+          if (indexInHand !== -1) {
+            currentHand.splice(indexInHand, 1);
+          }
+        });
+        this.cardsSelected = [];
+        this.displayHand();
+        this.validationBox.setVisible(false);
+      }
+    } else {
+      this.addToHand(card, groupIndex);
+      card.sprite.destroy();
+    }
+  }
+
+  updateGroupCardPositions(group) {
+    group.forEach((groupCard) => {
+      groupCard.newPosition = {
+        x: groupCard.sprite.x,
+        y: groupCard.sprite.y,
+      };
+    });
+  }
+
+  handleValidPlay() {
+    const currentHand = this.getCurrentHand();
+    this.moveSelectedCardsToTable(currentHand);
+    this.refreshDisplays();
+    this.markTurnAsValid();
+  }
+
+  moveSelectedCardsToTable(currentHand) {
+    this.tableCards.push([...this.cardsSelected]);
+    this.cardsSelected.forEach((card) => {
+      card.table = true;
+      this.removeCardFromHand(currentHand, card);
+    });
+  }
+
+  removeCardFromHand(hand, card) {
+    const indexInHand = hand.indexOf(card);
+    if (indexInHand !== -1) {
+      hand.splice(indexInHand, 1);
+    }
+  }
+
+  refreshDisplays() {
+    this.displayTable();
+    this.resetSelectedCards();
+    this.displayHand();
+  }
+
+  resetSelectedCards() {
     this.cardsSelected.forEach((card) => (card.selected = false));
     this.cardsSelected = [];
     this.validationBox.setVisible(false);
+  }
 
-    // Update hand display
-    this.displayHand();
-
-    // Mark that the player has placed cards
+  markTurnAsValid() {
     this.placedCards = true;
   }
 
@@ -758,62 +674,89 @@ class Play extends Phaser.Scene {
     }
 
     const card = this[hand][index];
+    card.selected ? this.deselectCard(card, cardSprite) : this.selectCardForPlay(card, cardSprite);
 
-    if (card.selected) {
-      // Deselect the card
-      card.selected = false;
-      this.cardsSelected = this.cardsSelected.filter(
-        (selectedCard) => selectedCard !== card
-      );
-      // Remove tint and move card back to original position
-      cardSprite.clearTint();
-      this.tweens.add({
-        targets: cardSprite,
-        y: cardSprite.y + 50,
-        duration: 200,
-        ease: "Linear",
-      });
-    } else {
-      // Select the card
-      card.selected = true;
-      this.cardsSelected.push(card);
-      // Add green tint and move card up
-      cardSprite.setTint(0x00ff00);
-      // Keep the card in the raised position
-    }
+    this.updateValidationBoxVisibility();
+  }
 
-    // Check if selected cards form a valid group
+  deselectCard(card, cardSprite) {
+    card.selected = false;
+    this.cardsSelected = this.cardsSelected.filter((selectedCard) => selectedCard !== card);
+    this.clearCardTint(cardSprite);
+    this.moveCardToOriginalPosition(cardSprite);
+  }
+
+  selectCardForPlay(card, cardSprite) {
+    card.selected = true;
+    this.cardsSelected.push(card);
+    this.tintCard(cardSprite);
+  }
+
+  clearCardTint(cardSprite) {
+    cardSprite.clearTint();
+  }
+
+  moveCardToOriginalPosition(cardSprite) {
+    this.tweens.add({
+      targets: cardSprite,
+      y: cardSprite.y + 50,
+      duration: 200,
+      ease: "Linear",
+    });
+  }
+
+  tintCard(cardSprite) {
+    cardSprite.setTint(0x00ff00);
+  }
+
+  updateValidationBoxVisibility() {
     if (this.cardsSelected.length >= 3) {
       const isValidGroup = this.checkValidGroup(this.cardsSelected);
       console.log(`Is valid group: ${isValidGroup}`);
-      // Show or hide validation box based on the validity of the group
       this.validationBox.setVisible(isValidGroup);
+      if (isValidGroup) {
+        this.positionValidationBox();
+      }
     } else {
       this.validationBox.setVisible(false);
     }
   }
 
+  positionValidationBox() {
+    const centerX = this.scale.width / 2;
+    const centerY = this.scale.height / 2;
+    this.validationBox.setPosition(centerX, centerY + 100);
+  }
+
   endTurn() {
     if (this.checkTurnValidity()) {
-      // Update the originalPosition for all cards on the table
-      this.tableCards.forEach((group, groupIndex) => {
-        group.forEach((card) => {
-          card.originalPosition = { type: "table", groupIndex: groupIndex };
-        });
-      });
-
-      this.p1Turn = !this.p1Turn;
-      this.turnValid = false;
-      this.drawnCard = false;
-      this.placedCards = false;
-      this.validationBox.setVisible(false);
-
+      this.updateOriginalPositions();
+      this.switchTurn();
+      this.resetTurnFlags();
       this.enableCardInteractivity();
-
       this.startNewTurn();
     } else {
       console.log("You must complete a valid action before ending your turn.");
     }
+  }
+
+  updateOriginalPositions() {
+    this.tableCards.forEach((group, groupIndex) => {
+      group.forEach((card) => {
+        card.originalPosition = { type: "table", groupIndex: groupIndex };
+      });
+    });
+  }
+
+  switchTurn() {
+    this.p1Turn = !this.p1Turn;
+  }
+
+  resetTurnFlags() {
+    this.turnValid = false;
+    this.drawnCard = false;
+    this.placedCards = false;
+    this.validationBox.setVisible(false);
   }
 
   // Function to sort hand by rank
@@ -861,10 +804,9 @@ class Play extends Phaser.Scene {
   }
 
 
-  // Function to check the validity of all groups on the table
   checkTableValidity() {
     let allValid = true;
-    this.tableCards.forEach((group, groupIndex) => {
+    this.tableCards.forEach((group) => {
       const isValid = this.checkValidGroup(group);
       group.forEach((card) => {
         if (card.sprite) {
@@ -880,45 +822,39 @@ class Play extends Phaser.Scene {
     const group = this.tableCards[groupIndex];
     const isValid = this.checkValidGroup([...group, ...cards]);
     if (isValid) {
-      // Update the positions of cards in the group
-      const currentX = group[0].sprite.x;
-      const currentY = group[0].sprite.y;
-      const cardWidth = 50; // Assuming card width is 50
-
-      // Destroy existing sprites
-      group.forEach((card) => {
-        card.sprite.destroy();
-      });
-
-      // Add the new cards to the group
-      group.push(...cards);
-
-      // Sort the group and set new positions
-      this.sortGroup(group);
-      group.forEach((card, index) => {
-        card.newPosition = { x: currentX + index * cardWidth, y: currentY };
-        const frameIndex =
-          suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
-        card.sprite = this.add
-          .sprite(
-            card.newPosition.x,
-            card.newPosition.y,
-            "card_deck",
-            frameIndex
-          )
-          .setOrigin(0.5)
-          .setScale(2)
-          .setInteractive();
-
-        this.input.setDraggable(card.sprite);
-      });
-
+      this.updateGroupWithNewCards(group, cards);
       this.placedCards = true;
       this.displayTable();
       this.checkTableValidity();
       return true;
     }
     return false;
+  }
+
+  updateGroupWithNewCards(group, cards) {
+    const currentX = group[0].sprite.x;
+    const currentY = group[0].sprite.y;
+    const cardWidth = 50; // Assuming card width is 50
+
+    this.destroyGroupSprites(group);
+    group.push(...cards);
+    this.sortGroup(group);
+    this.setGroupCardPositions(group, currentX, currentY, cardWidth);
+  }
+
+  destroyGroupSprites(group) {
+    group.forEach((card) => {
+      card.sprite.destroy();
+    });
+  }
+
+  setGroupCardPositions(group, currentX, currentY, cardWidth) {
+    group.forEach((card, index) => {
+      card.newPosition = { x: currentX + index * cardWidth, y: currentY };
+      const frameIndex = this.getCardFrameIndex(card);
+      card.sprite = this.createCardSpriteForTable(card, frameIndex, card.newPosition.x, card.newPosition.y);
+      this.input.setDraggable(card.sprite);
+    });
   }
 
   addToHand(card, groupIndex) {
@@ -945,31 +881,31 @@ class Play extends Phaser.Scene {
   }
 
   resetHandToTable() {
-    const currentHand = this.p1Turn ? this.p1Hand : this.p2Hand;
+    const currentHand = this.getCurrentHand();
+    const cardsToReset = this.collectCardsToReset(currentHand);
 
-    // Temporarily store cards to be reset
+    this.destroyTableSprites();
+    this.removeCardsFromHand(currentHand, cardsToReset);
+    this.removeCardsFromGroups(cardsToReset);
+    this.resetCardsToOriginalPositions(cardsToReset, currentHand);
+
+    this.tableCards = this.tableCards.filter((group) => group.length > 0);
+    this.clearSelectedCards();
+    this.resetTableCardPositions();
+
+    this.refreshDisplays();
+    this.resetPressed = false;
+  }
+
+  collectCardsToReset(currentHand) {
     const cardsToReset = [];
 
-    // Destroy the sprites of reset cards on the table
-    this.tableCards.forEach((group) => {
-      group.forEach((card) => {
-        if (card.sprite) {
-          card.sprite.destroy();
-          delete card.sprite; // Remove reference to the destroyed sprite
-        }
-      });
-    });
-
-    // Iterate through the player's hand
-    for (let i = currentHand.length - 1; i >= 0; i--) {
-      const card = currentHand[i];
+    currentHand.forEach((card) => {
       if (card.originalPosition) {
         cardsToReset.push(card);
-        currentHand.splice(i, 1); // Remove the card from the player's hand
       }
-    }
+    });
 
-    // Add cards from the table to the reset list
     this.tableCards.forEach((group) => {
       group.forEach((card) => {
         if (card.originalPosition) {
@@ -978,16 +914,39 @@ class Play extends Phaser.Scene {
       });
     });
 
-    // Remove the reset cards from their current groups
-    this.tableCards.forEach((group, groupIndex) => {
+    return cardsToReset;
+  }
+
+  destroyTableSprites() {
+    this.tableCards.forEach((group) => {
+      group.forEach((card) => {
+        if (card.sprite) {
+          card.sprite.destroy();
+          delete card.sprite; // Remove reference to the destroyed sprite
+        }
+      });
+    });
+  }
+
+  removeCardsFromHand(currentHand, cardsToReset) {
+    for (let i = currentHand.length - 1; i >= 0; i--) {
+      if (cardsToReset.includes(currentHand[i])) {
+        currentHand.splice(i, 1);
+      }
+    }
+  }
+
+  removeCardsFromGroups(cardsToReset) {
+    this.tableCards.forEach((group) => {
       for (let i = group.length - 1; i >= 0; i--) {
         if (cardsToReset.includes(group[i])) {
           group.splice(i, 1);
         }
       }
     });
+  }
 
-    // Reset the cards to their original positions
+  resetCardsToOriginalPositions(cardsToReset, currentHand) {
     cardsToReset.forEach((card) => {
       if (card.originalPosition.type === "table") {
         const originalGroup = this.tableCards[card.originalPosition.groupIndex];
@@ -1000,11 +959,9 @@ class Play extends Phaser.Scene {
         currentHand.push(card);
       }
     });
+  }
 
-    // Remove empty groups and ensure no duplicates in groups
-    this.tableCards = this.tableCards.filter((group) => group.length > 0);
-
-    // Clear all selected cards
+  clearSelectedCards() {
     this.cardsSelected.forEach((cardObject) => {
       if (cardObject.sprite) {
         cardObject.sprite.clearTint(); // Remove tint
@@ -1012,24 +969,10 @@ class Play extends Phaser.Scene {
     });
     this.cardsSelected = [];
     this.placedCards = false;
-
-    // Reset table card positions
-    this.resetTableCardPositions();
-
-    // Redraw the hand and table
-    this.displayHand();
-    this.displayTable();
-
-    // Reset the resetPressed flag after the reset function is done
-    this.resetPressed = false;
   }
 
   resetTableCardPositions() {
-    const minX = 80;
-    const minY = 112;
-    const maxX = this.deckSprite.x - 20;
-    const rowHeight = 150; // height of each row
-    const colWidth = 50; // width of each card
+    const { minX, minY, maxX, rowHeight, colWidth } = this.getTableDimensions();
     let currentX = minX;
     let currentY = minY;
 
@@ -1075,18 +1018,13 @@ class Play extends Phaser.Scene {
     }
 
     if (this.placedCards) {
-      // Check if all groups on the table are valid
-      let allGroupsValid = this.checkAllGroupsValid();
-
-      // Check if cards placed on the table were from the initial hand
-      let placedFromInitialHand = this.tableCards.some((group) =>
+      const allGroupsValid = this.checkAllGroupsValid();
+      const placedFromInitialHand = this.tableCards.some((group) =>
         group.some((card) => card.originalPosition.type === "hand")
       );
 
       if (allGroupsValid && placedFromInitialHand) {
-        console.log(
-          "Turn is valid because cards have been placed from the initial hand and all groups are valid."
-        );
+        console.log("Turn is valid because cards have been placed from the initial hand and all groups are valid.");
         return true;
       }
     }
