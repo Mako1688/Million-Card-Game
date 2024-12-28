@@ -14,7 +14,7 @@ class Load extends Phaser.Scene {
       endFrame: 0
     })
     //load card spritesheet
-    this.load.spritesheet("card_deck", "./assets/SpriteSheets/Card_Deck.png", {
+    this.load.spritesheet("card_deck", "./assets/SpriteSheets/Card_Deck-Sheet.png", {
       frameWidth: 60,
       frameHeight: 92,
       startFrame: 0,
