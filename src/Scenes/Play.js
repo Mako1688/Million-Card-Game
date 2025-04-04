@@ -34,14 +34,21 @@ Important:
 - The game is playable and enjoyable
 */
 
+import { createDeck, shuffle, dealCards } from "../Prefabs/DeckHelper.js";
+import { getRankValue, checkValidGroup } from "../Prefabs/CardHelper.js";
+import {
+  createButton,
+  createDeckSprite,
+  createValidationBox,
+} from "../Prefabs/UIHelper.js";
 class Play extends Phaser.Scene {
   constructor() {
     super("playScene");
   }
 
-  init() {}
+  init() { }
 
-  preload() {}
+  preload() { }
 
   create() {
     console.log("play scene started");
@@ -164,43 +171,6 @@ class Play extends Phaser.Scene {
       .setOrigin(0.5, 0.5);
   }
 
-  createButton(x, y, texture, scale, originX, originY) {
-    return this.add
-      .sprite(x, y, texture, 0)
-      .setOrigin(originX, originY)
-      .setScale(scale);
-  }
-
-  createDeckSprite(x, y, scale, depth) {
-    const deckSprite = this.add
-      .sprite(x, y, "card_deck", 53)
-      .setOrigin(1, 0.5)
-      .setScale(scale)
-      .setDepth(depth);
-    for (let i = 1; i <= 4; i++) {
-      this.add
-        .sprite(deckSprite.x - 4 * i, deckSprite.y + 4 * i, "card_deck", 53)
-        .setOrigin(1, 0.5)
-        .setScale(scale)
-        .setDepth(depth - i);
-    }
-    return deckSprite;
-  }
-
-  createValidationBox() {
-    const centerX = this.scale.width / 2;
-    const centerY = this.scale.height / 2;
-    this.validationBox = this.add
-      .rectangle(centerX, centerY + 100, 200, 100, 0x00ff00)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setVisible(false);
-    this.validationBox.on("pointerdown", () => {
-      this.handleValidPlay();
-      this.turnValid = true;
-    });
-  }
-
   addInteractivity() {
     this.addButtonInteractivity(
       this.endTurnButton,
@@ -294,41 +264,9 @@ class Play extends Phaser.Scene {
     this.scene.start("winScene", { p1Win });
   }
 
-  createDeck() {
-    let deck = [];
-    for (let suit of suits) {
-      for (let rank of ranks) {
-        deck.push(this.createCard(suit, rank));
-        deck.push(this.createCard(suit, rank));
-      }
-    }
-    return deck;
-  }
 
-  createCard(suit, rank) {
-    return { card: { suit, rank }, table: false };
-  }
 
-  shuffle(deck) {
-    for (let i = deck.length - 1; i > 0; i--) {
-      let j = Math.floor(Math.random() * (i + 1));
-      [deck[i], deck[j]] = [deck[j], deck[i]];
-    }
-    return deck;
-  }
 
-  dealCards() {
-    for (let i = 0; i < 7; i++) {
-      this.dealCardToPlayer(this.p1Hand);
-      this.dealCardToPlayer(this.p2Hand);
-    }
-  }
-
-  dealCardToPlayer(hand) {
-    const card = this.deck.pop();
-    card.originalPosition = { type: "hand" };
-    hand.push(card);
-  }
 
   displayHand() {
     const currentHand = this.getCurrentHand();
@@ -492,79 +430,6 @@ class Play extends Phaser.Scene {
           cardSprite.setInteractive();
         });
       });
-    }
-  }
-
-  checkValidGroup(cards = []) {
-    if (cards.length < 3) {
-      return false;
-    }
-
-    const ranks = cards.map((card) => card.card.rank);
-    const suits = cards.map((card) => card.card.suit);
-    const uniqueRanks = new Set(ranks);
-    const uniqueSuits = new Set(suits);
-
-    if (uniqueRanks.size === 1 && uniqueSuits.size === cards.length) {
-      return true;
-    }
-
-    if (uniqueSuits.size === 1) {
-      const sortedRanks = cards
-        .map((card) => this.getRankValue(card.card.rank))
-        .sort((a, b) => a - b);
-
-      for (let i = 1; i < sortedRanks.length; i++) {
-        if (sortedRanks[i] !== sortedRanks[i - 1] + 1) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    return false;
-  }
-
-  // Helper function to get the value of a rank, considering Aces high or low
-  getRankValue(rank) {
-    if (rank === "A") {
-      return 1; // For low Ace
-    }
-    if (rank === "2") {
-      return 2;
-    }
-    if (rank === "3") {
-      return 3;
-    }
-    if (rank === "4") {
-      return 4;
-    }
-    if (rank === "5") {
-      return 5;
-    }
-    if (rank === "6") {
-      return 6;
-    }
-    if (rank === "7") {
-      return 7;
-    }
-    if (rank === "8") {
-      return 8;
-    }
-    if (rank === "9") {
-      return 9;
-    }
-    if (rank === "10") {
-      return 10;
-    }
-    if (rank === "J") {
-      return 11;
-    }
-    if (rank === "Q") {
-      return 12;
-    }
-    if (rank === "K") {
-      return 13;
     }
   }
 
