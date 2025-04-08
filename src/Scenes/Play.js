@@ -39,9 +39,9 @@ class Play extends Phaser.Scene {
     super("playScene");
   }
 
-  init() {}
+  init() { }
 
-  preload() {}
+  preload() { }
 
   create() {
     console.log("play scene started");
@@ -56,7 +56,7 @@ class Play extends Phaser.Scene {
 
     // Create deck and deal cards
     this.deck = this.createDeck();
-    this.deck = this.shuffle(this.deck);
+    // this.deck = this.shuffle(this.deck);
     console.log(this.deck);
     this.dealCards();
 
@@ -505,21 +505,45 @@ class Play extends Phaser.Scene {
     const uniqueRanks = new Set(ranks);
     const uniqueSuits = new Set(suits);
 
+    // Check for a set (all cards have the same rank)
     if (uniqueRanks.size === 1 && uniqueSuits.size === cards.length) {
       return true;
     }
 
+    // Check for a run (all cards have the same suit and form a sequence)
     if (uniqueSuits.size === 1) {
-      const sortedRanks = cards
-        .map((card) => this.getRankValue(card.card.rank))
-        .sort((a, b) => a - b);
+      // Treat Ace as low (1) for the initial check
+      const rankValues = cards.map((card) => this.getRankValue(card.card.rank));
 
-      for (let i = 1; i < sortedRanks.length; i++) {
-        if (sortedRanks[i] !== sortedRanks[i - 1] + 1) {
-          return false;
+      // Sort and check for consecutive values
+      rankValues.sort((a, b) => a - b);
+
+      let isValidRun = true;
+      for (let i = 1; i < rankValues.length; i++) {
+        if (rankValues[i] !== rankValues[i - 1] + 1) {
+          isValidRun = false;
+          break;
         }
       }
-      return true;
+
+      // If the initial check fails, retry with Ace as high (14)
+      if (!isValidRun && ranks.includes("A")) {
+        const highAceValues = cards.map((card) =>
+          card.card.rank === "A" ? 14 : this.getRankValue(card.card.rank)
+        );
+
+        highAceValues.sort((a, b) => a - b);
+
+        isValidRun = true;
+        for (let i = 1; i < highAceValues.length; i++) {
+          if (highAceValues[i] !== highAceValues[i - 1] + 1) {
+            isValidRun = false;
+            break;
+          }
+        }
+      }
+
+      return isValidRun;
     }
 
     return false;
@@ -528,7 +552,7 @@ class Play extends Phaser.Scene {
   // Helper function to get the value of a rank, considering Aces high or low
   getRankValue(rank) {
     if (rank === "A") {
-      return 1; // For low Ace
+      return 1; // Ace can be either 1 (low) or 14 (high)
     }
     if (rank === "2") {
       return 2;
