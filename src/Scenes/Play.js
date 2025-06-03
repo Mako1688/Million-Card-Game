@@ -736,16 +736,14 @@ class Play extends Phaser.Scene {
 		cardSprite.on("drag", (pointer, dragX, dragY) => {
 			const deltaX = dragX - card.initialDragPosition.x;
 			const deltaY = dragY - card.initialDragPosition.y;
+
+			// Accumulate total drag distance
 			card.totalDragDistance += Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-			// Calculate the bounding box of the group
+			// ...existing code for moving group...
 			const groupBounds = this.calculateGroupBounds(group);
-
-			// Calculate the new position of the group
 			const newGroupX = groupBounds.x + deltaX;
 			const newGroupY = groupBounds.y + deltaY;
-
-			// Clamp the group's position to the screen borders
 			const clampedGroupX = Phaser.Math.Clamp(
 				newGroupX,
 				20,
@@ -757,25 +755,26 @@ class Play extends Phaser.Scene {
 				this.scale.height - this.borderUISize - groupBounds.height - 100
 			);
 
-			// Calculate the delta after clamping
 			const clampedDeltaX = clampedGroupX - groupBounds.x;
 			const clampedDeltaY = clampedGroupY - groupBounds.y;
 
-			// Update the positions of all cards in the group
 			group.forEach((groupCard) => {
 				const sprite = groupCard.sprite;
 				sprite.x += clampedDeltaX;
 				sprite.y += clampedDeltaY;
+				groupCard.newPosition = { x: sprite.x, y: sprite.y };
 			});
 
 			card.initialDragPosition = { x: dragX, y: dragY };
 		});
 
 		cardSprite.on("dragend", (pointer, dragX, dragY) => {
+			// Only treat as click if the drag distance was very small
 			if (card.totalDragDistance < 20) {
 				this.handleCardClickOnTable(card, group, groupIndex);
 			} else {
 				this.updateGroupCardPositions(group);
+				this.updateAndSortGroup(group);
 			}
 		});
 	}
@@ -1023,6 +1022,7 @@ class Play extends Phaser.Scene {
 		const isValid = this.checkValidGroup([...group, ...cards]);
 		if (isValid) {
 			this.updateGroupWithNewCards(group, cards);
+			this.updateAndSortGroup(group);
 			this.placedCards = true;
 			this.displayTable();
 			this.checkTableValidity();
@@ -1040,6 +1040,7 @@ class Play extends Phaser.Scene {
 		group.push(...cards);
 		this.sortGroup(group);
 		this.setGroupCardPositions(group, currentX, currentY, cardWidth);
+		this.updateAndSortGroup(group);
 	}
 
 	destroyGroupSprites(group) {
@@ -1051,14 +1052,20 @@ class Play extends Phaser.Scene {
 	setGroupCardPositions(group, currentX, currentY, cardWidth) {
 		group.forEach((card, index) => {
 			card.newPosition = { x: currentX + index * cardWidth, y: currentY };
+			if (card.sprite) {
+				card.sprite.x = card.newPosition.x;
+				card.sprite.y = card.newPosition.y;
+			}
 			const frameIndex = this.getCardFrameIndex(card);
-			card.sprite = this.createCardSpriteForTable(
-				card,
-				frameIndex,
-				card.newPosition.x,
-				card.newPosition.y
-			);
-			this.input.setDraggable(card.sprite);
+			if (!card.sprite) {
+				card.sprite = this.createCardSpriteForTable(
+					card,
+					frameIndex,
+					card.newPosition.x,
+					card.newPosition.y
+				);
+				this.input.setDraggable(card.sprite);
+			}
 		});
 	}
 
@@ -1069,23 +1076,22 @@ class Play extends Phaser.Scene {
 
 		if (cardIndex !== -1) {
 			group.splice(cardIndex, 1);
-			card.table = false; // Mark the card as not on the table
+			card.table = false;
 			card.selected = false;
 			currentHand.push(card);
-			this.turnValid = false; // Prevent ending the turn
+			this.turnValid = false;
 
-			// Remove the group if it has no cards left
 			if (group.length === 0) {
 				this.tableCards.splice(groupIndex, 1);
+			} else {
+				this.updateAndSortGroup(group);
 			}
 
-			// Destroy the card sprite
 			if (card.sprite) {
 				card.sprite.destroy();
 				delete card.sprite;
 			}
 
-			// Refresh the table display to update the card groups
 			this.displayTable();
 			this.displayHand();
 			this.checkTableValidity();
@@ -1289,6 +1295,14 @@ class Play extends Phaser.Scene {
 
 		console.log("Turn is not valid.");
 		return false;
+	}
+
+	updateAndSortGroup(group) {
+		this.sortGroup(group);
+		const currentX = group[0].sprite.x;
+		const currentY = group[0].sprite.y;
+		const cardWidth = 50;
+		this.setGroupCardPositions(group, currentX, currentY, cardWidth);
 	}
 
 	sortGroup(group) {
