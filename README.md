@@ -76,7 +76,8 @@ This project is for educational and entertainment purposes.
 ## Acknowledgments
 
 - Built with [Phaser 3](https://phaser.io/).
-- Card game logic and design by the project author.
+- Backend and Frontend Implementation by Marco
+- Art assets from Lois <3
 - Special thanks to open-source contributors and the Phaser community.
 
 ---
