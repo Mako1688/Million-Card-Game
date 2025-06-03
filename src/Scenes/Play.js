@@ -90,8 +90,8 @@ class Play extends Phaser.Scene {
 		this.tableCards = [];
 		//tracks time for wave effect on cards
 		this.waveTime = 0;
-		this.HAND_WAVE_AMPLITUDE = 10;
-		this.HAND_WAVE_FREQUENCY = 1.5;
+		this.WAVE_AMPLITUDE = 10;
+		this.WAVE_FREQUENCY = 1.5;
 	}
 
 	createUIElements() {
@@ -284,6 +284,7 @@ class Play extends Phaser.Scene {
 
 		this.waveTime += delta / 1000; // Convert ms to seconds
 		this.applyHandWaveEffect();
+		this.applyTableWaveEffect();
 	}
 
 	applyHandWaveEffect() {
@@ -293,12 +294,30 @@ class Play extends Phaser.Scene {
 					const baseY = cardSprite.baseY ?? (this.scale.height - this.borderUISize * 2);
 					const interactionOffsetY = cardSprite.interactionOffsetY ?? 0;
 					const waveOffset = Math.sin(
-						this.waveTime * this.HAND_WAVE_FREQUENCY + i * 0.5
-					) * this.HAND_WAVE_AMPLITUDE;
+						this.waveTime * this.WAVE_FREQUENCY + i * 0.5
+					) * this.WAVE_AMPLITUDE;
 					cardSprite.y = baseY + interactionOffsetY + waveOffset;
 				}
 			});
 		}
+	}
+
+	applyTableWaveEffect() {
+		if (!this.tableCards) return;
+		this.tableCards.forEach((group, groupIndex) => {
+			group.forEach((card, cardIndex) => {
+				const sprite = card.sprite;
+				// Skip wave if any card in group is being dragged
+				if (sprite && !card.isDragging) {
+					const baseY = sprite.baseY ?? sprite.y;
+					const interactionOffsetY = sprite.interactionOffsetY ?? 0;
+					const waveOffset = Math.sin(
+						this.waveTime * this.WAVE_FREQUENCY + groupIndex + cardIndex * 0.5
+					) * this.WAVE_AMPLITUDE * 0.7;
+					sprite.y = baseY + interactionOffsetY + waveOffset;
+				}
+			});
+		});
 	}
 
 	checkWinCondition() {
@@ -713,7 +732,7 @@ class Play extends Phaser.Scene {
 		cardIndex,
 		colWidth
 	) {
-		return this.add
+		const sprite = this.add
 			.sprite(
 				card.newPosition ? card.newPosition.x : currentX + cardIndex * colWidth,
 				card.newPosition ? card.newPosition.y : currentY,
@@ -723,6 +742,11 @@ class Play extends Phaser.Scene {
 			.setOrigin(0.5)
 			.setScale(2)
 			.setInteractive();
+
+		sprite.baseY = card.newPosition ? card.newPosition.y : currentY;
+		sprite.interactionOffsetY = 0;
+
+		return sprite;
 	}
 
 	addCardDragInteractivity(cardSprite, card, group, groupIndex) {
@@ -731,6 +755,8 @@ class Play extends Phaser.Scene {
 		cardSprite.on("pointerdown", (pointer) => {
 			card.initialDragPosition = { x: pointer.x, y: pointer.y };
 			card.totalDragDistance = 0;
+			// Mark all cards in group as dragging
+			group.forEach((groupCard) => groupCard.isDragging = true);
 		});
 
 		cardSprite.on("drag", (pointer, dragX, dragY) => {
@@ -740,7 +766,6 @@ class Play extends Phaser.Scene {
 			// Accumulate total drag distance
 			card.totalDragDistance += Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-			// ...existing code for moving group...
 			const groupBounds = this.calculateGroupBounds(group);
 			const newGroupX = groupBounds.x + deltaX;
 			const newGroupY = groupBounds.y + deltaY;
@@ -769,6 +794,14 @@ class Play extends Phaser.Scene {
 		});
 
 		cardSprite.on("dragend", (pointer, dragX, dragY) => {
+			// Unmark dragging for all cards in group
+			group.forEach((groupCard) => groupCard.isDragging = false);
+			// After drag, update baseY for wave effect to new y
+			group.forEach((groupCard) => {
+				if (groupCard.sprite) {
+					groupCard.sprite.baseY = groupCard.sprite.y;
+				}
+			});
 			// Only treat as click if the drag distance was very small
 			if (card.totalDragDistance < 20) {
 				this.handleCardClickOnTable(card, group, groupIndex);
@@ -834,6 +867,13 @@ class Play extends Phaser.Scene {
 
 	moveSelectedCardsToTable(currentHand) {
 		this.tableCards.push([...this.cardsSelected]);
+		const newGroup = this.tableCards[this.tableCards.length - 1];
+
+		// Layout the new group so all cards are together
+		const { minX, minY } = this.getTableDimensions();
+		const cardWidth = 50;
+		this.setGroupCardPositions(newGroup, minX, minY, cardWidth);
+
 		this.cardsSelected.forEach((card) => {
 			card.table = true;
 			this.removeCardFromHand(currentHand, card);
