@@ -869,10 +869,10 @@ class Play extends Phaser.Scene {
 		this.tableCards.push([...this.cardsSelected]);
 		const newGroup = this.tableCards[this.tableCards.length - 1];
 
-		// Layout the new group so all cards are together
-		const { minX, minY } = this.getTableDimensions();
+		// Use the new helper to find a non-overlapping spot
+		const { x, y } = this.findAvailableGroupPosition(newGroup.length);
 		const cardWidth = 50;
-		this.setGroupCardPositions(newGroup, minX, minY, cardWidth);
+		this.setGroupCardPositions(newGroup, x, y, cardWidth);
 
 		this.cardsSelected.forEach((card) => {
 			card.table = true;
@@ -1403,6 +1403,52 @@ class Play extends Phaser.Scene {
 		// Reassign sorted cards to the original group array
 		for (let i = 0; i < group.length; i++) {
 			group[i] = sortedGroup[i];
+		}
+	}
+
+	findAvailableGroupPosition(groupLength) {
+		const { minX, minY, maxX, rowHeight, colWidth } = this.getTableDimensions();
+		let currentX = minX;
+		let currentY = minY;
+		let placed = false;
+
+		// Gather bounding boxes of all existing groups
+		const groupBounds = this.tableCards.map(group => {
+			return {
+				x: group[0]?.sprite?.x ?? 0,
+				y: group[0]?.sprite?.y ?? 0,
+				width: group.length * colWidth,
+				height: rowHeight
+			};
+		});
+
+		while (!placed) {
+			// Proposed bounding box for the new group
+			const newBounds = {
+				x: currentX,
+				y: currentY,
+				width: groupLength * colWidth,
+				height: rowHeight
+			};
+
+			// Check for overlap with any existing group
+			const overlaps = groupBounds.some(bounds =>
+				bounds.x < newBounds.x + newBounds.width &&
+				bounds.x + bounds.width > newBounds.x &&
+				bounds.y < newBounds.y + newBounds.height &&
+				bounds.y + bounds.height > newBounds.y
+			);
+
+			if (!overlaps) {
+				return { x: currentX, y: currentY };
+			}
+
+			// Move to next row if not enough space in this row
+			currentX += colWidth * groupLength + colWidth * 2;
+			if (currentX + groupLength * colWidth > maxX) {
+				currentX = minX;
+				currentY += rowHeight;
+			}
 		}
 	}
 }
