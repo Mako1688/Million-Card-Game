@@ -922,14 +922,14 @@ class Play extends Phaser.Scene {
 		this.cardsSelected = this.cardsSelected.filter(
 			(selectedCard) => selectedCard !== card
 		);
-		this.clearCardTint(cardSprite);
+		this.stopWaveTint(cardSprite);
 		this.moveCardToOriginalPosition(cardSprite);
 	}
 
 	selectCardForPlay(card, cardSprite) {
 		card.selected = true;
 		this.cardsSelected.push(card);
-		this.tintCard(cardSprite);
+		this.startWaveTint(cardSprite, 0x00ff00);
 	}
 
 	clearCardTint(cardSprite) {
@@ -947,6 +947,41 @@ class Play extends Phaser.Scene {
 
 	tintCard(cardSprite) {
 		cardSprite.setTint(0x00ff00);
+	}
+
+	startWaveTint(cardSprite, color, duration = 600, repeat = -1) {
+		// Remove any existing tint tween
+		if (cardSprite.tintTween) {
+			cardSprite.tintTween.stop();
+			cardSprite.tintTween = null;
+		}
+		// Animate the tint in a wave (pulse) pattern
+		cardSprite.tintTween = this.tweens.addCounter({
+			from: 0,
+			to: 100,
+			duration: duration,
+			yoyo: true,
+			repeat: repeat,
+			onUpdate: tween => {
+				// Calculate a wave between white and the target color
+				const t = tween.getValue() / 100;
+				const r = Phaser.Display.Color.Interpolate.ColorWithColor(
+					Phaser.Display.Color.ValueToColor(0xffffff),
+					Phaser.Display.Color.ValueToColor(color),
+					1,
+					t
+				);
+				cardSprite.setTint(Phaser.Display.Color.GetColor(r.r, r.g, r.b));
+			}
+		});
+	}
+
+	stopWaveTint(cardSprite) {
+		if (cardSprite.tintTween) {
+			cardSprite.tintTween.stop();
+			cardSprite.tintTween = null;
+		}
+		cardSprite.clearTint();
 	}
 
 	updateValidationBoxVisibility() {
@@ -1049,7 +1084,11 @@ class Play extends Phaser.Scene {
 			const isValid = this.checkValidGroup(group);
 			group.forEach((card) => {
 				if (card.sprite) {
-					card.sprite.setTint(isValid ? 0xffffff : 0xff0000);
+					if (!isValid) {
+						this.startWaveTint(card.sprite, 0xff0000); // Red wave
+					} else {
+						this.stopWaveTint(card.sprite);
+					}
 				}
 			});
 			if (!isValid) allValid = false;
