@@ -72,6 +72,24 @@ class Play extends Phaser.Scene {
 
 		// Add interactivity to buttons and deck
 		this.addInteractivity();
+
+		this.poofEmitter = this.add.particles(0, 0, 'poof', {
+			speed: { min: 1000, max: 1500 },
+			angle: { min: 0, max: 360 },
+			scale: { start: 5, end: 0 },
+			alpha: { start: 1, end: 0 },
+			lifespan: 300,
+			quantity: 32,
+			blendMode: 'ADD',
+			tint: [0xffffff, 0xffe066, 0xff6666, 0x66ccff],
+			emitting: false // Only emit when triggered
+		});
+	}
+
+	poofEffect(x, y) {
+		if (this.poofEmitter) {
+			this.poofEmitter.emitParticleAt(x, y, 32);
+		}
 	}
 
 	initializeVariables() {
@@ -876,6 +894,9 @@ class Play extends Phaser.Scene {
 
 		this.cardsSelected.forEach((card) => {
 			card.table = true;
+			if (card.sprite) {
+				this.poofEffect(card.sprite.x, card.sprite.y); // Poof at hand position
+			}
 			this.removeCardFromHand(currentHand, card);
 		});
 	}
@@ -1144,6 +1165,7 @@ class Play extends Phaser.Scene {
 					card.newPosition.y
 				);
 				this.input.setDraggable(card.sprite);
+				this.poofEffect(card.newPosition.x, card.newPosition.y); // Poof at table position
 			}
 		});
 	}
