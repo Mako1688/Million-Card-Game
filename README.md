@@ -64,6 +64,8 @@ by Marco Ogaz-Vega in dedication to Lois Million Zerai <3
 - [ ] **Title Scene:** Main menu with start, instructions, and credits.
 - [ ] **Audio:** Add sound effects and background music for actions and feedback.
 - [ ] **Polish:** Additional visual effects, bug fixes, and performance improvements.
+- [ ] **Appification:** Make game instalable on an iphone on the home screen.
+- [ ] **Multiplayer:** Add multiplayer functionality (communication between devices)
 
 ---
 

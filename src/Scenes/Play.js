@@ -394,14 +394,17 @@ class Play extends Phaser.Scene {
 	displayHand(newCard = null) {
 		const currentHand = this.getCurrentHand();
 		this.clearExistingHandSprites();
-		const spacing = this.calculateCardSpacing(currentHand.length);
-		const startX = this.calculateStartX(currentHand.length, spacing);
-		this.handSelected = this.createHandSprites(currentHand, startX, spacing);
+		this.layoutHand(currentHand);
 
-		// Poof effect for the new card, if provided
 		if (newCard && newCard.sprite) {
 			this.poofEffect(newCard.sprite.x, newCard.sprite.y - 100);
 		}
+	}
+
+	layoutHand(currentHand) {
+		const spacing = this.calculateCardSpacing(currentHand.length);
+		const startX = this.calculateStartX(currentHand.length, spacing);
+		this.handSelected = this.createHandSprites(currentHand, startX, spacing);
 	}
 
 	getCurrentHand() {
@@ -1062,22 +1065,14 @@ class Play extends Phaser.Scene {
 	}
 
 	// Function to sort hand by rank
+	sortHandByRank(hand) {
+		hand.sort((a, b) => suits.indexOf(a.card.suit) - suits.indexOf(b.card.suit));
+		hand.sort((a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank));
+	}
+
 	sortRankHand() {
-		if (this.p1Turn) {
-			this.p1Hand.sort(
-				(a, b) => suits.indexOf(a.card.suit) - suits.indexOf(b.card.suit)
-			);
-			this.p1Hand.sort(
-				(a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank)
-			);
-		} else {
-			this.p2Hand.sort(
-				(a, b) => suits.indexOf(a.card.suit) - suits.indexOf(b.card.suit)
-			);
-			this.p2Hand.sort(
-				(a, b) => ranks.indexOf(a.card.rank) - ranks.indexOf(b.card.rank)
-			);
-		}
+		const hand = this.p1Turn ? this.p1Hand : this.p2Hand;
+		this.sortHandByRank(hand);
 	}
 
 	// Function to sort hand by suit
