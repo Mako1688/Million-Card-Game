@@ -74,19 +74,21 @@ class Play extends Phaser.Scene {
 		this.addInteractivity();
 
 		this.poofEmitter = this.add.particles(0, 0, 'poof', {
-			speed: { min: 1000, max: 1500 },
+			speed: { min: 100, max: 500 },
 			angle: { min: 0, max: 360 },
-			scale: { start: 5, end: 0 },
+			scale: { start: 3, end: 0 },
 			alpha: { start: 1, end: 0 },
-			lifespan: 300,
-			quantity: 32,
+			lifespan: 500,
+			quantity: 100,
 			blendMode: 'ADD',
 			tint: [0xffffff, 0xffe066, 0xff6666, 0x66ccff],
 			emitting: false // Only emit when triggered
 		});
+		this.poofEmitter.setDepth(10);
 	}
 
 	poofEffect(x, y) {
+		console.log(`Poof effect at (${x}, ${y})`);
 		if (this.poofEmitter) {
 			this.poofEmitter.emitParticleAt(x, y, 32);
 		}
@@ -389,12 +391,17 @@ class Play extends Phaser.Scene {
 		hand.push(card);
 	}
 
-	displayHand() {
+	displayHand(newCard = null) {
 		const currentHand = this.getCurrentHand();
 		this.clearExistingHandSprites();
 		const spacing = this.calculateCardSpacing(currentHand.length);
 		const startX = this.calculateStartX(currentHand.length, spacing);
 		this.handSelected = this.createHandSprites(currentHand, startX, spacing);
+
+		// Poof effect for the new card, if provided
+		if (newCard && newCard.sprite) {
+			this.poofEffect(newCard.sprite.x, newCard.sprite.y - 100);
+		}
 	}
 
 	getCurrentHand() {
@@ -508,6 +515,7 @@ class Play extends Phaser.Scene {
 			this.drawnCard = true;
 			this.turnValid = true;
 			this.disableCardInteractivity();
+			this.displayHand(newCard);
 		} else {
 			this.handleInvalidDraw();
 		}
@@ -894,9 +902,7 @@ class Play extends Phaser.Scene {
 
 		this.cardsSelected.forEach((card) => {
 			card.table = true;
-			if (card.sprite) {
-				this.poofEffect(card.sprite.x, card.sprite.y); // Poof at hand position
-			}
+			this.poofEffect(card.sprite.x, card.sprite.y); // Poof at hand position
 			this.removeCardFromHand(currentHand, card);
 		});
 	}
@@ -1194,7 +1200,7 @@ class Play extends Phaser.Scene {
 			}
 
 			this.displayTable();
-			this.displayHand();
+			this.displayHand(card);
 			this.checkTableValidity();
 		}
 	}
