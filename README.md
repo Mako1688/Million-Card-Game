@@ -17,6 +17,7 @@ by Marco Ogaz-Vega in dedication to Lois Million Zerai <3
 - **Groups** must be:
   - At least 3 cards.
   - Either a **set** (all cards of the same rank, different suits) or a **run** (consecutive ranks, same suit; Ace can be high or low).
+  - Players may also play any amount of cards into existing valid groups counting as their turn
 - Players can temporarily take cards from the table into their hand to make new valid groups, but all cards taken must be placed back on the table during the same turn (not necessarily in the same spot).
 - Only one card can be drawn per turn, and you cannot draw after placing cards.
 - The table must always contain only valid groups.

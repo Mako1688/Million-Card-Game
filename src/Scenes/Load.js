@@ -49,7 +49,7 @@ class Load extends Phaser.Scene {
       endFrame: 2,
     });
 
-    this.load.image("poof", "./assets/Particles/Million Card Particle.png");
+    this.load.image("poof", "./assets/Particles/Pixel.png");
   }
 
   create() {
