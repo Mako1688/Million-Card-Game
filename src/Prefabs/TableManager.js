@@ -77,7 +77,7 @@ class TableManager {
     }
 
     getDragBoundaries() {
-        // Allow dragging anywhere on screen with just a 20-pixel border
+        // Allow dragging anywhere on screen with appropriate borders
         // This ensures no part of the card sprites pass the border
         const BORDER_SIZE = 20;
         const CARD_WIDTH = 60 * 2; // Card width * scale
@@ -87,6 +87,25 @@ class TableManager {
             minX: BORDER_SIZE,
             minY: BORDER_SIZE,
             maxX: this.scene.scale.width - BORDER_SIZE - CARD_WIDTH,
+            maxY: this.scene.scale.height - BORDER_SIZE - CARD_HEIGHT
+        };
+    }
+
+    // New method to get group-aware drag boundaries
+    getGroupDragBoundaries(group) {
+        const BORDER_SIZE = 20;
+        const CARD_WIDTH = 120; // Card width at scale 2
+        const CARD_HEIGHT = 184; // Card height at scale 2
+        const CARD_SPACING = 60; // Standard spacing between cards in a group
+        
+        // Calculate total width needed for the group
+        const totalGroupWidth = CARD_WIDTH + (group.length - 1) * CARD_SPACING;
+        
+        return {
+            minX: BORDER_SIZE,
+            minY: BORDER_SIZE,
+            // Ensure rightmost card of the group stays within bounds
+            maxX: Math.max(BORDER_SIZE, this.scene.scale.width - BORDER_SIZE - totalGroupWidth),
             maxY: this.scene.scale.height - BORDER_SIZE - CARD_HEIGHT
         };
     }
@@ -275,20 +294,40 @@ class TableManager {
 
         // If in drag mode, move the entire group
         if (cardSprite.isDragMode) {
-            const { minX, minY, maxX, maxY } = this.getDragBoundaries();
+            const groupBoundaries = this.getGroupDragBoundaries(group);
+            const CARD_SPACING = 60; // Maintain consistent spacing between cards
             
+            // Calculate the new position for the first card (leftmost)
+            let newX = groupStartPositions[0].x + deltaX;
+            let newY = groupStartPositions[0].y + deltaY;
+            
+            // Constrain the first card position to group boundaries
+            newX = Math.max(groupBoundaries.minX, Math.min(newX, groupBoundaries.maxX));
+            newY = Math.max(groupBoundaries.minY, Math.min(newY, groupBoundaries.maxY));
+            
+            // Position all cards relative to the first card with proper spacing
             group.forEach((groupCard, index) => {
-                if (groupCard.sprite && groupStartPositions[index]) {
-                    // Calculate new position
-                    let newX = groupStartPositions[index].x + deltaX;
-                    let newY = groupStartPositions[index].y + deltaY;
+                if (groupCard.sprite) {
+                    const cardX = newX + (index * CARD_SPACING);
+                    const cardY = newY;
                     
-                    // Constrain to drag boundaries (20-pixel border from screen edges)
-                    newX = Math.max(minX, Math.min(newX, maxX));
-                    newY = Math.max(minY, Math.min(newY, maxY));
+                    // Double-check each card stays within screen bounds to prevent overlap
+                    const CARD_WIDTH = 120; // Card width at scale 2
+                    const CARD_HEIGHT = 184; // Card height at scale 2
+                    const BORDER = 20;
                     
-                    groupCard.sprite.x = newX;
-                    groupCard.sprite.y = newY;
+                    const adjustedX = Math.max(BORDER, Math.min(cardX, this.scene.scale.width - BORDER - CARD_WIDTH));
+                    const adjustedY = Math.max(BORDER, Math.min(cardY, this.scene.scale.height - BORDER - CARD_HEIGHT));
+                    
+                    groupCard.sprite.x = adjustedX;
+                    groupCard.sprite.y = adjustedY;
+                    groupCard.sprite.baseY = adjustedY;
+                    
+                    // Store custom position to preserve after table refresh
+                    groupCard.customPosition = {
+                        x: adjustedX,
+                        y: adjustedY
+                    };
                 }
             });
         }
@@ -828,13 +867,19 @@ class TableManager {
         }
     }
 
-    setGroupCardPositions(group, startX, startY, cardWidth) {
+    setGroupCardPositions(group, startX, startY, cardWidth = 60) {
         group.forEach((card, index) => {
             if (card.sprite) {
                 card.sprite.x = startX + index * cardWidth;
                 card.sprite.y = startY;
                 card.sprite.baseY = startY; // Update baseY for wave effect
                 card.sprite.setDepth(index);
+                
+                // Store custom position to preserve spacing
+                card.customPosition = {
+                    x: card.sprite.x,
+                    y: card.sprite.y
+                };
             }
         });
     }

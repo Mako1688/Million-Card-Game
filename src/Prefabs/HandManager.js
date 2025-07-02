@@ -55,12 +55,20 @@ class HandManager {
 
     calculateCardSpacing(handLength) {
         const baseSpacing = 60;
-        const minSpacing = 30;
-        const maxWidth = this.scene.scale.width - 200;
+        const minSpacing = 20; // Minimum spacing for tighter packing
+        
+        // Calculate available width considering UI elements on the sides
+        // Leave more space for UI elements (deck, buttons, etc.)
+        const uiSafeZone = 400; // Safe zone for UI elements on both sides
+        const maxWidth = this.scene.scale.width - uiSafeZone;
         const requiredWidth = handLength * baseSpacing;
 
         if (requiredWidth > maxWidth) {
-            return Math.max(minSpacing, maxWidth / handLength);
+            // Calculate the spacing needed to fit all cards within safe zone
+            const calculatedSpacing = maxWidth / handLength;
+            
+            // Ensure we don't go below minimum spacing
+            return Math.max(minSpacing, calculatedSpacing);
         }
         return baseSpacing;
     }
@@ -71,6 +79,16 @@ class HandManager {
 
     createHandSprites(currentHand, startX, spacing) {
         this.scene.handSelected = [];
+        
+        // Calculate if we need to scale down cards for very tight spacing
+        const baseCardWidth = 60 * 2; // Card width at scale 2
+        let scaleAdjustment = 1.0;
+        
+        // Adjust scale when spacing gets very tight to prevent overlap
+        if (spacing < 40) {
+            scaleAdjustment = Math.max(0.6, spacing / 50); // Scale down more aggressively for tight spacing
+        }
+        
         for (let i = 0; i < currentHand.length; i++) {
             const card = currentHand[i];
             const frameIndex = this.scene.cardSystem.getCardFrameIndex(card);
@@ -83,7 +101,7 @@ class HandManager {
                 card.sprite = null;
             }
             
-            const cardSprite = this.createCardSprite(xPosition, frameIndex);
+            const cardSprite = this.createCardSprite(xPosition, frameIndex, scaleAdjustment);
 
             card.sprite = cardSprite;
             this.scene.handSelected.push(cardSprite);
@@ -91,12 +109,14 @@ class HandManager {
         }
     }
 
-    createCardSprite(xPosition, frameIndex) {
+    createCardSprite(xPosition, frameIndex, scaleAdjustment = 1.0) {
         // Ensure frameIndex is valid
         if (frameIndex < 0 || frameIndex > 53) {
             console.warn(`Invalid card frame index: ${frameIndex}, using 0`);
             frameIndex = 0;
         }
+        
+        const finalScale = 2 * scaleAdjustment; // Base scale of 2, adjusted for tight spacing
         
         const cardSprite = this.scene.add
             .sprite(
@@ -106,7 +126,7 @@ class HandManager {
                 frameIndex
             )
             .setOrigin(0.5, 1)
-            .setScale(2)
+            .setScale(finalScale)
             .setDepth(1);
 
         // Initialize sprite properties
@@ -114,6 +134,7 @@ class HandManager {
         cardSprite.interactionOffsetY = 0;
         cardSprite.isSelected = false;
         cardSprite.waveTintTween = null;
+        cardSprite.baseScale = finalScale; // Store base scale for selection scaling
 
         return cardSprite;
     }
@@ -202,11 +223,12 @@ class HandManager {
         // Move card up
         cardSprite.interactionOffsetY = -80;
         
-        // Scale the card slightly larger for selected state
+        // Scale the card slightly larger for selected state, considering its base scale
+        const targetScale = cardSprite.baseScale * 1.1; // Scale up by 10% from base scale
         this.scene.tweens.add({
             targets: cardSprite,
-            scaleX: 2.2,
-            scaleY: 2.2,
+            scaleX: targetScale,
+            scaleY: targetScale,
             duration: 200,
             ease: "Power2",
         });
@@ -244,10 +266,12 @@ class HandManager {
 
     moveCardToOriginalPosition(cardSprite) {
         cardSprite.interactionOffsetY = 0;
+        // Scale back to base scale rather than hardcoded 2
+        const targetScale = cardSprite.baseScale || 2;
         this.scene.tweens.add({
             targets: cardSprite,
-            scaleX: 2,
-            scaleY: 2,
+            scaleX: targetScale,
+            scaleY: targetScale,
             duration: 200,
             ease: "Power2",
         });
@@ -293,10 +317,13 @@ class HandManager {
 
     showCardSelectionFlash(cardSprite) {
         // Create a brief pulse effect to indicate selection
+        const baseScale = cardSprite.baseScale || 2;
+        const targetScale = baseScale * 1.2;
+        
         this.scene.tweens.add({
             targets: cardSprite,
-            scaleX: 2.4,
-            scaleY: 2.4,
+            scaleX: targetScale,
+            scaleY: targetScale,
             duration: 150,
             yoyo: true,
             ease: "Power2"
