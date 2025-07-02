@@ -156,6 +156,13 @@ class GameLogic {
             group.filter(card => card != null)
         ).filter(group => group.length > 0);
 
+        // Sort all groups after reset to ensure proper order
+        this.scene.tableCards.forEach(group => {
+            if (group.length > 1) {
+                this.scene.tableManager.sortGroup(group);
+            }
+        });
+
         this.scene.cardsSelected = [];
         this.scene.refreshDisplays();
         this.scene.resetPressed = false;

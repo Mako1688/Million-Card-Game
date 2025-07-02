@@ -120,8 +120,7 @@ class UISystem {
         this.addButtonInteractivity(
             this.scene.endTurnButton,
             this.scene.gameLogic.endTurn.bind(this.scene.gameLogic),
-            this.scene.handManager.displayHand.bind(this.scene.handManager),
-            this.scene.tableManager.displayTable.bind(this.scene.tableManager)
+            this.scene.handManager.displayHand.bind(this.scene.handManager)
         );
         this.addButtonInteractivity(
             this.scene.restart, 
@@ -131,14 +130,12 @@ class UISystem {
         this.addButtonInteractivity(
             this.scene.sortRank,
             this.scene.handManager.sortRankHand.bind(this.scene.handManager),
-            this.scene.handManager.displayHand.bind(this.scene.handManager),
-            this.scene.tableManager.displayTable.bind(this.scene.tableManager)
+            this.scene.handManager.displayHand.bind(this.scene.handManager)
         );
         this.addButtonInteractivity(
             this.scene.sortSuit,
             this.scene.handManager.sortSuitHand.bind(this.scene.handManager),
-            this.scene.handManager.displayHand.bind(this.scene.handManager),
-            this.scene.tableManager.displayTable.bind(this.scene.tableManager)
+            this.scene.handManager.displayHand.bind(this.scene.handManager)
         );
     }
 

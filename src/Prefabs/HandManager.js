@@ -10,8 +10,15 @@ class HandManager {
         this.clearExistingHandSprites();
         this.layoutHand(currentHand);
 
-        if (newCard && newCard.sprite) {
-            this.scene.animationSystem.poofEffect(newCard.sprite.x, newCard.sprite.y - 100);
+        // If a new card was added, trigger poof effect at its position
+        if (newCard) {
+            // Find the sprite for the new card (it should be the last one in the hand)
+            const newCardIndex = currentHand.indexOf(newCard);
+            if (newCardIndex !== -1 && this.scene.handSelected && this.scene.handSelected[newCardIndex]) {
+                const cardSprite = this.scene.handSelected[newCardIndex];
+                // Trigger poof effect slightly above the card
+                this.scene.poofEffect(cardSprite.x, cardSprite.y - 50);
+            }
         }
     }
 

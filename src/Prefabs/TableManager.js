@@ -7,6 +7,14 @@ class TableManager {
 
     displayTable() {
         this.clearPreviousTableSprites();
+        
+        // Sort all groups before displaying to ensure proper order
+        this.scene.tableCards.forEach(group => {
+            if (group.length > 1) {
+                this.sortGroup(group);
+            }
+        });
+        
         const { minX, minY, maxX, rowHeight, colWidth } = this.getTableDimensions();
         let currentX = minX;
         let currentY = minY;
@@ -656,6 +664,10 @@ class TableManager {
             card.originalPosition = { type: "table", groupIndex: this.scene.tableCards.length, cardIndex: newGroup.length };
             newGroup.push(card);
         });
+        
+        // Sort the new group before adding it to the table
+        this.sortGroup(newGroup);
+        
         this.scene.tableCards.push(newGroup);
         this.scene.placedCards = true;
         
@@ -699,16 +711,11 @@ class TableManager {
         const uniqueSuits = new Set(group.map(card => card.card.suit));
         
         if (uniqueRanks.size === 1) {
-            // This is a set - sort by suit order
-            const suitOrder = ["diamond", "spade", "heart", "club"];
-            group.sort((a, b) => {
-                return suitOrder.indexOf(a.card.suit) - suitOrder.indexOf(b.card.suit);
-            });
+            // This is a set - sort by alternating colors
+            this.sortByAlternatingColors(group);
         } else if (uniqueSuits.size === 1) {
-            // This is a run - sort by rank order
-            group.sort((a, b) => {
-                return this.scene.cardSystem.getRankValue(a.card.rank) - this.scene.cardSystem.getRankValue(b.card.rank);
-            });
+            // This is a run - sort by rank order, handling Ace positioning
+            this.sortRunByRank(group);
         } else {
             // Mixed group - sort by rank first, then by suit
             group.sort((a, b) => {
@@ -720,12 +727,36 @@ class TableManager {
         }
     }
 
-    sortByAlternatingColors(group) {
-        // Sort the group by rank first
-        group.sort(
-            (a, b) => this.scene.cardSystem.getRankValue(a.card.rank) - this.scene.cardSystem.getRankValue(b.card.rank)
-        );
+    sortRunByRank(group) {
+        // First, determine if this is a high-ace run (contains ace and king/queen)
+        const hasAce = group.some(card => card.card.rank === "A");
+        const hasKing = group.some(card => card.card.rank === "K");
+        const hasQueen = group.some(card => card.card.rank === "Q");
+        
+        if (hasAce && (hasKing || hasQueen)) {
+            // This might be a high-ace run, let's check the lowest non-ace card
+            const nonAceCards = group.filter(card => card.card.rank !== "A");
+            const lowestNonAce = Math.min(...nonAceCards.map(card => this.scene.cardSystem.getRankValue(card.card.rank)));
+            
+            // If the lowest non-ace card is 10 or higher, treat ace as high
+            if (lowestNonAce >= 10) {
+                group.sort((a, b) => {
+                    const aValue = a.card.rank === "A" ? 14 : this.scene.cardSystem.getRankValue(a.card.rank);
+                    const bValue = b.card.rank === "A" ? 14 : this.scene.cardSystem.getRankValue(b.card.rank);
+                    return aValue - bValue;
+                });
+                return;
+            }
+        }
+        
+        // Default sorting - Ace as low (A=1)
+        group.sort((a, b) => {
+            return this.scene.cardSystem.getRankValue(a.card.rank) - this.scene.cardSystem.getRankValue(b.card.rank);
+        });
+    }
 
+    sortByAlternatingColors(group) {
+        // For sets (same rank), sort by alternating colors
         const redCards = group.filter(
             (card) => card.card.suit === "heart" || card.card.suit === "diamond"
         );
@@ -733,16 +764,62 @@ class TableManager {
             (card) => card.card.suit === "spade" || card.card.suit === "club"
         );
 
-        const sortedGroup = [];
-        let useRed = redCards.length >= blackCards.length; // Start with the color group that has more cards
+        // Sort within each color group by suit preference
+        // For red: diamonds before hearts, for black: spades before clubs
+        redCards.sort((a, b) => {
+            const redOrder = ["diamond", "heart"];
+            return redOrder.indexOf(a.card.suit) - redOrder.indexOf(b.card.suit);
+        });
+        
+        blackCards.sort((a, b) => {
+            const blackOrder = ["spade", "club"];
+            return blackOrder.indexOf(a.card.suit) - blackOrder.indexOf(b.card.suit);
+        });
 
-        while (redCards.length > 0 || blackCards.length > 0) {
-            if (useRed && redCards.length > 0) {
-                sortedGroup.push(redCards.shift());
-            } else if (!useRed && blackCards.length > 0) {
-                sortedGroup.push(blackCards.shift());
+        const sortedGroup = [];
+        let redIndex = 0;
+        let blackIndex = 0;
+        
+        // Determine the starting color based on which has more cards or preference
+        let startWithRed = redCards.length > 0;
+        
+        // If both colors have cards, ensure perfect alternation is possible
+        if (redCards.length > 0 && blackCards.length > 0) {
+            // Calculate if we can achieve perfect alternation
+            const maxDifference = Math.abs(redCards.length - blackCards.length);
+            
+            // If difference is more than 1, we can't perfectly alternate
+            if (maxDifference > 1) {
+                // Start with the color that has more cards to minimize clustering
+                startWithRed = redCards.length >= blackCards.length;
             }
-            useRed = !useRed; // Alternate color for the next card
+        }
+        
+        let useRed = startWithRed;
+        
+        // Build the alternating sequence
+        for (let i = 0; i < group.length; i++) {
+            if (useRed && redIndex < redCards.length) {
+                // Use red card
+                sortedGroup.push(redCards[redIndex]);
+                redIndex++;
+                useRed = false; // Next should be black
+            } else if (!useRed && blackIndex < blackCards.length) {
+                // Use black card
+                sortedGroup.push(blackCards[blackIndex]);
+                blackIndex++;
+                useRed = true; // Next should be red
+            } else if (redIndex < redCards.length) {
+                // No black cards available, must use red
+                sortedGroup.push(redCards[redIndex]);
+                redIndex++;
+                // Don't change useRed since we couldn't alternate
+            } else if (blackIndex < blackCards.length) {
+                // No red cards available, must use black
+                sortedGroup.push(blackCards[blackIndex]);
+                blackIndex++;
+                // Don't change useRed since we couldn't alternate
+            }
         }
 
         // Reassign sorted cards to the original group array

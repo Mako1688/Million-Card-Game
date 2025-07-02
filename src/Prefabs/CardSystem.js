@@ -48,6 +48,10 @@ class CardSystem {
             this.addCardToHand(newCard);
             this.scene.drawn = true;
             this.scene.drawnCard = true;
+            
+            // Refresh the hand display with the new card to trigger poof effect
+            this.scene.handManager.displayHand(newCard);
+            
             console.log("Card drawn");
         } else {
             this.handleInvalidDraw();
