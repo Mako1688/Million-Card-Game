@@ -123,35 +123,71 @@ class GameLogic {
             return;
         }
 
-        console.log("Resetting hand to table");
+        console.log("Resetting all cards to their original positions");
         this.scene.resetPressed = true;
 
-        // Move all cards back to their original positions
-        const allCards = [...this.scene.p1Hand, ...this.scene.p2Hand];
-        allCards.forEach((card) => {
-            if (card.originalPosition) {
-                if (card.originalPosition.type === "table") {
-                    // Move card back to table
-                    const groupIndex = card.originalPosition.groupIndex;
-                    const cardIndex = card.originalPosition.cardIndex;
-
-                    // Ensure the group exists
-                    if (!this.scene.tableCards[groupIndex]) {
-                        this.scene.tableCards[groupIndex] = [];
-                    }
-
-                    // Remove from hand
-                    this.scene.handManager.removeCardFromHand(this.scene.p1Hand, card);
-                    this.scene.handManager.removeCardFromHand(this.scene.p2Hand, card);
-
-                    // Add to table
-                    this.scene.tableCards[groupIndex][cardIndex] = card;
-                    card.table = true;
-                }
+        // First, collect all cards that need to be moved back to the table
+        const cardsToMoveToTable = [];
+        
+        // Check hand cards that should be on table
+        [...this.scene.p1Hand, ...this.scene.p2Hand].forEach((card) => {
+            if (card.originalPosition && card.originalPosition.type === "table") {
+                cardsToMoveToTable.push(card);
             }
         });
 
-        // Clean up table cards array (remove empty slots)
+        // Check table cards that should be in hand
+        const cardsToMoveToHand = [];
+        this.scene.tableCards.forEach((group, groupIndex) => {
+            group.forEach((card, cardIndex) => {
+                if (card.originalPosition && card.originalPosition.type === "hand") {
+                    cardsToMoveToHand.push(card);
+                }
+            });
+        });
+
+        // Move cards from hand back to table
+        cardsToMoveToTable.forEach((card) => {
+            const groupIndex = card.originalPosition.groupIndex;
+            const cardIndex = card.originalPosition.cardIndex;
+
+            // Ensure the group exists
+            if (!this.scene.tableCards[groupIndex]) {
+                this.scene.tableCards[groupIndex] = [];
+            }
+
+            // Remove from hand
+            this.scene.handManager.removeCardFromHand(this.scene.p1Hand, card);
+            this.scene.handManager.removeCardFromHand(this.scene.p2Hand, card);
+
+            // Add to table at correct position
+            this.scene.tableCards[groupIndex][cardIndex] = card;
+            card.table = true;
+        });
+
+        // Move cards from table back to hand
+        cardsToMoveToHand.forEach((card) => {
+            const playerNum = card.originalPosition.player;
+            const handIndex = card.originalPosition.index;
+
+            // Remove from table
+            this.scene.tableCards.forEach((group, groupIndex) => {
+                const cardIndex = group.indexOf(card);
+                if (cardIndex !== -1) {
+                    group.splice(cardIndex, 1);
+                }
+            });
+
+            // Add back to hand
+            if (playerNum === 1) {
+                this.scene.p1Hand.push(card);
+            } else {
+                this.scene.p2Hand.push(card);
+            }
+            card.table = false;
+        });
+
+        // Clean up table cards array (remove empty slots and empty groups)
         this.scene.tableCards = this.scene.tableCards.map(group => 
             group.filter(card => card != null)
         ).filter(group => group.length > 0);

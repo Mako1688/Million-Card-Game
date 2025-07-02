@@ -434,11 +434,8 @@ class TableManager {
                     group.push(selectedCard);
                     selectedCard.table = true;
                     selectedCard.isDragging = false; // Ensure proper state
-                    selectedCard.originalPosition = { 
-                        type: "table", 
-                        groupIndex, 
-                        cardIndex: group.length - 1 
-                    };
+                    // Don't overwrite originalPosition here - preserve it for reset functionality
+                    // The originalPosition will be updated when the turn ends in updateOriginalPositions()
                 });
                 
                 // Clear custom positions since the group is being modified
@@ -505,7 +502,8 @@ class TableManager {
                 // Add card back to hand
                 card.table = false;
                 card.isDragging = false; // Reset drag state
-                card.originalPosition = { type: "hand" };
+                // Don't overwrite originalPosition here - preserve it for reset functionality
+                // The originalPosition will be updated when the turn ends in updateOriginalPositions()
                 currentHand.push(card);
                 
                 // Add poof effect at card's current position before moving to hand
@@ -700,7 +698,8 @@ class TableManager {
         this.scene.cardsSelected.forEach((card) => {
             this.scene.handManager.removeCardFromHand(currentHand, card);
             card.table = true;
-            card.originalPosition = { type: "table", groupIndex: this.scene.tableCards.length, cardIndex: newGroup.length };
+            // Don't overwrite originalPosition here - it should be preserved for reset functionality
+            // The originalPosition will be updated when the turn ends in updateOriginalPositions()
             newGroup.push(card);
         });
         
