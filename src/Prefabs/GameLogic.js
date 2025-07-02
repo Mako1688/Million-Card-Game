@@ -19,6 +19,11 @@ class GameLogic {
         this.scene.p2Hand = [];
         this.scene.cardsSelected = [];
         this.scene.tableCards = [];
+        
+        // Track actual hand lengths for win condition (updated only when turn completes)
+        // Initialize to 0 - will be set correctly after dealing cards
+        this.scene.p1ActualHandLength = 0; 
+        this.scene.p2ActualHandLength = 0;
     }
 
     startNewTurn() {
@@ -31,12 +36,34 @@ class GameLogic {
     }
 
     checkWinCondition() {
-        if (!this.scene.resetPressed) {
-            if (this.scene.p1Hand.length === 0) {
-                this.handleWin(true);
-            } else if (this.scene.p2Hand.length === 0) {
-                this.handleWin(false);
-            }
+        // During a reset operation, don't check win conditions at all
+        if (this.scene.resetPressed) {
+            console.log("Skipping win check - reset in progress");
+            return;
+        }
+        
+        // Don't check win conditions if the game hasn't started (no cards dealt yet)
+        if (this.scene.p1ActualHandLength === 0 && this.scene.p2ActualHandLength === 0) {
+            return;
+        }
+        
+        // Use tracked hand lengths for win condition, but also verify with actual hands
+        // This prevents false wins during temporary operations
+        const p1ActualEmpty = this.scene.p1Hand.length === 0;
+        const p2ActualEmpty = this.scene.p2Hand.length === 0;
+        const p1TrackedEmpty = this.scene.p1ActualHandLength === 0;
+        const p2TrackedEmpty = this.scene.p2ActualHandLength === 0;
+        
+        // Debug logging
+        if (p1ActualEmpty || p2ActualEmpty || p1TrackedEmpty || p2TrackedEmpty) {
+            console.log(`Win check: P1 actual=${this.scene.p1Hand.length}, tracked=${this.scene.p1ActualHandLength}, P2 actual=${this.scene.p2Hand.length}, tracked=${this.scene.p2ActualHandLength}`);
+        }
+        
+        // Only trigger win if both tracked and actual agree (this prevents false wins)
+        if (p1ActualEmpty && p1TrackedEmpty) {
+            this.handleWin(true);
+        } else if (p2ActualEmpty && p2TrackedEmpty) {
+            this.handleWin(false);
         }
     }
 
@@ -51,6 +78,9 @@ class GameLogic {
         this.scene.refreshDisplays();
         this.scene.resetSelectedCards();
         this.scene.markTurnAsValid();
+        
+        // Don't update tracked hand lengths here - only update when turn actually ends
+        // This allows for proper reset functionality
     }
 
     refreshDisplays() {
@@ -76,6 +106,7 @@ class GameLogic {
         
         if (canEndTurn) {
             this.updateOriginalPositions();
+            this.updateActualHandLengths(); // Update tracked hand lengths when turn completes
             this.switchTurn();
             this.resetTurnFlags();
             console.log("Turn ended");
@@ -103,6 +134,18 @@ class GameLogic {
         });
     }
 
+    updateActualHandLengths() {
+        // Update the tracked hand lengths to reflect the current actual state
+        // This is called only when a turn successfully completes
+        const oldP1Length = this.scene.p1ActualHandLength;
+        const oldP2Length = this.scene.p2ActualHandLength;
+        
+        this.scene.p1ActualHandLength = this.scene.p1Hand.length;
+        this.scene.p2ActualHandLength = this.scene.p2Hand.length;
+        
+        console.log(`Updated actual hand lengths: P1=${oldP1Length}->${this.scene.p1ActualHandLength}, P2=${oldP2Length}->${this.scene.p2ActualHandLength}`);
+    }
+
     switchTurn() {
         this.scene.p1Turn = !this.scene.p1Turn;
         this.scene.p2Turn = !this.scene.p2Turn;
@@ -126,81 +169,112 @@ class GameLogic {
         console.log("Resetting all cards to their original positions");
         this.scene.resetPressed = true;
 
-        // First, collect all cards that need to be moved back to the table
-        const cardsToMoveToTable = [];
+        // First, identify which groups existed at the start of the turn
+        // A group existed at start if it contains cards with originalPosition.type === "table"
+        const originalGroups = [];
+        const groupCustomPositions = [];
         
-        // Check hand cards that should be on table
-        [...this.scene.p1Hand, ...this.scene.p2Hand].forEach((card) => {
-            if (card.originalPosition && card.originalPosition.type === "table") {
-                cardsToMoveToTable.push(card);
-            }
-        });
-
-        // Check table cards that should be in hand
-        const cardsToMoveToHand = [];
         this.scene.tableCards.forEach((group, groupIndex) => {
-            group.forEach((card, cardIndex) => {
-                if (card.originalPosition && card.originalPosition.type === "hand") {
-                    cardsToMoveToHand.push(card);
+            if (group.length > 0) {
+                const hasOriginalTableCards = group.some(card => 
+                    card.originalPosition && card.originalPosition.type === "table"
+                );
+                
+                if (hasOriginalTableCards) {
+                    // This group existed at the start of the turn
+                    originalGroups[groupIndex] = true;
+                    
+                    // Store custom position if it exists
+                    const firstCard = group[0];
+                    if (firstCard.customPosition || (firstCard.sprite && firstCard.sprite.x && firstCard.sprite.y)) {
+                        groupCustomPositions[groupIndex] = {
+                            x: firstCard.customPosition?.x || firstCard.sprite?.x,
+                            y: firstCard.customPosition?.y || firstCard.sprite?.y,
+                            hasCustomPosition: !!firstCard.customPosition
+                        };
+                    }
                 }
-            });
-        });
-
-        // Move cards from hand back to table
-        cardsToMoveToTable.forEach((card) => {
-            const groupIndex = card.originalPosition.groupIndex;
-            const cardIndex = card.originalPosition.cardIndex;
-
-            // Ensure the group exists
-            if (!this.scene.tableCards[groupIndex]) {
-                this.scene.tableCards[groupIndex] = [];
             }
-
-            // Remove from hand
-            this.scene.handManager.removeCardFromHand(this.scene.p1Hand, card);
-            this.scene.handManager.removeCardFromHand(this.scene.p2Hand, card);
-
-            // Add to table at correct position
-            this.scene.tableCards[groupIndex][cardIndex] = card;
-            card.table = true;
         });
 
-        // Move cards from table back to hand
-        cardsToMoveToHand.forEach((card) => {
-            const playerNum = card.originalPosition.player;
-            const handIndex = card.originalPosition.index;
+        // Collect all cards and their destinations
+        const allCards = [
+            ...this.scene.p1Hand.map(card => ({ card, currentLocation: 'hand' })),
+            ...this.scene.p2Hand.map(card => ({ card, currentLocation: 'hand' })),
+            ...this.scene.tableCards.flat().map(card => ({ card, currentLocation: 'table' }))
+        ];
 
-            // Remove from table
-            this.scene.tableCards.forEach((group, groupIndex) => {
-                const cardIndex = group.indexOf(card);
-                if (cardIndex !== -1) {
-                    group.splice(cardIndex, 1);
+        console.log(`Reset: Found ${allCards.length} total cards to restore`);
+
+        // Clear current state
+        this.scene.p1Hand = [];
+        this.scene.p2Hand = [];
+        this.scene.tableCards = [];
+
+        // Group cards by their original positions
+        const cardsByOriginalGroup = {};
+        
+        allCards.forEach(({ card, currentLocation }) => {
+            if (card.originalPosition) {
+                if (card.originalPosition.type === "hand") {
+                    // Card originally belonged to a hand
+                    const playerNum = card.originalPosition.player;
+                    if (playerNum === 1) {
+                        this.scene.p1Hand.push(card);
+                    } else {
+                        this.scene.p2Hand.push(card);
+                    }
+                    card.table = false;
+                } else if (card.originalPosition.type === "table") {
+                    // Card originally belonged to a table group
+                    const groupIndex = card.originalPosition.groupIndex;
+                    if (!cardsByOriginalGroup[groupIndex]) {
+                        cardsByOriginalGroup[groupIndex] = [];
+                    }
+                    cardsByOriginalGroup[groupIndex].push(card);
+                    card.table = true;
                 }
-            });
-
-            // Add back to hand
-            if (playerNum === 1) {
-                this.scene.p1Hand.push(card);
             } else {
-                this.scene.p2Hand.push(card);
+                // Fallback: if a card has no originalPosition, put it back in player 1's hand
+                console.warn("Card found without originalPosition, adding to player 1 hand:", card);
+                this.scene.p1Hand.push(card);
+                card.table = false;
             }
-            card.table = false;
         });
 
-        // Clean up table cards array (remove empty slots and empty groups)
-        this.scene.tableCards = this.scene.tableCards.map(group => 
-            group.filter(card => card != null)
-        ).filter(group => group.length > 0);
-
-        // Sort all groups after reset to ensure proper order
-        this.scene.tableCards.forEach(group => {
-            if (group.length > 1) {
-                this.scene.tableManager.sortGroup(group);
+        // Reconstruct original table groups
+        Object.keys(cardsByOriginalGroup).forEach((groupIndexStr) => {
+            const groupIndex = parseInt(groupIndexStr);
+            const cards = cardsByOriginalGroup[groupIndex];
+            
+            // Sort the group to ensure proper order
+            this.scene.tableManager.sortGroup(cards);
+            
+            // Restore custom position if it existed for this original group
+            if (groupCustomPositions[groupIndex]) {
+                const position = groupCustomPositions[groupIndex];
+                cards.forEach(card => {
+                    if (position.hasCustomPosition) {
+                        card.customPosition = { x: position.x, y: position.y };
+                    }
+                });
             }
+            
+            // Add the reconstructed group to the table
+            this.scene.tableCards.push(cards);
         });
 
         this.scene.cardsSelected = [];
+        
+        // Update tracked hand lengths before refreshing displays
+        // This ensures consistency before any win condition checks
+        this.updateActualHandLengths();
+        
         this.scene.refreshDisplays();
+        
+        console.log(`Reset complete: P1 hand=${this.scene.p1Hand.length}, P2 hand=${this.scene.p2Hand.length}, Table groups=${this.scene.tableCards.length}`);
+        
+        // Reset can now be safely completed without worrying about false win conditions
         this.scene.resetPressed = false;
     }
 }

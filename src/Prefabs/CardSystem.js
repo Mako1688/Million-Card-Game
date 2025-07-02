@@ -30,14 +30,19 @@ class CardSystem {
 
     dealCards() {
         for (let i = 0; i < 7; i++) {
-            this.dealCardToPlayer(this.scene.p1Hand);
-            this.dealCardToPlayer(this.scene.p2Hand);
+            this.dealCardToPlayer(this.scene.p1Hand, 1);
+            this.dealCardToPlayer(this.scene.p2Hand, 2);
+        }
+        
+        // Update tracked hand lengths after dealing
+        if (this.scene.gameLogic) {
+            this.scene.gameLogic.updateActualHandLengths();
         }
     }
 
-    dealCardToPlayer(hand) {
+    dealCardToPlayer(hand, playerNumber) {
         const card = this.scene.deck.pop();
-        card.originalPosition = { type: "hand" };
+        card.originalPosition = { type: "hand", player: playerNumber };
         hand.push(card);
     }
 
@@ -48,6 +53,9 @@ class CardSystem {
             this.addCardToHand(newCard);
             this.scene.drawn = true;
             this.scene.drawnCard = true;
+            
+            // Don't update tracked hand lengths here - only when turn ends
+            // This allows for proper reset functionality
             
             // Refresh the hand display with the new card to trigger poof effect
             this.scene.handManager.displayHand(newCard);
@@ -86,10 +94,11 @@ class CardSystem {
     }
 
     addCardToHand(newCard) {
-        newCard.originalPosition = { type: "hand" };
         if (this.scene.p1Turn) {
+            newCard.originalPosition = { type: "hand", player: 1 };
             this.scene.p1Hand.push(newCard);
         } else {
+            newCard.originalPosition = { type: "hand", player: 2 };
             this.scene.p2Hand.push(newCard);
         }
     }
