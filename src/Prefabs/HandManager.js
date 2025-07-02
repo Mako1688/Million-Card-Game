@@ -80,14 +80,9 @@ class HandManager {
     createHandSprites(currentHand, startX, spacing) {
         this.scene.handSelected = [];
         
-        // Calculate if we need to scale down cards for very tight spacing
-        const baseCardWidth = 60 * 2; // Card width at scale 2
-        let scaleAdjustment = 1.0;
-        
-        // Adjust scale when spacing gets very tight to prevent overlap
-        if (spacing < 40) {
-            scaleAdjustment = Math.max(0.6, spacing / 50); // Scale down more aggressively for tight spacing
-        }
+        // No scale adjustment - let cards overlap naturally when needed
+        // This is more visually appealing and common in card games
+        const scaleAdjustment = 1.0;
         
         for (let i = 0; i < currentHand.length; i++) {
             const card = currentHand[i];
@@ -151,10 +146,12 @@ class HandManager {
     handlePointerOver(cardSprite) {
         if (!cardSprite.isSelected) {
             cardSprite.interactionOffsetY = -40;
+            // Scale based on the card's base scale for consistency
+            const targetScale = (cardSprite.baseScale || 2) * 1.1;
             this.scene.tweens.add({
                 targets: cardSprite,
-                scaleX: 2.2,
-                scaleY: 2.2,
+                scaleX: targetScale,
+                scaleY: targetScale,
                 duration: 200,
                 ease: "Power2",
             });
@@ -164,10 +161,12 @@ class HandManager {
     handlePointerOut(cardSprite, card) {
         if (!cardSprite.isSelected) {
             cardSprite.interactionOffsetY = 0;
+            // Return to the card's base scale
+            const targetScale = cardSprite.baseScale || 2;
             this.scene.tweens.add({
                 targets: cardSprite,
-                scaleX: 2,
-                scaleY: 2,
+                scaleX: targetScale,
+                scaleY: targetScale,
                 duration: 200,
                 ease: "Power2",
             });
