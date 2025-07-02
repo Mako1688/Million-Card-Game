@@ -1,3 +1,5 @@
+// Title.js - Main menu scene with game title and start functionality
+
 class Title extends Phaser.Scene {
   constructor() {
     super("titleScene");
@@ -7,6 +9,7 @@ class Title extends Phaser.Scene {
 
   preload() { }
 
+  // Creates the title screen with game name and start functionality
   create() {
     //add any button to start text
     // Menu config

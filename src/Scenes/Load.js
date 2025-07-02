@@ -1,3 +1,5 @@
+// Load.js - Handles asset loading and initial game setup
+
 class Load extends Phaser.Scene {
   constructor() {
     super("loadScene");
@@ -5,6 +7,7 @@ class Load extends Phaser.Scene {
 
   init() { }
 
+  // Loads all game assets (sprites, images, sounds)
   preload() {
     //load background
     this.load.spritesheet("play_background", "./assets/SpriteSheets/Million_CG.png", {
@@ -52,6 +55,7 @@ class Load extends Phaser.Scene {
     this.load.image("poof", "./assets/Particles/Pixel.png");
   }
 
+  // Creates animations and sets up initial configurations
   create() {
     //create animations
     this.anims.create({
@@ -65,6 +69,7 @@ class Load extends Phaser.Scene {
     });
   }
 
+  // Transitions to the title scene
   update() {
     this.scene.start("titleScene");
   }

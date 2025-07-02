@@ -20,6 +20,7 @@ Approx hours:
 */
 "use strict";
 
+// Game configuration object
 let config = {
   type: Phaser.AUTO,
   width: 1688,
@@ -47,15 +48,14 @@ let game = new Phaser.Game(config);
 
 let { width, height } = game.config;
 
-// some globals
+// Global constants for screen dimensions and layout
 const centerX = game.config.width / 2;
 const centerY = game.config.height / 2;
 const w = game.config.width;
 const h = game.config.height;
-//create border padding constant
 const borderPadding = 20;
 
-// Define suits and ranks
+// Define card suits and ranks
 const suits = ["diamond", "spade", "heart", "club"];
 const ranks = [
   "A",
@@ -73,4 +73,5 @@ const ranks = [
   "K",
 ];
 
+// Global cursor keys variable
 let cursors = null;

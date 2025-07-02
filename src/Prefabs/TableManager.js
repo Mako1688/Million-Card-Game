@@ -5,6 +5,7 @@ class TableManager {
         this.scene = scene;
     }
 
+    // Displays all card groups on the table with proper layout and positioning
     displayTable() {
         this.clearPreviousTableSprites();
         
@@ -42,6 +43,7 @@ class TableManager {
         this.updateInvalidGroupStates();
     }
 
+    // Removes all existing table sprites and clears references
     clearPreviousTableSprites() {
         if (this.scene.tableSprites) {
             this.scene.tableSprites.forEach((sprite) => {
@@ -66,6 +68,7 @@ class TableManager {
         });
     }
 
+    // Returns the dimensions and boundaries for table layout
     getTableDimensions() {
         const minX = 50;
         const minY = 150;
@@ -76,6 +79,7 @@ class TableManager {
         return { minX, minY, maxX, maxY, rowHeight, colWidth };
     }
 
+    // Returns drag boundaries for individual cards to prevent off-screen dragging
     getDragBoundaries() {
         // Allow dragging anywhere on screen with appropriate borders
         // This ensures no part of the card sprites pass the border
@@ -91,7 +95,7 @@ class TableManager {
         };
     }
 
-    // New method to get group-aware drag boundaries
+    // Returns drag boundaries for entire card groups to prevent off-screen dragging
     getGroupDragBoundaries(group) {
         const BORDER_SIZE = 20;
         const CARD_WIDTH = 120; // Card width at scale 2
@@ -110,6 +114,7 @@ class TableManager {
         };
     }
 
+    // Displays a single group of cards at specified grid position
     displayTableGroup(group, groupIndex, currentX, currentY) {
         const { colWidth } = this.getTableDimensions();
 
@@ -144,6 +149,7 @@ class TableManager {
         });
     }
 
+    // Displays a group of cards at their custom positions (after being dragged)
     displayTableGroupAtCustomPositions(group, groupIndex) {
         group.forEach((card, cardIndex) => {
             const frameIndex = this.scene.cardSystem.getCardFrameIndex(card);
@@ -176,6 +182,7 @@ class TableManager {
         });
     }
 
+    // Creates a card sprite for table display with proper positioning and effects
     createCardSpriteForTable(
         card,
         frameIndex,
@@ -230,6 +237,7 @@ class TableManager {
         return cardSprite;
     }
 
+    // Adds drag and click interactivity to table cards for group manipulation
     addCardDragInteractivity(cardSprite, card, group, groupIndex) {
         let isDragging = false;
         let pointerDownTime = 0;
@@ -239,8 +247,7 @@ class TableManager {
         // Handle pointer down - start tracking for drag vs click
         cardSprite.on("pointerdown", (pointer, localX, localY, event) => {
             if (this.scene.drawnCard) {
-                console.log("Cannot interact with cards after drawing");
-                return;
+                return; // Cannot interact with cards after drawing
             }
 
             event.stopPropagation();
@@ -382,6 +389,7 @@ class TableManager {
         cardSprite.isDragMode = false;
     }
 
+    // Calculates the bounding box for a group of cards for collision detection
     calculateGroupBounds(group) {
         if (!group || group.length === 0) return null;
 
@@ -396,6 +404,7 @@ class TableManager {
         return { minX, maxX, minY, maxY };
     }
 
+    // Handles clicking on table cards to add hand cards to existing groups
     handleCardClickOnTable(card, group, groupIndex) {
         if (this.scene.drawnCard) {
             return;
@@ -456,7 +465,6 @@ class TableManager {
                 this.adjustGroupPositionsForNewCards(group, currentPositions);
                 
                 this.scene.updateValidationBoxVisibility();
-                console.log("Cards added to table group");
                 
                 // Show green flash for successful addition
                 this.showGroupFlash(group, 0x00ff00);
@@ -468,7 +476,6 @@ class TableManager {
                     }
                 });
             } else {
-                console.log("Invalid group combination");
                 // Show red flash for invalid addition
                 this.showGroupFlash(group, 0xff0000);
             }
@@ -526,7 +533,6 @@ class TableManager {
                     
                     if (!remainingGroupValid) {
                         // Show red flash for invalid remaining group (continuous)
-                        console.log("Remaining group is now invalid - flashing red continuously");
                         this.showGroupFlash(group, 0xff0000, true);
                     }
                     
@@ -542,16 +548,17 @@ class TableManager {
                 }
                 
                 this.scene.updateValidationBoxVisibility();
-                console.log(`Moved ${card.card.suit} ${card.card.rank} back to hand`);
             }
         }
     }
 
+    // Stores positions of remaining cards in a group for preservation during reset
     preserveGroupPositions(group, remainingPositions) {
         // Store positions that we want to preserve
         this.pendingPreservedPositions = remainingPositions;
     }
 
+    // Applies preserved positions to cards after group modifications
     applyPreservedPositions(remainingPositions) {
         // Apply the preserved positions to the sprites
         remainingPositions.forEach(({ card, x, y, depth }) => {
@@ -564,6 +571,7 @@ class TableManager {
         });
     }
 
+    // Shows visual feedback (flashing) for card groups - either continuous or one-time
     showGroupFlash(group, color, continuous = false) {
         group.forEach(card => {
             if (card.sprite) {
@@ -635,6 +643,7 @@ class TableManager {
         });
     }
 
+    // Stops flashing animation and restores card's original appearance
     stopGroupFlash(card) {
         if (card.sprite && card.sprite.flashTween) {
             card.sprite.flashTween.destroy();
@@ -662,6 +671,7 @@ class TableManager {
         card.isInvalidGroup = false;
     }
 
+    // Updates visual state of all table groups based on their validity
     updateInvalidGroupStates() {
         // Check all groups and update their invalid state
         this.scene.tableCards.forEach((group, groupIndex) => {
@@ -679,6 +689,7 @@ class TableManager {
         });
     }
 
+    // Updates positions of all cards in a group to maintain proper spacing
     updateGroupCardPositions(group) {
         const { colWidth } = this.getTableDimensions();
         const startX = group[0]?.sprite?.x || 0;
@@ -693,6 +704,7 @@ class TableManager {
         });
     }
 
+    // Moves selected cards from hand to table as a new group
     moveSelectedCardsToTable(currentHand) {
         const newGroup = [];
         this.scene.cardsSelected.forEach((card) => {
@@ -720,6 +732,7 @@ class TableManager {
         });
     }
 
+    // Removes a specific card from a hand array
     removeCardFromHand(hand, card) {
         const index = hand.indexOf(card);
         if (index !== -1) {
@@ -727,12 +740,14 @@ class TableManager {
         }
     }
 
+    // Checks if all groups on the table are valid according to game rules
     checkTableValidity() {
         return this.scene.tableCards.every((group) =>
             this.scene.cardSystem.checkValidGroup(group)
         );
     }
 
+    // Updates and resorts a group after modifications, then repositions cards
     updateAndSortGroup(group) {
         this.sortGroup(group);
         const currentX = group[0].sprite.x;
@@ -741,6 +756,7 @@ class TableManager {
         this.setGroupCardPositions(group, currentX, currentY, cardWidth);
     }
 
+    // Sorts cards within a group based on whether it's a set, run, or mixed group
     sortGroup(group) {
         if (!group || group.length < 2) return;
         
@@ -765,6 +781,7 @@ class TableManager {
         }
     }
 
+    // Sorts a run by rank order, handling Ace as either high or low
     sortRunByRank(group) {
         // First, determine if this is a high-ace run (contains ace and king/queen)
         const hasAce = group.some(card => card.card.rank === "A");
@@ -793,6 +810,7 @@ class TableManager {
         });
     }
 
+    // Sorts cards in a set by alternating red and black colors for visual appeal
     sortByAlternatingColors(group) {
         // For sets (same rank), sort by alternating colors
         const redCards = group.filter(
@@ -866,6 +884,7 @@ class TableManager {
         }
     }
 
+    // Sets positions for all cards in a group with proper spacing and depth
     setGroupCardPositions(group, startX, startY, cardWidth = 60) {
         group.forEach((card, index) => {
             if (card.sprite) {
@@ -883,6 +902,7 @@ class TableManager {
         });
     }
 
+    // Finds an available position on the table for a new group without overlapping existing groups
     findAvailableGroupPosition(groupLength) {
         const { minX, minY, maxX, rowHeight, colWidth } = this.getTableDimensions();
         let currentX = minX;
@@ -929,6 +949,7 @@ class TableManager {
         }
     }
 
+    // Adjusts card positions within a group after new cards are added, maintaining proper spacing
     adjustGroupPositionsForNewCards(group, currentPositions) {
         if (!group || group.length === 0) return;
         

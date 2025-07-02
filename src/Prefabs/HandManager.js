@@ -3,8 +3,7 @@
 class HandManager {
     constructor(scene) {
         this.scene = scene;
-    }
-
+    }    // Displays the current player's hand with proper layout and effects
     displayHand(newCard = null) {
         const currentHand = this.getCurrentHand();
         this.clearExistingHandSprites();
@@ -22,16 +21,19 @@ class HandManager {
         }
     }
 
+    // Arranges cards in the hand with proper spacing and positioning
     layoutHand(currentHand) {
         const spacing = this.calculateCardSpacing(currentHand.length);
         const startX = this.calculateStartX(currentHand.length, spacing);
         this.createHandSprites(currentHand, startX, spacing);
     }
 
+    // Returns the current player's hand array
     getCurrentHand() {
         return this.scene.p1Turn ? this.scene.p1Hand : this.scene.p2Hand;
     }
 
+    // Removes all existing hand sprites and clears references
     clearExistingHandSprites() {
         if (this.scene.handSelected) {
             this.scene.handSelected.forEach((sprite) => {
@@ -53,6 +55,7 @@ class HandManager {
         });
     }
 
+    // Calculates optimal spacing between cards based on hand size and screen width
     calculateCardSpacing(handLength) {
         const baseSpacing = 60;
         const minSpacing = 20; // Minimum spacing for tighter packing
@@ -73,10 +76,12 @@ class HandManager {
         return baseSpacing;
     }
 
+    // Calculates the starting X position for centering the hand
     calculateStartX(handLength, spacing) {
         return (this.scene.scale.width - (handLength - 1) * spacing) / 2;
     }
 
+    // Creates sprite objects for all cards in hand with proper positioning and scale
     createHandSprites(currentHand, startX, spacing) {
         this.scene.handSelected = [];
         
@@ -97,13 +102,13 @@ class HandManager {
             }
             
             const cardSprite = this.createCardSprite(xPosition, frameIndex, scaleAdjustment);
-
             card.sprite = cardSprite;
             this.scene.handSelected.push(cardSprite);
             this.addCardInteractivity(cardSprite, card, i);
         }
     }
 
+    // Creates a single card sprite with proper configuration
     createCardSprite(xPosition, frameIndex, scaleAdjustment = 1.0) {
         // Ensure frameIndex is valid
         if (frameIndex < 0 || frameIndex > 53) {
@@ -134,6 +139,7 @@ class HandManager {
         return cardSprite;
     }
 
+    // Adds mouse interaction events to a card sprite
     addCardInteractivity(cardSprite, card, index) {
         cardSprite.setInteractive();
         cardSprite.on("pointerover", () => this.handlePointerOver(cardSprite));
@@ -143,6 +149,7 @@ class HandManager {
         );
     }
 
+    // Handles mouse hover over a card - scales up and moves slightly
     handlePointerOver(cardSprite) {
         if (!cardSprite.isSelected) {
             cardSprite.interactionOffsetY = -40;
@@ -158,6 +165,7 @@ class HandManager {
         }
     }
 
+    // Handles mouse leaving a card - returns to normal state
     handlePointerOut(cardSprite, card) {
         if (!cardSprite.isSelected) {
             cardSprite.interactionOffsetY = 0;
@@ -173,10 +181,10 @@ class HandManager {
         }
     }
 
+    // Handles clicking on a card - toggles selection state
     handlePointerDown(card, index, cardSprite) {
         if (this.scene.drawnCard) {
-            console.log("Cannot select card after drawing");
-            return;
+            return; // Cannot select card after drawing
         }
 
         const currentHand = this.getCurrentHand();
@@ -188,13 +196,14 @@ class HandManager {
         this.scene.updateValidationBoxVisibility();
     }
 
+    // Selects a card for playing and adds it to the selected cards array
     selectCard(index, hand, cardSprite) {
         const card = hand[index];
         this.selectCardForPlay(card, cardSprite);
         this.scene.cardsSelected.push(card);
-        console.log(`Card selected: ${card.card.suit} ${card.card.rank}`);
     }
 
+    // Deselects a card and removes it from the selected cards array
     deselectCard(card, cardSprite) {
         // Clear tint first
         this.clearCardTint(cardSprite);
@@ -209,9 +218,9 @@ class HandManager {
         if (index !== -1) {
             this.scene.cardsSelected.splice(index, 1);
         }
-        console.log(`Card deselected: ${card.card.suit} ${card.card.rank}`);
     }
 
+    // Visually marks a card as selected with position, scale, and tint changes
     selectCardForPlay(card, cardSprite) {
         // Clear any existing tint before applying new one
         this.clearCardTint(cardSprite);
@@ -236,6 +245,7 @@ class HandManager {
         this.tintCard(cardSprite);
     }
 
+    // Removes tint and animation effects from a card sprite
     clearCardTint(cardSprite) {
         // Stop any flashing tween
         if (cardSprite.flashTween) {
@@ -263,6 +273,7 @@ class HandManager {
         }
     }
 
+    // Returns a card sprite to its normal position and scale
     moveCardToOriginalPosition(cardSprite) {
         cardSprite.interactionOffsetY = 0;
         // Scale back to base scale rather than hardcoded 2
@@ -276,6 +287,7 @@ class HandManager {
         });
     }
 
+    // Applies a breathing tint effect to selected cards
     tintCard(cardSprite) {
         // Create a smooth breathing effect using color interpolation from white to green
         this.showCardSelectionFlash(cardSprite);
@@ -314,6 +326,7 @@ class HandManager {
         });
     }
 
+    // Creates a brief pulse effect when a card is selected
     showCardSelectionFlash(cardSprite) {
         // Create a brief pulse effect to indicate selection
         const baseScale = cardSprite.baseScale || 2;
@@ -329,7 +342,7 @@ class HandManager {
         });
     }
 
-    // Function to sort hand by rank
+    // Sorts hand by rank (A=1, 2-10=face value, J-K=11-13)
     sortHandByRank(hand) {
         hand.sort((a, b) => {
             const rankA = this.scene.cardSystem.getRankValue(a.card.rank);
@@ -338,6 +351,7 @@ class HandManager {
         });
     }
 
+    // Sorts the current player's hand by rank
     sortRankHand() {
         if (this.scene.p1Turn) {
             this.sortHandByRank(this.scene.p1Hand);
@@ -346,7 +360,7 @@ class HandManager {
         }
     }
 
-    // Function to sort hand by suit
+    // Sorts the current player's hand by suit, then by rank within each suit
     sortSuitHand() {
         const currentHand = this.getCurrentHand();
         currentHand.sort((a, b) => {
@@ -361,6 +375,7 @@ class HandManager {
         });
     }
 
+    // Removes a specific card from a hand array
     removeCardFromHand(hand, card) {
         const index = hand.indexOf(card);
         if (index !== -1) {
@@ -368,6 +383,7 @@ class HandManager {
         }
     }
 
+    // Disables interactivity for all hand and table card sprites
     disableCardInteractivity() {
         if (this.scene.handSelected) {
             this.scene.handSelected.forEach((sprite) => {
@@ -381,7 +397,7 @@ class HandManager {
         }
     }
 
-    // Function to enable card interactivity
+    // Enables interactivity for all hand and table card sprites
     enableCardInteractivity() {
         if (this.scene.handSelected) {
             this.scene.handSelected.forEach((sprite) => {

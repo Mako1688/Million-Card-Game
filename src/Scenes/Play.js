@@ -44,8 +44,6 @@ class Play extends Phaser.Scene {
 	preload() { }
 
 	create() {
-		console.log("play scene started");
-
 		this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0);
 
 		// Initialize all systems
@@ -60,7 +58,6 @@ class Play extends Phaser.Scene {
 		// Create deck and deal cards
 		this.deck = this.cardSystem.createDeck();
 		// this.deck = this.cardSystem.shuffle(this.deck);
-		console.log(this.deck);
 		this.cardSystem.dealCards();
 
 		// Display initial hand and start new turn

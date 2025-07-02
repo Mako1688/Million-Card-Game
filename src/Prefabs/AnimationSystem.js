@@ -8,6 +8,7 @@ class AnimationSystem {
         this.WAVE_FREQUENCY = 1.5;
     }
 
+    // Initializes particle system for poof effects when drawing cards
     initializeParticles() {
         this.scene.poofEmitter = this.scene.add.particles(0, 0, 'poof', {
             speed: { min: 100, max: 500 },
@@ -23,19 +24,21 @@ class AnimationSystem {
         this.scene.poofEmitter.setDepth(10);
     }
 
+    // Triggers a particle poof effect at the specified coordinates
     poofEffect(x, y) {
-        console.log(`Poof effect at (${x}, ${y})`);
         if (this.scene.poofEmitter) {
             this.scene.poofEmitter.emitParticleAt(x, y, 32);
         }
     }
 
+    // Updates all animation systems - called every frame
     update(time, delta) {
         this.waveTime += delta / 1000; // Convert ms to seconds
         this.applyHandWaveEffect();
         this.applyTableWaveEffect();
     }
 
+    // Applies gentle wave motion to cards in the player's hand
     applyHandWaveEffect() {
         if (this.scene.handSelected) {
             this.scene.handSelected.forEach((cardSprite, i) => {
@@ -51,6 +54,7 @@ class AnimationSystem {
         }
     }
 
+    // Applies synchronized wave motion to cards on the table
     applyTableWaveEffect() {
         if (!this.scene.tableCards) return;
         this.scene.tableCards.forEach((group, groupIndex) => {
@@ -78,6 +82,7 @@ class AnimationSystem {
         });
     }
 
+    // Starts a pulsing tint effect on a card sprite for visual feedback
     startWaveTint(cardSprite, color, duration = 600, repeat = -1) {
         // Stop any existing tint animation
         this.stopWaveTint(cardSprite);
@@ -97,6 +102,7 @@ class AnimationSystem {
         });
     }
 
+    // Stops the wave tint effect and restores the card to normal appearance
     stopWaveTint(cardSprite) {
         if (cardSprite.waveTintTween) {
             cardSprite.waveTintTween.destroy();

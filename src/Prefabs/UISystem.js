@@ -5,6 +5,7 @@ class UISystem {
         this.scene = scene;
     }
 
+    // Creates all UI elements including buttons, deck sprite, and text displays
     createUIElements() {
         const w = this.scene.scale.width;
         const h = this.scene.scale.height;
@@ -79,6 +80,7 @@ class UISystem {
             .setOrigin(0.5, 0.5);
     }
 
+    // Creates a generic button sprite with specified properties
     createButton(x, y, texture, scale, originX, originY) {
         return this.scene.add
             .sprite(x, y, texture, 0)
@@ -86,6 +88,7 @@ class UISystem {
             .setScale(scale);
     }
 
+    // Creates the deck sprite with stacked card effect for visual appeal
     createDeckSprite(x, y, scale, depth) {
         const deckSprite = this.scene.add
             .sprite(x, y, "card_deck", 53)
@@ -102,6 +105,7 @@ class UISystem {
         return deckSprite;
     }
 
+    // Creates the validation box for confirming valid card plays
     createValidationBox() {
         const centerX = this.scene.scale.width / 2;
         const centerY = this.scene.scale.height / 2;
@@ -116,6 +120,7 @@ class UISystem {
         });
     }
 
+    // Adds interactive behavior to all UI buttons and elements
     addInteractivity() {
         this.addButtonInteractivity(
             this.scene.endTurnButton,
@@ -139,29 +144,26 @@ class UISystem {
         );
     }
 
+    // Adds hover and click effects to buttons
     addButtonInteractivity(button, onClick, ...callbacks) {
         button.setInteractive();
         button.on("pointerover", () => {
-            console.log(`${button.texture.key} hover`);
             button.setFrame(2);
         });
         button.on("pointerout", () => {
-            console.log(`${button.texture.key} not hover`);
             button.setFrame(0);
         });
         button.on("pointerdown", () => {
-            console.log(`${button.texture.key} press`);
             onClick();
             button.setFrame(1);
             callbacks.forEach((callback) => callback());
         });
     }
 
+    // Adds special interactive behavior to the deck sprite for drawing cards
     addDeckInteractivity(deckSprite) {
         deckSprite.setInteractive();
         deckSprite.on("pointerover", () => {
-            console.log(this.scene.deck);
-            console.log("deckSprite hovered");
             this.scene.tweens.add({
                 targets: deckSprite,
                 scaleX: 2.1,
@@ -171,7 +173,6 @@ class UISystem {
             });
         });
         deckSprite.on("pointerout", () => {
-            console.log("deckSprite not hovered");
             this.scene.tweens.add({
                 targets: deckSprite,
                 scaleX: 2,
@@ -181,13 +182,13 @@ class UISystem {
             });
         });
         deckSprite.on("pointerdown", () => {
-            console.log("deckSprite clicked!");
             this.scene.cardSystem.drawCard();
             this.scene.handManager.displayHand();
             // Remove displayTable() call - deck click should not reset table positions
         });
     }
 
+    // Shows or hides the validation box based on selected cards validity
     updateValidationBoxVisibility() {
         const isValid = this.scene.cardSystem.checkValidGroup(this.scene.cardsSelected);
         this.scene.validationBox.setVisible(
@@ -198,12 +199,14 @@ class UISystem {
         }
     }
 
+    // Positions the validation box at the center of the screen
     positionValidationBox() {
         const centerX = this.scene.scale.width / 2;
         const centerY = this.scene.scale.height / 2;
         this.scene.validationBox.setPosition(centerX, centerY + 100);
     }
 
+    // Updates the turn display text to show which player's turn it is
     displayTurn() {
         if (this.scene.p1Turn) {
             this.scene.turnText.setText("Turn:\nP1");

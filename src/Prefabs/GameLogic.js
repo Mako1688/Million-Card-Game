@@ -5,6 +5,7 @@ class GameLogic {
         this.scene = scene;
     }
 
+    // Initializes all game state variables at the start of the game
     initializeVariables() {
         this.scene.handSelected = [];
         this.scene.borderUISize = -25;
@@ -26,6 +27,7 @@ class GameLogic {
         this.scene.p2ActualHandLength = 0;
     }
 
+    // Resets turn-specific flags when starting a new turn
     startNewTurn() {
         this.scene.drawn = false;
         this.scene.drawnCard = false;
@@ -35,11 +37,11 @@ class GameLogic {
         this.scene.turnValid = false;
     }
 
+    // Checks if either player has won by emptying their hand
     checkWinCondition() {
         // During a reset operation, don't check win conditions at all
         if (this.scene.resetPressed) {
-            console.log("Skipping win check - reset in progress");
-            return;
+            return; // Skip win check during reset
         }
         
         // Don't check win conditions if the game hasn't started (no cards dealt yet)
@@ -54,11 +56,6 @@ class GameLogic {
         const p1TrackedEmpty = this.scene.p1ActualHandLength === 0;
         const p2TrackedEmpty = this.scene.p2ActualHandLength === 0;
         
-        // Debug logging
-        if (p1ActualEmpty || p2ActualEmpty || p1TrackedEmpty || p2TrackedEmpty) {
-            console.log(`Win check: P1 actual=${this.scene.p1Hand.length}, tracked=${this.scene.p1ActualHandLength}, P2 actual=${this.scene.p2Hand.length}, tracked=${this.scene.p2ActualHandLength}`);
-        }
-        
         // Only trigger win if both tracked and actual agree (this prevents false wins)
         if (p1ActualEmpty && p1TrackedEmpty) {
             this.handleWin(true);
@@ -67,11 +64,13 @@ class GameLogic {
         }
     }
 
+    // Handles the win condition by transitioning to the win scene
     handleWin(p1Win) {
         console.log(p1Win ? "Player 1 wins" : "Player 2 wins");
         this.scene.scene.start("winScene", { p1Win });
     }
 
+    // Handles successful card placement from hand to table
     handleValidPlay() {
         const currentHand = this.scene.handManager.getCurrentHand();
         this.scene.tableManager.moveSelectedCardsToTable(currentHand);
@@ -83,20 +82,24 @@ class GameLogic {
         // This allows for proper reset functionality
     }
 
+    // Refreshes both hand and table displays
     refreshDisplays() {
         this.scene.handManager.displayHand();
         this.scene.tableManager.displayTable();
     }
 
+    // Clears the selected cards array and updates UI
     resetSelectedCards() {
         this.scene.cardsSelected = [];
         this.scene.uiSystem.updateValidationBoxVisibility();
     }
 
+    // Marks the current turn as having valid moves
     markTurnAsValid() {
         this.scene.turnValid = true;
     }
 
+    // Attempts to end the current turn based on game rules
     endTurn() {
         // Allow ending turn if either:
         // 1. A card was drawn (and no cards were permanently placed)
@@ -109,16 +112,13 @@ class GameLogic {
             this.updateActualHandLengths(); // Update tracked hand lengths when turn completes
             this.switchTurn();
             this.resetTurnFlags();
-            console.log("Turn ended");
         } else {
-            if (!this.scene.drawnCard && !this.scene.placedCards) {
-                console.log("Cannot end turn: must draw a card or place cards on the table");
-            } else if (this.scene.placedCards && !this.scene.tableManager.checkTableValidity()) {
-                console.log("Cannot end turn: all groups on the table must be valid");
-            }
+            // Invalid turn end attempt - could provide user feedback here
+            // Reasons: must draw or place cards, and all table groups must be valid
         }
     }
 
+    // Updates original position tracking for all cards when a turn ends
     updateOriginalPositions() {
         // Update original positions for all cards
         this.scene.p1Hand.forEach((card, index) => {
@@ -134,6 +134,7 @@ class GameLogic {
         });
     }
 
+    // Updates tracked hand lengths to match actual current hand sizes
     updateActualHandLengths() {
         // Update the tracked hand lengths to reflect the current actual state
         // This is called only when a turn successfully completes
@@ -142,15 +143,15 @@ class GameLogic {
         
         this.scene.p1ActualHandLength = this.scene.p1Hand.length;
         this.scene.p2ActualHandLength = this.scene.p2Hand.length;
-        
-        console.log(`Updated actual hand lengths: P1=${oldP1Length}->${this.scene.p1ActualHandLength}, P2=${oldP2Length}->${this.scene.p2ActualHandLength}`);
     }
 
+    // Switches the active player turn
     switchTurn() {
         this.scene.p1Turn = !this.scene.p1Turn;
         this.scene.p2Turn = !this.scene.p2Turn;
     }
 
+    // Resets all turn-related flags and variables
     resetTurnFlags() {
         this.scene.drawn = false;
         this.scene.drawnCard = false;
@@ -160,13 +161,12 @@ class GameLogic {
         this.scene.turnValid = false;
     }
 
+    // Resets all cards to their original positions at the start of the turn
     resetHandToTable() {
         if (this.scene.drawnCard) {
-            console.log("Cannot reset after drawing a card");
-            return;
+            return; // Cannot reset after drawing a card
         }
 
-        console.log("Resetting all cards to their original positions");
         this.scene.resetPressed = true;
 
         // First, identify which groups existed at the start of the turn
@@ -203,8 +203,6 @@ class GameLogic {
             ...this.scene.p2Hand.map(card => ({ card, currentLocation: 'hand' })),
             ...this.scene.tableCards.flat().map(card => ({ card, currentLocation: 'table' }))
         ];
-
-        console.log(`Reset: Found ${allCards.length} total cards to restore`);
 
         // Clear current state
         this.scene.p1Hand = [];
@@ -271,8 +269,6 @@ class GameLogic {
         this.updateActualHandLengths();
         
         this.scene.refreshDisplays();
-        
-        console.log(`Reset complete: P1 hand=${this.scene.p1Hand.length}, P2 hand=${this.scene.p2Hand.length}, Table groups=${this.scene.tableCards.length}`);
         
         // Reset can now be safely completed without worrying about false win conditions
         this.scene.resetPressed = false;

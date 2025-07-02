@@ -5,6 +5,7 @@ class CardSystem {
         this.scene = scene;
     }
 
+    // Creates a new deck with two of each card (suit + rank combination)
     createDeck() {
         let deck = [];
         for (let suit of suits) {
@@ -16,10 +17,12 @@ class CardSystem {
         return deck;
     }
 
+    // Creates a card object with suit, rank, and table status
     createCard(suit, rank) {
         return { card: { suit, rank }, table: false };
     }
 
+    // Shuffles the deck using Fisher-Yates algorithm
     shuffle(deck) {
         for (let i = deck.length - 1; i > 0; i--) {
             let j = Math.floor(Math.random() * (i + 1));
@@ -28,6 +31,7 @@ class CardSystem {
         return deck;
     }
 
+    // Deals 7 cards to each player at the start of the game
     dealCards() {
         for (let i = 0; i < 7; i++) {
             this.dealCardToPlayer(this.scene.p1Hand, 1);
@@ -40,12 +44,14 @@ class CardSystem {
         }
     }
 
+    // Deals a single card to a specific player's hand
     dealCardToPlayer(hand, playerNumber) {
         const card = this.scene.deck.pop();
         card.originalPosition = { type: "hand", player: playerNumber };
         hand.push(card);
     }
 
+    // Draws a card from the deck and adds it to the current player's hand
     drawCard() {
         if (this.canDrawCard()) {
             const newCard = this.scene.deck.pop();
@@ -59,13 +65,12 @@ class CardSystem {
             
             // Refresh the hand display with the new card to trigger poof effect
             this.scene.handManager.displayHand(newCard);
-            
-            console.log("Card drawn");
         } else {
             this.handleInvalidDraw();
         }
     }
 
+    // Checks if the current player can draw a card based on game rules
     canDrawCard() {
         // Basic checks
         if (this.scene.deck.length === 0 || 
@@ -93,6 +98,7 @@ class CardSystem {
         return true;
     }
 
+    // Adds a card to the current player's hand
     addCardToHand(newCard) {
         if (this.scene.p1Turn) {
             newCard.originalPosition = { type: "hand", player: 1 };
@@ -103,6 +109,7 @@ class CardSystem {
         }
     }
 
+    // Handles invalid draw attempts and provides feedback
     handleInvalidDraw() {
         if (this.scene.deck.length === 0) {
             console.log("Cannot draw: deck is empty");
@@ -131,49 +138,16 @@ class CardSystem {
         return suits.indexOf(card.card.suit) * 13 + ranks.indexOf(card.card.rank);
     }
 
-    // Helper function to get the value of a rank, considering Aces high or low
+    // Helper function to get the numeric value of a rank (Ace = 1, 2-10 = face value, J-K = 11-13)
     getRankValue(rank) {
-        if (rank === "A") {
-            return 1;
-        }
-        if (rank === "2") {
-            return 2;
-        }
-        if (rank === "3") {
-            return 3;
-        }
-        if (rank === "4") {
-            return 4;
-        }
-        if (rank === "5") {
-            return 5;
-        }
-        if (rank === "6") {
-            return 6;
-        }
-        if (rank === "7") {
-            return 7;
-        }
-        if (rank === "8") {
-            return 8;
-        }
-        if (rank === "9") {
-            return 9;
-        }
-        if (rank === "10") {
-            return 10;
-        }
-        if (rank === "J") {
-            return 11;
-        }
-        if (rank === "Q") {
-            return 12;
-        }
-        if (rank === "K") {
-            return 13;
-        }
+        if (rank === "A") return 1;
+        if (rank === "J") return 11;
+        if (rank === "Q") return 12;
+        if (rank === "K") return 13;
+        return parseInt(rank);
     }
 
+    // Validates if a group of cards forms a valid set or run
     checkValidGroup(cards = []) {
         if (cards.length < 3) {
             return false;
