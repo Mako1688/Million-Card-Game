@@ -17,30 +17,30 @@ class TableManager {
         });
         
         const { minX, minY, maxX, rowHeight, colWidth } = this.getTableDimensions();
-        let currentX = minX;
-        let currentY = minY;
 
         this.scene.tableSprites = [];
         this.scene.tableCards.forEach((group, groupIndex) => {
-            // Check if this group has custom positions (from dragging)
+            // Check if this group has custom positions (from dragging or previous placement)
             const hasCustomPositions = group.some(card => card.customPosition);
             
             if (!hasCustomPositions) {
-                // Only apply grid layout if group doesn't have custom positions
-                if (currentX + group.length * colWidth > maxX) {
-                    currentX = minX;
-                    currentY += rowHeight;
-                }
-                this.displayTableGroup(group, groupIndex, currentX, currentY);
-                currentX += group.length * colWidth + colWidth * 2;
+                // For groups without custom positions, find an available position
+                const availablePosition = this.findAvailableGroupPosition(group.length);
+                this.displayTableGroup(group, groupIndex, availablePosition.x, availablePosition.y);
+                // Custom positions are now set within displayTableGroup method
             } else {
                 // Preserve custom positions - just recreate sprites at their existing positions
                 this.displayTableGroupAtCustomPositions(group, groupIndex);
             }
         });
         
-        // After displaying, check for invalid groups and apply red flashing
-        this.updateInvalidGroupStates();
+        // Only check for invalid groups when not in middle of operations that might cause temporary invalid states
+        // This prevents inappropriate flashing during card moves, resets, or other temporary operations
+        if (!this.scene.resetPressed && 
+            !this.scene.gameLogic?.isProcessingMove && 
+            !this.scene.drawnCard) {
+            this.updateInvalidGroupStates();
+        }
     }
 
     // Removes all existing table sprites and clears references
@@ -144,6 +144,13 @@ class TableManager {
 
             card.sprite = cardSprite;
             this.scene.tableSprites.push(cardSprite);
+            
+            // Set custom position to ensure cards stay together
+            card.customPosition = {
+                x: cardX,
+                y: cardY
+            };
+            
             // Pass group and groupIndex so any card can trigger group actions
             this.addCardDragInteractivity(cardSprite, card, group, groupIndex);
         });
@@ -151,12 +158,28 @@ class TableManager {
 
     // Displays a group of cards at their custom positions (after being dragged)
     displayTableGroupAtCustomPositions(group, groupIndex) {
+        // Find the base position from the first card that has a custom position
+        let baseX = 50; // Default fallback
+        let baseY = 150; // Default fallback
+        const { colWidth } = this.getTableDimensions();
+        
+        // Find a card with custom position to use as base, preferably the first card
+        const cardWithPosition = group.find(card => card.customPosition) || group[0];
+        if (cardWithPosition && cardWithPosition.customPosition) {
+            baseX = cardWithPosition.customPosition.x;
+            baseY = cardWithPosition.customPosition.y;
+        } else if (cardWithPosition && cardWithPosition.sprite) {
+            // Use sprite position if no custom position is available
+            baseX = cardWithPosition.sprite.x;
+            baseY = cardWithPosition.sprite.y;
+        }
+        
         group.forEach((card, cardIndex) => {
             const frameIndex = this.scene.cardSystem.getCardFrameIndex(card);
             
-            // Use custom position if available, otherwise fall back to a default
-            const cardX = card.customPosition ? card.customPosition.x : 50 + cardIndex * 60;
-            const cardY = card.customPosition ? card.customPosition.y : 150;
+            // Always use proper spacing from base position to keep cards together
+            const cardX = baseX + cardIndex * colWidth;
+            const cardY = baseY;
 
             // Clean up existing sprite if it exists
             if (card.sprite) {
@@ -165,18 +188,24 @@ class TableManager {
                 card.sprite = null;
             }
 
-            // Create new sprite at custom position
+            // Create new sprite at calculated position
             const cardSprite = this.createCardSpriteForTable(
                 card,
                 frameIndex,
                 cardX,
                 cardY,
                 cardIndex,
-                60 // colWidth
+                colWidth
             );
 
             card.sprite = cardSprite;
             this.scene.tableSprites.push(cardSprite);
+            
+            // Update custom position to match the actual positioned location
+            card.customPosition = {
+                x: cardX,
+                y: cardY
+            };
             // Pass group and groupIndex so any card can trigger group actions
             this.addCardDragInteractivity(cardSprite, card, group, groupIndex);
         });
@@ -410,12 +439,20 @@ class TableManager {
             return;
         }
 
+        // Set processing flag to prevent inappropriate flashing during move operations
+        if (this.scene.gameLogic) {
+            this.scene.gameLogic.isProcessingMove = true;
+        }
+
         if (this.scene.cardsSelected.length > 0) {
             // Check if selected cards from hand can be added to this group
             const testGroup = [...group, ...this.scene.cardsSelected];
             const result = this.scene.cardSystem.checkValidGroup(testGroup);
             
             if (result) {
+                // Before modifying this group, preserve positions of ALL other groups
+                this.preserveOtherGroupPositions(groupIndex);
+                
                 // Store current positions before adding cards
                 const currentPositions = group.map(groupCard => ({
                     card: groupCard,
@@ -443,6 +480,16 @@ class TableManager {
                     group.push(selectedCard);
                     selectedCard.table = true;
                     selectedCard.isDragging = false; // Ensure proper state
+                    
+                    // Clear any existing custom position to prevent positioning conflicts
+                    delete selectedCard.customPosition;
+                    
+                    // Clear any invalid state (safety check, hand cards shouldn't have this)
+                    if (selectedCard.isInvalidGroup) {
+                        this.stopGroupFlash(selectedCard);
+                        selectedCard.isInvalidGroup = false;
+                    }
+                    
                     // Don't overwrite originalPosition here - preserve it for reset functionality
                     // The originalPosition will be updated when the turn ends in updateOriginalPositions()
                 });
@@ -476,8 +523,9 @@ class TableManager {
                     }
                 });
             } else {
-                // Show red flash for invalid addition
-                this.showGroupFlash(group, 0xff0000);
+                // Don't show red flash for invalid addition attempts - it's just user testing
+                // The user will see the validation box doesn't appear, which is sufficient feedback
+                console.log("Invalid group combination - cards cannot be added");
             }
         } else {
             // No cards selected from hand - move this table card back to hand
@@ -509,6 +557,13 @@ class TableManager {
                 // Add card back to hand
                 card.table = false;
                 card.isDragging = false; // Reset drag state
+                
+                // Clear invalid group state and stop any red flashing when moving to hand
+                if (card.isInvalidGroup) {
+                    this.stopGroupFlash(card);
+                    card.isInvalidGroup = false;
+                }
+                
                 // Don't overwrite originalPosition here - preserve it for reset functionality
                 // The originalPosition will be updated when the turn ends in updateOriginalPositions()
                 currentHand.push(card);
@@ -532,6 +587,12 @@ class TableManager {
                     const remainingGroupValid = this.scene.cardSystem.checkValidGroup(group);
                     
                     if (!remainingGroupValid) {
+                        // Mark cards as invalid for immediate visual feedback
+                        group.forEach(card => {
+                            if (!card.isInvalidGroup) {
+                                card.isInvalidGroup = true;
+                            }
+                        });
                         // Show red flash for invalid remaining group (continuous)
                         this.showGroupFlash(group, 0xff0000, true);
                     }
@@ -550,6 +611,49 @@ class TableManager {
                 this.scene.updateValidationBoxVisibility();
             }
         }
+        
+        // Clear processing flag and update invalid group states after operation completes
+        if (this.scene.gameLogic) {
+            this.scene.gameLogic.isProcessingMove = false;
+        }
+        
+        // Force update of invalid group states after the operation completes
+        // Use a small delay to ensure all sprite updates are complete
+        this.scene.time.delayedCall(10, () => {
+            this.updateInvalidGroupStates();
+        });
+    }
+
+    // Preserves the current positions of all groups except the one being modified
+    preserveOtherGroupPositions(excludeGroupIndex) {
+        this.scene.tableCards.forEach((group, groupIndex) => {
+            if (groupIndex !== excludeGroupIndex) {
+                group.forEach(card => {
+                    if (card.sprite && card.sprite.x && card.sprite.y) {
+                        // Mark this card as having a custom position to preserve it
+                        card.customPosition = {
+                            x: card.sprite.x,
+                            y: card.sprite.y
+                        };
+                    }
+                });
+            }
+        });
+    }
+
+    // Preserves the current positions of all existing groups before adding new groups
+    preserveExistingGroupPositions() {
+        this.scene.tableCards.forEach(group => {
+            group.forEach(card => {
+                if (card.sprite && card.sprite.x && card.sprite.y) {
+                    // Mark this card as having a custom position to preserve it
+                    card.customPosition = {
+                        x: card.sprite.x,
+                        y: card.sprite.y
+                    };
+                }
+            });
+        });
     }
 
     // Stores positions of remaining cards in a group for preservation during reset
@@ -645,9 +749,12 @@ class TableManager {
 
     // Stops flashing animation and restores card's original appearance
     stopGroupFlash(card) {
-        if (card.sprite && card.sprite.flashTween) {
-            card.sprite.flashTween.destroy();
-            card.sprite.flashTween = null;
+        if (card.sprite) {
+            // Stop any existing flash animation
+            if (card.sprite.flashTween) {
+                card.sprite.flashTween.destroy();
+                card.sprite.flashTween = null;
+            }
             
             // Restore original appearance
             if (card.sprite.originalTint !== undefined) {
@@ -673,6 +780,11 @@ class TableManager {
 
     // Updates visual state of all table groups based on their validity
     updateInvalidGroupStates() {
+        // Don't update flashing states during temporary operations
+        if (this.scene.gameLogic?.isProcessingMove) {
+            return;
+        }
+        
         // Check all groups and update their invalid state
         this.scene.tableCards.forEach((group, groupIndex) => {
             const isValid = this.scene.cardSystem.checkValidGroup(group);
@@ -706,10 +818,17 @@ class TableManager {
 
     // Moves selected cards from hand to table as a new group
     moveSelectedCardsToTable(currentHand) {
+        // Before adding a new group, preserve the current positions of all existing groups
+        this.preserveExistingGroupPositions();
+        
         const newGroup = [];
         this.scene.cardsSelected.forEach((card) => {
             this.scene.handManager.removeCardFromHand(currentHand, card);
             card.table = true;
+            
+            // Clear any existing custom position to prevent positioning conflicts
+            delete card.customPosition;
+            
             // Don't overwrite originalPosition here - it should be preserved for reset functionality
             // The originalPosition will be updated when the turn ends in updateOriginalPositions()
             newGroup.push(card);
@@ -888,15 +1007,19 @@ class TableManager {
     setGroupCardPositions(group, startX, startY, cardWidth = 60) {
         group.forEach((card, index) => {
             if (card.sprite) {
-                card.sprite.x = startX + index * cardWidth;
-                card.sprite.y = startY;
-                card.sprite.baseY = startY; // Update baseY for wave effect
+                const targetX = startX + index * cardWidth;
+                const targetY = startY;
+                
+                // Update sprite position
+                card.sprite.x = targetX;
+                card.sprite.y = targetY;
+                card.sprite.baseY = targetY; // Update baseY for wave effect
                 card.sprite.setDepth(index);
                 
-                // Store custom position to preserve spacing
+                // Store custom position to preserve spacing - ensures all cards stay together
                 card.customPosition = {
-                    x: card.sprite.x,
-                    y: card.sprite.y
+                    x: targetX,
+                    y: targetY
                 };
             }
         });
@@ -909,21 +1032,37 @@ class TableManager {
         let currentY = minY;
         let placed = false;
 
-        // Gather bounding boxes of all existing groups
+        // Gather bounding boxes of all existing groups that have positions
         const groupBounds = this.scene.tableCards.map(group => {
+            if (group.length === 0) return null;
+            
+            // Check if group has custom positions
+            const firstCard = group[0];
+            let groupX, groupY;
+            
+            if (firstCard.customPosition) {
+                groupX = firstCard.customPosition.x;
+                groupY = firstCard.customPosition.y;
+            } else if (firstCard.sprite) {
+                groupX = firstCard.sprite.x;
+                groupY = firstCard.sprite.y;
+            } else {
+                return null; // Group has no position yet
+            }
+            
             return {
-                x: group[0]?.sprite?.x ?? 0,
-                y: group[0]?.sprite?.y ?? 0,
+                x: groupX - (colWidth / 2), // Account for card center origin
+                y: groupY - (rowHeight / 2),
                 width: group.length * colWidth,
                 height: rowHeight
             };
-        });
+        }).filter(bounds => bounds !== null);
 
         while (!placed) {
             // Proposed bounding box for the new group
             const newBounds = {
-                x: currentX,
-                y: currentY,
+                x: currentX - (colWidth / 2),
+                y: currentY - (rowHeight / 2),
                 width: groupLength * colWidth,
                 height: rowHeight
             };
@@ -961,11 +1100,151 @@ class TableManager {
         const { colWidth } = this.getTableDimensions();
         group.forEach((card, index) => {
             if (card.sprite) {
-                card.sprite.x = baseX + index * colWidth;
-                card.sprite.y = baseY;
-                card.sprite.baseY = baseY; // Update baseY for wave effect
+                const targetX = baseX + index * colWidth;
+                const targetY = baseY;
+                
+                // Update sprite position
+                card.sprite.x = targetX;
+                card.sprite.y = targetY;
+                card.sprite.baseY = targetY; // Update baseY for wave effect
                 card.sprite.setDepth(index);
+                
+                // Update custom position to ensure all cards stay together
+                card.customPosition = {
+                    x: targetX,
+                    y: targetY
+                };
             }
+        });
+   }
+
+    // Ensures all groups have proper card spacing to prevent overlap
+    ensureProperGroupSpacing() {
+        const { colWidth } = this.getTableDimensions();
+        
+        // First, ensure proper spacing within each group
+        this.scene.tableCards.forEach(group => {
+            if (group.length > 1) {
+                // Find the leftmost card position as the reference point
+                let baseX = group[0]?.sprite?.x || 0;
+                let baseY = group[0]?.sprite?.y || 0;
+                
+                // If the group has any custom position, use it as base
+                const cardWithPosition = group.find(card => card.customPosition);
+                if (cardWithPosition) {
+                    baseX = cardWithPosition.customPosition.x;
+                    baseY = cardWithPosition.customPosition.y;
+                } else if (group[0]?.sprite) {
+                    // Use the first card's current sprite position
+                    baseX = group[0].sprite.x;
+                    baseY = group[0].sprite.y;
+                }
+                
+                // Apply proper spacing to all cards in the group
+                group.forEach((card, cardIndex) => {
+                    if (card.sprite) {
+                        const targetX = baseX + (cardIndex * colWidth);
+                        const targetY = baseY;
+                        
+                        // Update sprite position
+                        card.sprite.x = targetX;
+                        card.sprite.y = targetY;
+                        card.sprite.baseY = targetY;
+                        
+                        // Update custom position to maintain this spacing
+                        card.customPosition = {
+                            x: targetX,
+                            y: targetY
+                        };
+                    }
+                });
+            }
+        });
+        
+        // Second, check for and resolve group overlaps
+        this.resolveGroupOverlaps();
+    }
+    
+    // Resolves overlaps between different groups by repositioning overlapping groups
+    resolveGroupOverlaps() {
+        const { colWidth } = this.getTableDimensions();
+        const OVERLAP_THRESHOLD = colWidth * 0.8; // Groups are considered overlapping if closer than this
+        
+        for (let i = 0; i < this.scene.tableCards.length; i++) {
+            const group1 = this.scene.tableCards[i];
+            if (group1.length === 0) continue;
+            
+            for (let j = i + 1; j < this.scene.tableCards.length; j++) {
+                const group2 = this.scene.tableCards[j];
+                if (group2.length === 0) continue;
+                
+                // Get the bounds of each group
+                const group1Bounds = this.getGroupBounds(group1);
+                const group2Bounds = this.getGroupBounds(group2);
+                
+                // Check if groups overlap
+                if (this.doGroupsOverlap(group1Bounds, group2Bounds, OVERLAP_THRESHOLD)) {
+                    // Reposition the second group to an available position
+                    const availablePosition = this.findAvailableGroupPosition(group2.length);
+                    this.repositionGroup(group2, availablePosition.x, availablePosition.y);
+                }
+            }
+        }
+    }
+    
+    // Gets the bounds of a group (leftmost and rightmost card positions)
+    getGroupBounds(group) {
+        if (group.length === 0) return null;
+        
+        const { colWidth } = this.getTableDimensions();
+        const firstCard = group[0];
+        let baseX = firstCard?.sprite?.x || firstCard?.customPosition?.x || 0;
+        let baseY = firstCard?.sprite?.y || firstCard?.customPosition?.y || 0;
+        
+        return {
+            minX: baseX,
+            maxX: baseX + (group.length - 1) * colWidth,
+            minY: baseY,
+            maxY: baseY + 92 * 2, // Card height * scale
+            centerX: baseX + (group.length - 1) * colWidth / 2,
+            centerY: baseY + 92
+        };
+    }
+    
+    // Checks if two groups overlap
+    doGroupsOverlap(bounds1, bounds2, threshold) {
+        if (!bounds1 || !bounds2) return false;
+        
+        // Check horizontal overlap
+        const horizontalOverlap = !(bounds1.maxX < bounds2.minX - threshold || 
+                                   bounds2.maxX < bounds1.minX - threshold);
+        
+        // Check vertical overlap
+        const verticalOverlap = !(bounds1.maxY < bounds2.minY - threshold || 
+                                 bounds2.maxY < bounds1.minY - threshold);
+        
+        return horizontalOverlap && verticalOverlap;
+    }
+    
+    // Repositions a group to a new position
+    repositionGroup(group, newX, newY) {
+        const { colWidth } = this.getTableDimensions();
+        
+        group.forEach((card, cardIndex) => {
+            const targetX = newX + (cardIndex * colWidth);
+            const targetY = newY;
+            
+            if (card.sprite) {
+                card.sprite.x = targetX;
+                card.sprite.y = targetY;
+                card.sprite.baseY = targetY;
+            }
+            
+            // Update custom position
+            card.customPosition = {
+                x: targetX,
+                y: targetY
+            };
         });
     }
 }

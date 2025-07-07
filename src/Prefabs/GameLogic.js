@@ -25,6 +25,9 @@ class GameLogic {
         // Initialize to 0 - will be set correctly after dealing cards
         this.scene.p1ActualHandLength = 0; 
         this.scene.p2ActualHandLength = 0;
+        
+        // Flag to track when moves are being processed to prevent inappropriate flashing
+        this.isProcessingMove = false;
     }
 
     // Resets turn-specific flags when starting a new turn
@@ -35,6 +38,9 @@ class GameLogic {
         this.scene.resetPressed = false;
         this.scene.cardsSelected = [];
         this.scene.turnValid = false;
+        
+        // Clear any lingering hand selection tints from previous turn
+        this.clearHandSelectionTints();
     }
 
     // Checks if either player has won by emptying their hand
@@ -108,6 +114,9 @@ class GameLogic {
                           (this.scene.placedCards && this.scene.tableManager.checkTableValidity());
         
         if (canEndTurn) {
+            // Clear all hand card selection tints when turn ends
+            this.clearHandSelectionTints();
+            
             this.updateOriginalPositions();
             this.updateActualHandLengths(); // Update tracked hand lengths when turn completes
             this.switchTurn();
@@ -137,18 +146,50 @@ class GameLogic {
     // Updates tracked hand lengths to match actual current hand sizes
     updateActualHandLengths() {
         // Update the tracked hand lengths to reflect the current actual state
-        // This is called only when a turn successfully completes
-        const oldP1Length = this.scene.p1ActualHandLength;
-        const oldP2Length = this.scene.p2ActualHandLength;
-        
         this.scene.p1ActualHandLength = this.scene.p1Hand.length;
         this.scene.p2ActualHandLength = this.scene.p2Hand.length;
+    }
+
+    // Stops all flashing animations on cards
+    stopAllFlashingAnimations() {
+        // Stop flashing on all hand cards
+        const allHandCards = [...this.scene.p1Hand, ...this.scene.p2Hand];
+        allHandCards.forEach(card => {
+            if (card.sprite) {
+                this.scene.handManager.clearCardTint(card.sprite);
+            }
+        });
+
+        // Stop flashing on all table cards
+        this.scene.tableCards.forEach(group => {
+            group.forEach(card => {
+                if (card.sprite) {
+                    this.scene.tableManager.stopGroupFlash(card);
+                }
+            });
+        });
+    }
+
+    // Clears selection tints from all hand cards
+    clearHandSelectionTints() {
+        // Clear selection tints from all hand cards that are currently displayed
+        if (this.scene.handSelected) {
+            this.scene.handSelected.forEach(cardSprite => {
+                if (cardSprite) {
+                    this.scene.handManager.clearCardTint(cardSprite);
+                    cardSprite.isSelected = false;
+                }
+            });
+        }
     }
 
     // Switches the active player turn
     switchTurn() {
         this.scene.p1Turn = !this.scene.p1Turn;
         this.scene.p2Turn = !this.scene.p2Turn;
+        
+        // Update table group validity states for the new turn
+        this.scene.tableManager.updateInvalidGroupStates();
     }
 
     // Resets all turn-related flags and variables
@@ -168,6 +209,10 @@ class GameLogic {
         }
 
         this.scene.resetPressed = true;
+        this.isProcessingMove = true; // Prevent flashing during reset
+
+        // Stop all flashing animations before reset
+        this.stopAllFlashingAnimations();
 
         // First, identify which groups existed at the start of the turn
         // A group existed at start if it contains cards with originalPosition.type === "table"
@@ -270,7 +315,11 @@ class GameLogic {
         
         this.scene.refreshDisplays();
         
+        // After refresh, ensure all groups have proper card spacing to prevent overlap
+        this.scene.tableManager.ensureProperGroupSpacing();
+        
         // Reset can now be safely completed without worrying about false win conditions
         this.scene.resetPressed = false;
+        this.isProcessingMove = false; // Clear processing flag
     }
 }
