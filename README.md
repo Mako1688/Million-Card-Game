@@ -1,5 +1,5 @@
 # Million Card Game
-by Marco Ogaz-Vega in dedication to Lois Million Zerai <3
+by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 
 ## Overview
 
