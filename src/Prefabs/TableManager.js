@@ -433,7 +433,7 @@ class TableManager {
         return { minX, maxX, minY, maxY };
     }
 
-    // Handles clicking on table cards to add hand cards to existing groups
+    // Handles clicking on table cards to add hand cards to existing groups or take table cards to hand
     handleCardClickOnTable(card, group, groupIndex) {
         if (this.scene.drawnCard) {
             return;
@@ -483,6 +483,12 @@ class TableManager {
                     
                     // Clear any existing custom position to prevent positioning conflicts
                     delete selectedCard.customPosition;
+                    
+                    // Clear mustReturnToTable flag since card has successfully returned to table
+                    if (selectedCard.mustReturnToTable) {
+                        delete selectedCard.mustReturnToTable;
+                        console.log("Card returned to table:", selectedCard.card.rank, "of", selectedCard.card.suit);
+                    }
                     
                     // Clear any invalid state (safety check, hand cards shouldn't have this)
                     if (selectedCard.isInvalidGroup) {
@@ -565,6 +571,7 @@ class TableManager {
                 }
                 
                 // Don't overwrite originalPosition here - preserve it for reset functionality
+                // Also preserve mustReturnToTable flag - table cards must return to table by turn end
                 // The originalPosition will be updated when the turn ends in updateOriginalPositions()
                 currentHand.push(card);
                 
@@ -828,6 +835,12 @@ class TableManager {
             
             // Clear any existing custom position to prevent positioning conflicts
             delete card.customPosition;
+            
+            // Clear mustReturnToTable flag since card has successfully returned to table
+            if (card.mustReturnToTable) {
+                delete card.mustReturnToTable;
+                console.log("Card returned to table in new group:", card.card.rank, "of", card.card.suit);
+            }
             
             // Don't overwrite originalPosition here - it should be preserved for reset functionality
             // The originalPosition will be updated when the turn ends in updateOriginalPositions()

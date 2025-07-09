@@ -105,6 +105,12 @@ class HandManager {
             card.sprite = cardSprite;
             this.scene.handSelected.push(cardSprite);
             this.addCardInteractivity(cardSprite, card, i);
+            
+            // Add visual indicator for cards that must return to table
+            if (card.mustReturnToTable) {
+                // Add a subtle yellow tint to indicate this card came from the table
+                cardSprite.setTint(0xffffcc);
+            }
         }
     }
 

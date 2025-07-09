@@ -80,10 +80,18 @@ class CardSystem {
             return false;
         }
 
-        // Check if current hand contains any cards that originally came from the table
+        // Check if current hand contains any cards that need to return to table
         const currentHand = this.scene.p1Turn ? this.scene.p1Hand : this.scene.p2Hand;
+        
+        // Multi-layer check for table cards in hand
         const hasTableCards = currentHand.some(card => 
-            card.originalPosition && card.originalPosition.type === "table"
+            // Primary check: cards flagged as must return to table
+            card.mustReturnToTable ||
+            // Secondary check: cards that originally came from table
+            (card.originalPosition && card.originalPosition.type === "table") ||
+            // Tertiary check: cards that were on table at start of turn
+            (this.scene.gameLogic.cardsOnTableAtTurnStart && 
+             this.scene.gameLogic.cardsOnTableAtTurnStart.includes(card))
         );
 
         if (hasTableCards) {
@@ -121,11 +129,14 @@ class CardSystem {
             // Check specific reasons why drawing is not allowed
             const currentHand = this.scene.p1Turn ? this.scene.p1Hand : this.scene.p2Hand;
             const hasTableCards = currentHand.some(card => 
-                card.originalPosition && card.originalPosition.type === "table"
+                card.mustReturnToTable ||
+                (card.originalPosition && card.originalPosition.type === "table") ||
+                (this.scene.gameLogic.cardsOnTableAtTurnStart && 
+                 this.scene.gameLogic.cardsOnTableAtTurnStart.includes(card))
             );
             
             if (hasTableCards) {
-                console.log("Cannot draw: hand contains cards taken from the table");
+                console.log("Cannot draw: hand contains cards taken from the table that must be returned");
             } else if (!this.scene.tableManager.checkTableValidity()) {
                 console.log("Cannot draw: table contains invalid groups");
             } else {
