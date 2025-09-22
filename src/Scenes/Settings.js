@@ -91,7 +91,7 @@ class Settings extends Phaser.Scene {
 
   createAudioControls(x, y) {
     // SFX Volume
-    this.add.text(x - 200, y, "SFX Volume:", {
+    this.add.text(x - 260, y, "SFX Volume:", {
       fontFamily: 'PressStart2P',
       fontSize: '14px',
       color: '#FFFFFF'
@@ -100,7 +100,7 @@ class Settings extends Phaser.Scene {
     this.createVolumeSlider(x, y, 'sfx');
 
     // Music Volume (for future implementation)
-    this.add.text(x - 200, y + 60, "Music Volume:", {
+    this.add.text(x - 260, y + 60, "Music Volume:", {
       fontFamily: 'PressStart2P',
       fontSize: '14px',
       color: '#FFFFFF'
@@ -214,7 +214,7 @@ class Settings extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     // Apply button
-    const applyButton = this.add.text(x, y, "APPLY", {
+    const applyButton = this.add.text(x - 20, y, "APPLY", {
       fontFamily: 'PressStart2P',
       fontSize: '20px',
       color: '#FFFFFF',
