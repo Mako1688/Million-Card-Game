@@ -68,15 +68,11 @@ let config = {
 
 let game = new Phaser.Game(config);
 
-// Restore optional fullscreen startup (only if enabled in settings)
+// Restore optional fullscreen startup (only if enabled in settings and triggered by user)
+// Note: Fullscreen can only be triggered by user gesture, so we'll add this to the title scene
 const storedFullscreen = localStorage.getItem('gameSettings_fullscreen');
 if (storedFullscreen === 'true') {
-  // Add a small delay to ensure the game is fully initialized
-  setTimeout(() => {
-    if (game.scale && game.scale.startFullscreen) {
-      game.scale.startFullscreen();
-    }
-  }, 1000);
+  console.log('Fullscreen enabled in settings - will activate on user interaction');
 }
 
 // Prevent ESC key from exiting fullscreen

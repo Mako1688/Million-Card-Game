@@ -23,7 +23,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      webSecurity: true // Re-enable web security
+      webSecurity: false, // Temporarily disable for local asset loading
+      allowRunningInsecureContent: true
     },
     icon: path.join(__dirname, '../assets/icon.png'), // Add your game icon
     show: false, // Don't show until ready
@@ -46,7 +47,7 @@ function createWindow() {
   // Create application menu
   createMenu();
 
-  // Open DevTools for debugging
+  // Open DevTools temporarily to debug asset loading
   mainWindow.webContents.openDevTools();
 }
 

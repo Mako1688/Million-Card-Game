@@ -107,6 +107,15 @@ class Title extends Phaser.Scene {
       if (this.audioSystem) {
         this.audioSystem.playMenuButton();
       }
+      
+      // Check if fullscreen should be enabled on game start
+      const storedFullscreen = localStorage.getItem('gameSettings_fullscreen');
+      if (storedFullscreen === 'true' && this.scale && this.scale.startFullscreen) {
+        this.scale.startFullscreen().catch((error) => {
+          console.log('Fullscreen request failed:', error);
+        });
+      }
+      
       // Code to execute when the card is clicked
       console.log("Card clicked!");
       this.scene.start("playScene");
