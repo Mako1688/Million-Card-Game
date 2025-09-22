@@ -211,6 +211,11 @@ class HandManager {
 
     // Deselects a card and removes it from the selected cards array
     deselectCard(card, cardSprite) {
+        // Play card deselection sound
+        if (this.scene.audioSystem) {
+            this.scene.audioSystem.playCardSelect();
+        }
+        
         // Clear tint first
         this.clearCardTint(cardSprite);
         
@@ -228,6 +233,11 @@ class HandManager {
 
     // Visually marks a card as selected with position, scale, and tint changes
     selectCardForPlay(card, cardSprite) {
+        // Play card selection sound
+        if (this.scene.audioSystem) {
+            this.scene.audioSystem.playCardSelect();
+        }
+        
         // Clear any existing tint before applying new one
         this.clearCardTint(cardSprite);
         

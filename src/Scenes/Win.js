@@ -14,6 +14,9 @@ class Win extends Phaser.Scene {
 
   // Creates the win screen display
   create() {
+    // Initialize audio system
+    this.audioSystem = new AudioSystem(this);
+    
     // Add background
     this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0);
 
@@ -58,6 +61,9 @@ class Win extends Phaser.Scene {
         playAgainButton.setStyle({ backgroundColor: '#4CAF50' });
       })
       .on('pointerdown', () => {
+        if (this.audioSystem) {
+          this.audioSystem.playMenuButton();
+        }
         this.scene.start("playScene");
       });
 
@@ -81,6 +87,9 @@ class Win extends Phaser.Scene {
         titleButton.setStyle({ backgroundColor: '#2196F3' });
       })
       .on('pointerdown', () => {
+        if (this.audioSystem) {
+          this.audioSystem.playMenuButton();
+        }
         this.scene.start("titleScene");
       });
   }

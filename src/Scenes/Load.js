@@ -53,6 +53,13 @@ class Load extends Phaser.Scene {
     });
 
     this.load.image("poof", "./assets/Particles/Pixel.png");
+
+    // Load audio files
+    this.load.audio("african1", "./assets/Sounds/MP3/African1.mp3");
+    this.load.audio("african2", "./assets/Sounds/MP3/African2.mp3");
+    this.load.audio("african3", "./assets/Sounds/MP3/African3.mp3");
+    this.load.audio("african4", "./assets/Sounds/MP3/African4.mp3");
+    this.load.audio("wood_block1", "./assets/Sounds/MP3/Wood Block1.mp3");
   }
 
   // Creates animations and sets up initial configurations

@@ -435,6 +435,11 @@ class TableManager {
 
     // Handles clicking on table cards to add hand cards to existing groups or take table cards to hand
     handleCardClickOnTable(card, group, groupIndex) {
+        // Play card selection sound for table card interaction
+        if (this.scene.audioSystem) {
+            this.scene.audioSystem.playCardSelect();
+        }
+        
         if (this.scene.drawnCard) {
             return;
         }

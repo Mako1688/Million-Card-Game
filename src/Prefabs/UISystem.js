@@ -115,6 +115,9 @@ class UISystem {
             .setInteractive()
             .setVisible(false);
         this.scene.validationBox.on("pointerdown", () => {
+            if (this.scene.audioSystem) {
+                this.scene.audioSystem.playCardsPlacement();
+            }
             this.scene.gameLogic.handleValidPlay();
             this.scene.turnValid = true;
         });
@@ -122,24 +125,52 @@ class UISystem {
 
     // Adds interactive behavior to all UI buttons and elements
     addInteractivity() {
+        // End Turn Button
         this.addButtonInteractivity(
             this.scene.endTurnButton,
-            this.scene.gameLogic.endTurn.bind(this.scene.gameLogic),
+            () => {
+                if (this.scene.audioSystem) {
+                    this.scene.audioSystem.playEndTurn();
+                }
+                this.scene.gameLogic.endTurn();
+            },
             this.scene.handManager.displayHand.bind(this.scene.handManager)
         );
+        
+        // Restart Button
         this.addButtonInteractivity(
             this.scene.restart, 
-            this.scene.gameLogic.resetHandToTable.bind(this.scene.gameLogic)
+            () => {
+                if (this.scene.audioSystem) {
+                    this.scene.audioSystem.playButtonPress();
+                }
+                this.scene.gameLogic.resetHandToTable();
+            }
         );
+        
         this.addDeckInteractivity(this.scene.deckSprite);
+        
+        // Sort Rank Button
         this.addButtonInteractivity(
             this.scene.sortRank,
-            this.scene.handManager.sortRankHand.bind(this.scene.handManager),
+            () => {
+                if (this.scene.audioSystem) {
+                    this.scene.audioSystem.playButtonPress();
+                }
+                this.scene.handManager.sortRankHand();
+            },
             this.scene.handManager.displayHand.bind(this.scene.handManager)
         );
+        
+        // Sort Suit Button
         this.addButtonInteractivity(
             this.scene.sortSuit,
-            this.scene.handManager.sortSuitHand.bind(this.scene.handManager),
+            () => {
+                if (this.scene.audioSystem) {
+                    this.scene.audioSystem.playButtonPress();
+                }
+                this.scene.handManager.sortSuitHand();
+            },
             this.scene.handManager.displayHand.bind(this.scene.handManager)
         );
     }
@@ -182,6 +213,10 @@ class UISystem {
             });
         });
         deckSprite.on("pointerdown", () => {
+            // Play card draw sound
+            if (this.scene.audioSystem) {
+                this.scene.audioSystem.playCardSelect();
+            }
             this.scene.cardSystem.drawCard();
             this.scene.handManager.displayHand();
             // Remove displayTable() call - deck click should not reset table positions

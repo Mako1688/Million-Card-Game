@@ -83,6 +83,7 @@ class Play extends Phaser.Scene {
 		this.tableManager = new TableManager(this);
 		this.uiSystem = new UISystem(this);
 		this.animationSystem = new AnimationSystem(this);
+		this.audioSystem = new AudioSystem(this);
 		this.gameLogic = new GameLogic(this);
 	}
 

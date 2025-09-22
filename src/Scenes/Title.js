@@ -11,6 +11,9 @@ class Title extends Phaser.Scene {
 
   // Creates the title screen with game name and start functionality
   create() {
+    // Initialize audio system
+    this.audioSystem = new AudioSystem(this);
+    
     //add any button to start text
     // Menu config
     let menuConfig = {
@@ -71,6 +74,10 @@ class Title extends Phaser.Scene {
 
     // Listen for pointerdown event on the card
     this.card.on("pointerdown", () => {
+      // Play menu button sound
+      if (this.audioSystem) {
+        this.audioSystem.playMenuButton();
+      }
       // Code to execute when the card is clicked
       console.log("Card clicked!");
       this.scene.start("playScene");

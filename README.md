@@ -34,6 +34,12 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 - **Sorting:** Sort your hand by rank or suit with a single click.
 - **Reset:** Reset the table and hand (if no card has been drawn this turn).
 - **Visual Feedback:** Cards flash green when selected, red when invalid, and wave gently for a lively feel.
+- **Audio Feedback:** Sound effects for card interactions, button presses, and game actions.
+  - African1: Card selection/deselection sounds and drawing cards
+  - African2: End turn button
+  - African3: Sort and reset buttons
+  - African4: Play cards confirmation
+  - Wood Block1: Menu navigation buttons
 - **Responsive Design:** Works on different screen sizes.
 
 ---
@@ -44,7 +50,7 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 - **JavaScript** (game logic)
 - **HTML5** (canvas and UI)
 - **CSS** (styling, if applicable)
-- **Audio** (to be added)
+- **Audio** (MP3 sound effects)
 
 ---
 
@@ -63,7 +69,7 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 - [ ] **Credits Scene:** Display game credits and acknowledgments.
 - [ ] **Win Scene:** Show the winner and allow restarting the game.
 - [ ] **Title Scene:** Main menu with start, instructions, and credits.
-- [ ] **Audio:** Add sound effects and background music for actions and feedback.
+- [x] **Audio:** Add sound effects and background music for actions and feedback.
 - [ ] **Polish:** Additional visual effects, bug fixes, and performance improvements.
 - [ ] **Appification:** Make game instalable on an iphone on the home screen.
 - [ ] **Multiplayer:** Add multiplayer functionality (communication between devices)
