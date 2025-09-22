@@ -29,6 +29,16 @@ let config = {
   mode: Phaser.Scale.FIT,
   scale: {
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    mode: Phaser.Scale.FIT,
+    parent: 'game-container',
+    min: {
+      width: 800,
+      height: 600
+    },
+    max: {
+      width: 1920,
+      height: 1080
+    }
   },
   frameRate: 60,
   physics: {
