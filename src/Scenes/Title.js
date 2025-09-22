@@ -110,10 +110,14 @@ class Title extends Phaser.Scene {
       
       // Check if fullscreen should be enabled on game start
       const storedFullscreen = localStorage.getItem('gameSettings_fullscreen');
-      if (storedFullscreen === 'true' && this.scale && this.scale.startFullscreen) {
-        this.scale.startFullscreen().catch((error) => {
-          console.log('Fullscreen request failed:', error);
-        });
+      if (storedFullscreen === 'true') {
+        // Use the correct Phaser 3 fullscreen method
+        if (this.scale.startFullscreen) {
+          this.scale.startFullscreen();
+        } else {
+          // Fallback for browsers that support fullscreen
+          this.scale.toggleFullscreen();
+        }
       }
       
       // Code to execute when the card is clicked
