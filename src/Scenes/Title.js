@@ -17,7 +17,7 @@ class Title extends Phaser.Scene {
     //add any button to start text
     // Menu config
     let menuConfig = {
-      fontFamily: "Arial", // Use Arial as fallback instead of PressStart2P
+      fontFamily: "PressStart2P", // Restore original font
       fontSize: "40px",
       backgroundColor: "#000000",
       color: "#FFFFFF",
@@ -42,7 +42,7 @@ class Title extends Phaser.Scene {
 
     // Settings button
     const settingsButton = this.add.text(centerX, h / 3 + 180, "SETTINGS", {
-      fontFamily: "Arial", // Use Arial as fallback
+      fontFamily: "PressStart2P", // Restore original font
       fontSize: "24px",
       backgroundColor: "#444444",
       color: "#FFFFFF",

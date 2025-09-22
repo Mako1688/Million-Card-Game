@@ -6,7 +6,6 @@ class Load extends Phaser.Scene {
   }
 
   init() { 
-    console.log("Load scene: Initializing");
     // Add error handling for renderer issues
     this.load.on('loaderror', (file) => {
       console.error('Failed to load file:', file.src);
@@ -19,7 +18,6 @@ class Load extends Phaser.Scene {
 
   // Loads all game assets (sprites, images, sounds)
   preload() {
-    console.log("Load scene: Starting preload");
     //load background
     this.load.spritesheet("play_background", "./assets/SpriteSheets/Million_CG.png", {
       frameWidth: 1688,
@@ -75,8 +73,6 @@ class Load extends Phaser.Scene {
 
   // Creates animations and sets up initial configurations
   create() {
-    console.log("Load scene: Creating animations and transitioning");
-    
     try {
       //create animations
       this.anims.create({
@@ -89,10 +85,7 @@ class Load extends Phaser.Scene {
         frameRate: 12,
       });
       
-      console.log("Load scene: Animations created successfully");
-      
       // Transition to title scene after assets are loaded
-      console.log("Load scene: Starting title scene");
       this.scene.start("titleScene");
     } catch (error) {
       console.error("Error in Load scene create method:", error);

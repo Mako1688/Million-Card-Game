@@ -22,10 +22,7 @@ Approx hours:
 
 // Game configuration object
 let config = {
-  type: Phaser.CANVAS, // Use Canvas renderer instead of AUTO to avoid WebGL issues
-  canvas: null,
-  canvasStyle: null,
-  context: null,
+  type: Phaser.CANVAS, // Keep Canvas renderer for stability in Electron
   width: 1688,
   height: 780,
   pixelArt: true,
@@ -39,9 +36,7 @@ let config = {
     preserveDrawingBuffer: false,
     premultipliedAlpha: true,
     failIfMajorPerformanceCaveat: false,
-    powerPreference: "default",
-    batchSize: 4096,
-    maxLights: 10
+    powerPreference: "default"
   },
   scale: {
     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -57,27 +52,32 @@ let config = {
     }
   },
   frameRate: 60,
-  // Remove physics for now to simplify debugging
-  // physics: {
-  //   default: "arcade",
-  //   arcade: {
-  //     debug: false,
-  //     gravity: {
-  //       x: 0,
-  //       y: 0,
-  //     },
-  //   },
-  // },
+  // Restore physics system
+  physics: {
+    default: "arcade",
+    arcade: {
+      debug: false,
+      gravity: {
+        x: 0,
+        y: 0,
+      },
+    },
+  },
   scene: [Load, Title, Play, Win, Settings, Credits],
 };
 
 let game = new Phaser.Game(config);
 
-// Comment out automatic fullscreen for now - it's causing issues
-// const storedFullscreen = localStorage.getItem('gameSettings_fullscreen');
-// if (storedFullscreen === 'true') {
-//   game.scale.startFullscreen();
-// }
+// Restore optional fullscreen startup (only if enabled in settings)
+const storedFullscreen = localStorage.getItem('gameSettings_fullscreen');
+if (storedFullscreen === 'true') {
+  // Add a small delay to ensure the game is fully initialized
+  setTimeout(() => {
+    if (game.scale && game.scale.startFullscreen) {
+      game.scale.startFullscreen();
+    }
+  }, 1000);
+}
 
 // Prevent ESC key from exiting fullscreen
 document.addEventListener('keydown', function(event) {
