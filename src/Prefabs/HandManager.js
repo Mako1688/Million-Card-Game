@@ -265,7 +265,9 @@ class HandManager {
     clearCardTint(cardSprite) {
         // Stop any flashing tween
         if (cardSprite.flashTween) {
-            cardSprite.flashTween.destroy();
+            if (typeof cardSprite.flashTween === 'object' && cardSprite.flashTween.destroy) {
+                cardSprite.flashTween.destroy();
+            }
             cardSprite.flashTween = null;
         }
         
@@ -305,39 +307,40 @@ class HandManager {
 
     // Applies a breathing tint effect to selected cards
     tintCard(cardSprite) {
-        // Create a smooth breathing effect using color interpolation from white to green
-        this.showCardSelectionFlash(cardSprite);
+        // Clear any existing effects first
+        this.clearCardTint(cardSprite);
         
         // Store original values for restoration
         const originalAlpha = cardSprite.alpha;
         cardSprite.originalAlpha = originalAlpha;
         
-        // Remove any existing tint tween
-        if (cardSprite.flashTween) {
-            cardSprite.flashTween.stop();
-            cardSprite.flashTween = null;
-        }
+        // Store original tint for restoration
+        cardSprite.originalTint = cardSprite.tint || 0xffffff;
         
-        // Animate the tint using color interpolation
-        cardSprite.flashTween = this.scene.tweens.addCounter({
-            from: 0,
-            to: 100,
-            duration: 600,
+        // Create a simple pulsing color effect using alpha and tint
+        cardSprite.flashTween = this.scene.tweens.add({
+            targets: cardSprite,
+            alpha: { from: originalAlpha, to: originalAlpha * 0.6 },
+            duration: 800,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut',
-            onUpdate: tween => {
-                // Calculate smooth interpolation between white and green
-                const t = tween.getValue() / 100;
-                const r = Phaser.Display.Color.Interpolate.ColorWithColor(
-                    Phaser.Display.Color.ValueToColor(0xffffff),
-                    Phaser.Display.Color.ValueToColor(0x00ff00),
-                    1,
-                    t
-                );
-                cardSprite.setTint(Phaser.Display.Color.GetColor(r.r, r.g, r.b));
-                // Also animate alpha for additional breathing effect
-                cardSprite.setAlpha(originalAlpha - (t * 0.4));
+            onStart: () => {
+                cardSprite.setTint(0x00ff00); // Bright green
+            },
+            onUpdate: (tween) => {
+                // Create breathing effect by modulating tint intensity
+                const progress = tween.progress;
+                const intensity = Math.sin(progress * Math.PI * 2); // Wave from -1 to 1
+                
+                // Blend between green and white based on intensity
+                const greenIntensity = (intensity + 1) / 2; // Convert to 0-1 range
+                const red = Math.floor(255 * (1 - greenIntensity * 0.8));
+                const green = 255;
+                const blue = Math.floor(255 * (1 - greenIntensity * 0.8));
+                
+                const color = (red << 16) | (green << 8) | blue;
+                cardSprite.setTint(color);
             }
         });
     }

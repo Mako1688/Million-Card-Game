@@ -87,18 +87,41 @@ class AnimationSystem {
         // Stop any existing tint animation
         this.stopWaveTint(cardSprite);
         
-        // Set a static tint instead of animating it
-        cardSprite.setTint(color);
+        // Store original values for restoration
+        const originalAlpha = cardSprite.alpha;
+        cardSprite.originalAlpha = originalAlpha;
         
-        // Create a subtle scale pulse effect instead of tint animation
+        // Create a smooth color breathing effect using simpler approach
         cardSprite.waveTintTween = this.scene.tweens.add({
             targets: cardSprite,
-            scaleX: { from: cardSprite.scaleX, to: cardSprite.scaleX * 1.05 },
-            scaleY: { from: cardSprite.scaleY, to: cardSprite.scaleY * 1.05 },
             duration: duration,
             yoyo: true,
             repeat: repeat,
-            ease: 'Sine.easeInOut'
+            ease: 'Sine.easeInOut',
+            alpha: { from: originalAlpha, to: originalAlpha * 0.7 },
+            onStart: () => {
+                // Set the target color tint at start
+                cardSprite.setTint(color);
+            },
+            onUpdate: (tween) => {
+                // Create a breathing effect by varying the color intensity
+                const progress = tween.progress;
+                const intensity = Math.sin(progress * Math.PI); // Creates a wave from 0 to 1 and back
+                
+                // Extract RGB components from target color
+                const targetR = (color >> 16) & 0xff;
+                const targetG = (color >> 8) & 0xff;
+                const targetB = color & 0xff;
+                
+                // Mix white (255, 255, 255) with target color based on intensity
+                const r = Math.floor(255 * (1 - intensity * 0.8) + targetR * intensity * 0.8);
+                const g = Math.floor(255 * (1 - intensity * 0.8) + targetG * intensity * 0.8);
+                const b = Math.floor(255 * (1 - intensity * 0.8) + targetB * intensity * 0.8);
+                
+                const mixedColor = (r << 16) | (g << 8) | b;
+                
+                cardSprite.setTint(mixedColor);
+            }
         });
     }
 
@@ -108,7 +131,18 @@ class AnimationSystem {
             cardSprite.waveTintTween.destroy();
             cardSprite.waveTintTween = null;
         }
+        
+        // Restore original appearance
         cardSprite.clearTint();
+        
+        // Restore original alpha if it was stored
+        if (cardSprite.originalAlpha !== undefined) {
+            cardSprite.setAlpha(cardSprite.originalAlpha);
+            cardSprite.originalAlpha = undefined;
+        } else {
+            cardSprite.setAlpha(1);
+        }
+        
         // Reset scale to what it should be based on whether it's selected or not
         const targetScale = cardSprite.isSelected ? 2.2 : 2;
         cardSprite.setScale(targetScale);

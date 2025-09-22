@@ -492,7 +492,6 @@ class TableManager {
                     // Clear mustReturnToTable flag since card has successfully returned to table
                     if (selectedCard.mustReturnToTable) {
                         delete selectedCard.mustReturnToTable;
-                        console.log("Card returned to table:", selectedCard.card.rank, "of", selectedCard.card.suit);
                     }
                     
                     // Clear any invalid state (safety check, hand cards shouldn't have this)
@@ -536,7 +535,6 @@ class TableManager {
             } else {
                 // Don't show red flash for invalid addition attempts - it's just user testing
                 // The user will see the validation box doesn't appear, which is sufficient feedback
-                console.log("Invalid group combination - cards cannot be added");
             }
         } else {
             // No cards selected from hand - move this table card back to hand
@@ -699,59 +697,64 @@ class TableManager {
                     const originalAlpha = card.sprite.alpha;
                     card.sprite.originalAlpha = originalAlpha;
                     
-                    // Start continuous smooth breathing effect for invalid groups
-                    card.sprite.flashTween = this.scene.tweens.addCounter({
-                        from: 0,
-                        to: 100,
-                        duration: 800,
+                    // Store original tint (if any) before starting animation
+                    card.sprite.originalTint = card.sprite.tint || 0xffffff;
+                    
+                    // Create simple alternating flash for continuous effect
+                    const lightColor = this.lightenColor(color, 0.6);
+                    
+                    card.sprite.flashTween = this.scene.tweens.add({
+                        targets: card.sprite,
+                        alpha: { from: originalAlpha, to: originalAlpha * 0.4 },
+                        duration: 600,
                         yoyo: true,
                         repeat: -1,
                         ease: 'Sine.easeInOut',
-                        onUpdate: tween => {
-                            // Calculate smooth interpolation between white and target color
-                            const t = tween.getValue() / 100;
-                            const r = Phaser.Display.Color.Interpolate.ColorWithColor(
-                                Phaser.Display.Color.ValueToColor(0xffffff),
-                                Phaser.Display.Color.ValueToColor(color),
-                                1,
-                                t
-                            );
-                            card.sprite.setTint(Phaser.Display.Color.GetColor(r.r, r.g, r.b));
-                            // Also animate alpha for additional breathing effect
-                            card.sprite.setAlpha(originalAlpha - (t * 0.4));
+                        onStart: () => {
+                            // Set target color when animation starts
+                            card.sprite.setTint(color);
+                        },
+                        onYoyo: () => {
+                            // Alternate between target color and lighter version
+                            const currentTint = card.sprite.tint || 0xffffff;
+                            const newTint = currentTint === color ? lightColor : color;
+                            card.sprite.setTint(newTint);
+                        },
+                        onRepeat: () => {
+                            // Alternate between target color and lighter version
+                            const currentTint = card.sprite.tint || 0xffffff;
+                            const newTint = currentTint === color ? lightColor : color;
+                            card.sprite.setTint(newTint);
                         }
                     });
+                    
                     // Mark as invalid for tracking
                     card.isInvalidGroup = true;
                 } else {
-                    // One-time smooth flash
+                    // One-time simple flash
                     const originalAlpha = card.sprite.alpha;
+                    const originalTint = card.sprite.tint || 0xffffff;
                     
-                    // Create a smooth flash sequence using color interpolation
-                    this.scene.tweens.addCounter({
-                        from: 0,
-                        to: 100,
+                    // Simple flash effect
+                    this.scene.tweens.add({
+                        targets: card.sprite,
                         duration: 200,
                         yoyo: true,
                         repeat: 1,
                         ease: 'Power2.easeInOut',
-                        onUpdate: tween => {
-                            // Calculate smooth interpolation between white and target color
-                            const t = tween.getValue() / 100;
-                            const r = Phaser.Display.Color.Interpolate.ColorWithColor(
-                                Phaser.Display.Color.ValueToColor(0xffffff),
-                                Phaser.Display.Color.ValueToColor(color),
-                                1,
-                                t
-                            );
-                            card.sprite.setTint(Phaser.Display.Color.GetColor(r.r, r.g, r.b));
-                            // Also animate alpha
-                            card.sprite.setAlpha(originalAlpha - (t * 0.3));
+                        alpha: { from: originalAlpha, to: originalAlpha * 0.5 },
+                        onStart: () => {
+                            // Set the flash color
+                            card.sprite.setTint(color);
                         },
                         onComplete: () => {
                             // Restore original state
                             card.sprite.setAlpha(originalAlpha);
-                            card.sprite.clearTint();
+                            if (originalTint === 0xffffff) {
+                                card.sprite.clearTint();
+                            } else {
+                                card.sprite.setTint(originalTint);
+                            }
                         }
                     });
                 }
@@ -759,12 +762,27 @@ class TableManager {
         });
     }
 
+    // Helper function to lighten a color
+    lightenColor(color, factor) {
+        const r = (color >> 16) & 0xff;
+        const g = (color >> 8) & 0xff;
+        const b = color & 0xff;
+        
+        const newR = Math.min(255, Math.floor(r + (255 - r) * factor));
+        const newG = Math.min(255, Math.floor(g + (255 - g) * factor));
+        const newB = Math.min(255, Math.floor(b + (255 - b) * factor));
+        
+        return (newR << 16) | (newG << 8) | newB;
+    }
+
     // Stops flashing animation and restores card's original appearance
     stopGroupFlash(card) {
         if (card.sprite) {
             // Stop any existing flash animation
             if (card.sprite.flashTween) {
-                card.sprite.flashTween.destroy();
+                if (typeof card.sprite.flashTween === 'object' && card.sprite.flashTween.destroy) {
+                    card.sprite.flashTween.destroy();
+                }
                 card.sprite.flashTween = null;
             }
             
@@ -844,7 +862,6 @@ class TableManager {
             // Clear mustReturnToTable flag since card has successfully returned to table
             if (card.mustReturnToTable) {
                 delete card.mustReturnToTable;
-                console.log("Card returned to table in new group:", card.card.rank, "of", card.card.suit);
             }
             
             // Don't overwrite originalPosition here - it should be preserved for reset functionality
