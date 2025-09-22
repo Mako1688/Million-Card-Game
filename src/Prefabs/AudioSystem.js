@@ -4,7 +4,7 @@ class AudioSystem {
   constructor(scene) {
     this.scene = scene;
     this.sounds = {};
-    this.volume = 0.5; // Default volume
+    this.volume = this.getStoredVolume() || 0.5; // Load stored volume or default
     this.muted = false;
     
     this.initializeAudio();
@@ -64,6 +64,20 @@ class AudioSystem {
         sound.setVolume(this.volume);
       }
     });
+
+    // Store the volume setting
+    this.storeVolume(this.volume);
+  }
+
+  // Get stored volume from localStorage
+  getStoredVolume() {
+    const stored = localStorage.getItem('gameSettings_sfxVolume');
+    return stored ? parseFloat(stored) : null;
+  }
+
+  // Store volume to localStorage
+  storeVolume(volume) {
+    localStorage.setItem('gameSettings_sfxVolume', volume.toString());
   }
 
   // Toggle mute state

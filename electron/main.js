@@ -1,6 +1,14 @@
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 
+// Disable hardware acceleration to fix GPU issues
+app.disableHardwareAcceleration();
+
+// Add additional command line switches for stability
+app.commandLine.appendSwitch('--disable-gpu');
+app.commandLine.appendSwitch('--disable-software-rasterizer');
+app.commandLine.appendSwitch('--disable-gpu-sandbox');
+
 // Keep a global reference of the window object
 let mainWindow;
 
@@ -15,7 +23,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      webSecurity: true
+      webSecurity: true // Re-enable web security
     },
     icon: path.join(__dirname, '../assets/icon.png'), // Add your game icon
     show: false, // Don't show until ready
@@ -23,7 +31,7 @@ function createWindow() {
   });
 
   // Load the game
-  mainWindow.loadFile('index.html');
+  mainWindow.loadFile(path.join(__dirname, '../index.html'));
 
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
@@ -38,10 +46,8 @@ function createWindow() {
   // Create application menu
   createMenu();
 
-  // Open DevTools in development
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
-  }
+  // Open DevTools for debugging
+  mainWindow.webContents.openDevTools();
 }
 
 function createMenu() {

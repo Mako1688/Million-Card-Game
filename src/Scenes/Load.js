@@ -5,10 +5,21 @@ class Load extends Phaser.Scene {
     super("loadScene");
   }
 
-  init() { }
+  init() { 
+    console.log("Load scene: Initializing");
+    // Add error handling for renderer issues
+    this.load.on('loaderror', (file) => {
+      console.error('Failed to load file:', file.src);
+    });
+    
+    this.load.on('complete', () => {
+      console.log('All assets loaded successfully');
+    });
+  }
 
   // Loads all game assets (sprites, images, sounds)
   preload() {
+    console.log("Load scene: Starting preload");
     //load background
     this.load.spritesheet("play_background", "./assets/SpriteSheets/Million_CG.png", {
       frameWidth: 1688,
@@ -64,20 +75,34 @@ class Load extends Phaser.Scene {
 
   // Creates animations and sets up initial configurations
   create() {
-    //create animations
-    this.anims.create({
-      key: "shuffle",
-      frames: this.anims.generateFrameNumbers("card_deck", {
-        start: 0,
-        end: 53,
-        first: 0,
-      }),
-      frameRate: 12,
-    });
+    console.log("Load scene: Creating animations and transitioning");
+    
+    try {
+      //create animations
+      this.anims.create({
+        key: "shuffle",
+        frames: this.anims.generateFrameNumbers("card_deck", {
+          start: 0,
+          end: 53,
+          first: 0,
+        }),
+        frameRate: 12,
+      });
+      
+      console.log("Load scene: Animations created successfully");
+      
+      // Transition to title scene after assets are loaded
+      console.log("Load scene: Starting title scene");
+      this.scene.start("titleScene");
+    } catch (error) {
+      console.error("Error in Load scene create method:", error);
+      // Try to continue anyway
+      this.scene.start("titleScene");
+    }
   }
 
-  // Transitions to the title scene
+  // No longer needed - transition happens in create()
   update() {
-    this.scene.start("titleScene");
+    // Empty update method
   }
 }

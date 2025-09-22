@@ -33,6 +33,7 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 - **Turn System:** Clearly displays whose turn it is.
 - **Sorting:** Sort your hand by rank or suit with a single click.
 - **Reset:** Reset the table and hand (if no card has been drawn this turn).
+- **Settings Menu:** Accessible from main menu and settings button during play with fullscreen and audio controls.
 - **Visual Feedback:** Cards flash green when selected, red when invalid, and wave gently for a lively feel.
 - **Audio Feedback:** Sound effects for card interactions, button presses, and game actions.
   - African1: Card selection/deselection sounds and drawing cards

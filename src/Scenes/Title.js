@@ -17,7 +17,7 @@ class Title extends Phaser.Scene {
     //add any button to start text
     // Menu config
     let menuConfig = {
-      fontFamily: "PressStart2P",
+      fontFamily: "Arial", // Use Arial as fallback instead of PressStart2P
       fontSize: "40px",
       backgroundColor: "#000000",
       color: "#FFFFFF",
@@ -39,6 +39,35 @@ class Title extends Phaser.Scene {
     this.add
       .text(centerX, h / 3 + 100, "CLICK the CARD to START", menuConfig)
       .setOrigin(0.5, 0.5);
+
+    // Settings button
+    const settingsButton = this.add.text(centerX, h / 3 + 180, "SETTINGS", {
+      fontFamily: "Arial", // Use Arial as fallback
+      fontSize: "24px",
+      backgroundColor: "#444444",
+      color: "#FFFFFF",
+      align: "center",
+      padding: {
+        x: 15,
+        y: 8,
+      }
+    }).setOrigin(0.5, 0.5).setInteractive({ useHandCursor: true });
+
+    // Settings button interaction
+    settingsButton.on('pointerover', () => {
+      settingsButton.setStyle({ backgroundColor: '#666666' });
+    });
+
+    settingsButton.on('pointerout', () => {
+      settingsButton.setStyle({ backgroundColor: '#444444' });
+    });
+
+    settingsButton.on('pointerdown', () => {
+      if (this.audioSystem) {
+        this.audioSystem.playMenuButton();
+      }
+      this.scene.start("settingsScene", { callingScene: "titleScene" });
+    });
 
     this.card = this.add
       .sprite(centerX, (h / 4) * 3 + 10, "card_deck", 53)

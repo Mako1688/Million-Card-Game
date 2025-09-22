@@ -22,11 +22,27 @@ Approx hours:
 
 // Game configuration object
 let config = {
-  type: Phaser.AUTO,
+  type: Phaser.CANVAS, // Use Canvas renderer instead of AUTO to avoid WebGL issues
+  canvas: null,
+  canvasStyle: null,
+  context: null,
   width: 1688,
   height: 780,
   pixelArt: true,
   mode: Phaser.Scale.FIT,
+  render: {
+    antialias: false,
+    pixelArt: true,
+    roundPixels: true,
+    transparent: false,
+    clearBeforeRender: true,
+    preserveDrawingBuffer: false,
+    premultipliedAlpha: true,
+    failIfMajorPerformanceCaveat: false,
+    powerPreference: "default",
+    batchSize: 4096,
+    maxLights: 10
+  },
   scale: {
     autoCenter: Phaser.Scale.CENTER_BOTH,
     mode: Phaser.Scale.FIT,
@@ -41,20 +57,35 @@ let config = {
     }
   },
   frameRate: 60,
-  physics: {
-    default: "arcade",
-    arcade: {
-      debug: true,
-      gravity: {
-        x: 0,
-        y: 0,
-      },
-    },
-  },
-  scene: [Load, Title, Play, Win, Credits],
+  // Remove physics for now to simplify debugging
+  // physics: {
+  //   default: "arcade",
+  //   arcade: {
+  //     debug: false,
+  //     gravity: {
+  //       x: 0,
+  //       y: 0,
+  //     },
+  //   },
+  // },
+  scene: [Load, Title, Play, Win, Settings, Credits],
 };
 
 let game = new Phaser.Game(config);
+
+// Comment out automatic fullscreen for now - it's causing issues
+// const storedFullscreen = localStorage.getItem('gameSettings_fullscreen');
+// if (storedFullscreen === 'true') {
+//   game.scale.startFullscreen();
+// }
+
+// Prevent ESC key from exiting fullscreen
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape' && (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement)) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+});
 
 let { width, height } = game.config;
 

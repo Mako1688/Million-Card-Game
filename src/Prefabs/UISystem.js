@@ -55,6 +55,20 @@ class UISystem {
             1
         );
 
+        // Add settings button
+        this.scene.settingsButton = this.scene.add.text(
+            borderPadding + 60,
+            borderPadding + 20,
+            "SETTINGS",
+            {
+                fontFamily: "PressStart2P",
+                fontSize: "16px",
+                backgroundColor: "#444444",
+                color: "#FFFFFF",
+                padding: { x: 8, y: 4 }
+            }
+        ).setOrigin(0.5, 0.5).setInteractive({ useHandCursor: true });
+
         // Menu config
         let menuConfig = {
             fontFamily: "PressStart2P",
@@ -173,6 +187,23 @@ class UISystem {
             },
             this.scene.handManager.displayHand.bind(this.scene.handManager)
         );
+
+        // Settings Button
+        this.scene.settingsButton.on('pointerover', () => {
+            this.scene.settingsButton.setStyle({ backgroundColor: '#666666' });
+        });
+
+        this.scene.settingsButton.on('pointerout', () => {
+            this.scene.settingsButton.setStyle({ backgroundColor: '#444444' });
+        });
+
+        this.scene.settingsButton.on('pointerdown', () => {
+            if (this.scene.audioSystem) {
+                this.scene.audioSystem.playMenuButton();
+            }
+            this.scene.scene.launch("settingsScene", { callingScene: "playScene" });
+            this.scene.scene.pause();
+        });
     }
 
     // Adds hover and click effects to buttons
