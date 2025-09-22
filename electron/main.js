@@ -44,11 +44,8 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Create application menu
-  createMenu();
-
-  // Open DevTools temporarily to debug asset loading
-  mainWindow.webContents.openDevTools();
+  // Hide the menu bar for game application
+  Menu.setApplicationMenu(null);
 }
 
 function createMenu() {
