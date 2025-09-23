@@ -123,18 +123,57 @@ class UISystem {
     createValidationBox() {
         const centerX = this.scene.scale.width / 2;
         const centerY = this.scene.scale.height / 2;
+        
+        // Create container for the validation box and text
+        this.scene.validationBoxContainer = this.scene.add.container(centerX, centerY + 100);
+        
+        // Create the green box with rounded appearance
         this.scene.validationBox = this.scene.add
-            .rectangle(centerX, centerY + 100, 200, 100, 0x00ff00)
+            .rectangle(0, 0, 250, 80, 0x00ff00)
             .setOrigin(0.5)
             .setInteractive()
-            .setVisible(false);
-        this.scene.validationBox.on("pointerdown", () => {
-            if (this.scene.audioSystem) {
-                this.scene.audioSystem.playCardsPlacement();
-            }
-            this.scene.gameLogic.handleValidPlay();
-            this.scene.turnValid = true;
-        });
+            .setStrokeStyle(4, 0x00aa00);
+        
+        // Create the "Play" text
+        this.scene.validationBoxText = this.scene.add.text(0, 0, "PLAY", {
+            fontFamily: "PressStart2P",
+            fontSize: "20px",
+            color: "#000000",
+            align: "center",
+            stroke: "#FFFFFF",
+            strokeThickness: 2
+        }).setOrigin(0.5);
+        
+        // Add both to the container
+        this.scene.validationBoxContainer.add([this.scene.validationBox, this.scene.validationBoxText]);
+        
+        // Set high depth to appear in front of all elements
+        this.scene.validationBoxContainer.setDepth(2000);
+        
+        // Set initially invisible
+        this.scene.validationBoxContainer.setVisible(false);
+        
+        // Add hover effects and click functionality
+        this.scene.validationBox
+            .on("pointerover", () => {
+                // Darken the box on hover
+                this.scene.validationBox.setFillStyle(0x00cc00);
+                this.scene.validationBox.setStrokeStyle(4, 0x008800);
+                this.scene.validationBoxText.setStyle({ color: "#FFFFFF", stroke: "#000000" });
+            })
+            .on("pointerout", () => {
+                // Return to original colors
+                this.scene.validationBox.setFillStyle(0x00ff00);
+                this.scene.validationBox.setStrokeStyle(4, 0x00aa00);
+                this.scene.validationBoxText.setStyle({ color: "#000000", stroke: "#FFFFFF" });
+            })
+            .on("pointerdown", () => {
+                if (this.scene.audioSystem) {
+                    this.scene.audioSystem.playCardsPlacement();
+                }
+                this.scene.gameLogic.handleValidPlay();
+                this.scene.turnValid = true;
+            });
     }
 
     // Adds interactive behavior to all UI buttons and elements
@@ -257,10 +296,10 @@ class UISystem {
     // Shows or hides the validation box based on selected cards validity
     updateValidationBoxVisibility() {
         const isValid = this.scene.cardSystem.checkValidGroup(this.scene.cardsSelected);
-        this.scene.validationBox.setVisible(
+        this.scene.validationBoxContainer.setVisible(
             this.scene.cardsSelected.length >= 3 && isValid
         );
-        if (this.scene.validationBox.visible) {
+        if (this.scene.validationBoxContainer.visible) {
             this.positionValidationBox();
         }
     }
@@ -269,7 +308,7 @@ class UISystem {
     positionValidationBox() {
         const centerX = this.scene.scale.width / 2;
         const centerY = this.scene.scale.height / 2;
-        this.scene.validationBox.setPosition(centerX, centerY + 100);
+        this.scene.validationBoxContainer.setPosition(centerX, centerY + 100);
     }
 
     // Updates the turn display text to show which player's turn it is
