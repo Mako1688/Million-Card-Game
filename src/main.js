@@ -63,7 +63,7 @@ let config = {
       },
     },
   },
-  scene: [Load, Title, Play, Win, Settings, Credits],
+  scene: [Load, Title, Play, Win, Settings, Credits, Tutorial],
 };
 
 let game = new Phaser.Game(config);

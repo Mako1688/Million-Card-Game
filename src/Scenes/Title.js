@@ -40,8 +40,39 @@ class Title extends Phaser.Scene {
       .text(centerX, h / 3 + 100, "CLICK the CARD to START", menuConfig)
       .setOrigin(0.5, 0.5);
 
+    // Tutorial button
+    const tutorialButton = this.add.text(centerX, h / 3 + 160, "TUTORIAL", {
+      fontFamily: "PressStart2P",
+      fontSize: "24px",
+      backgroundColor: "#2196F3",
+      color: "#FFFFFF",
+      align: "center",
+      padding: {
+        x: 15,
+        y: 8,
+      }
+    }).setOrigin(0.5, 0.5).setInteractive({ useHandCursor: true });
+
+    // Tutorial button interaction
+    tutorialButton.on('pointerover', () => {
+      tutorialButton.setStyle({ backgroundColor: '#1976D2' });
+    });
+
+    tutorialButton.on('pointerout', () => {
+      tutorialButton.setStyle({ backgroundColor: '#2196F3' });
+    });
+
+    tutorialButton.on('pointerdown', () => {
+      console.log("Tutorial button clicked");
+      if (this.audioSystem) {
+        this.audioSystem.playMenuButton();
+      }
+      console.log("Starting tutorial scene");
+      this.scene.start("tutorialScene");
+    });
+
     // Settings button
-    const settingsButton = this.add.text(centerX, h / 3 + 180, "SETTINGS", {
+    const settingsButton = this.add.text(centerX, h / 3 + 220, "SETTINGS", {
       fontFamily: "PressStart2P", // Restore original font
       fontSize: "24px",
       backgroundColor: "#444444",

@@ -34,6 +34,9 @@ function createWindow() {
   // Load the game
   mainWindow.loadFile(path.join(__dirname, '../index.html'));
 
+  // Open DevTools for debugging
+  mainWindow.webContents.openDevTools();
+
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();

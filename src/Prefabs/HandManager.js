@@ -206,7 +206,12 @@ class HandManager {
     selectCard(index, hand, cardSprite) {
         const card = hand[index];
         this.selectCardForPlay(card, cardSprite);
-        this.scene.cardsSelected.push(card);
+        // Handle different scene types for selected cards array
+        if (this.scene.selectedCards) {
+            this.scene.selectedCards.push(card);
+        } else if (this.scene.cardsSelected) {
+            this.scene.cardsSelected.push(card);
+        }
     }
 
     // Deselects a card and removes it from the selected cards array
@@ -225,9 +230,18 @@ class HandManager {
         // Move card back to original position
         this.moveCardToOriginalPosition(cardSprite);
 
-        const index = this.scene.cardsSelected.indexOf(card);
-        if (index !== -1) {
-            this.scene.cardsSelected.splice(index, 1);
+        // Handle different scene types for selected cards array
+        let index = -1;
+        if (this.scene.selectedCards) {
+            index = this.scene.selectedCards.indexOf(card);
+            if (index !== -1) {
+                this.scene.selectedCards.splice(index, 1);
+            }
+        } else if (this.scene.cardsSelected) {
+            index = this.scene.cardsSelected.indexOf(card);
+            if (index !== -1) {
+                this.scene.cardsSelected.splice(index, 1);
+            }
         }
     }
 

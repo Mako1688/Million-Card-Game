@@ -34,6 +34,7 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 - **Sorting:** Sort your hand by rank or suit with a single click.
 - **Reset:** Reset the table and hand (if no card has been drawn this turn).
 - **Settings Menu:** Accessible from main menu and settings button during play with fullscreen and audio controls.
+- **Interactive Tutorial:** Step-by-step guided tutorial teaching all game mechanics from basic card play to advanced strategies.
 - **Visual Feedback:** Cards flash green when selected, red when invalid, and wave gently for a lively feel.
 - **Audio Feedback:** Sound effects for card interactions, button presses, and game actions.
   - African1: Card selection/deselection sounds and drawing cards
@@ -57,11 +58,12 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 
 ## Code Structure & Functionality
 
-- **Scenes:** Modular scene system (Play, Win, Title, Credits planned).
+- **Scenes:** Modular scene system (Play, Win, Title, Tutorial, Settings, Credits).
 - **Card Logic:** Card and group validation, drag-and-drop, and animated effects.
 - **UI:** Buttons for sorting, ending turn, resetting, and drawing cards.
 - **Animations:** Wave motion for cards, animated color feedback for selection and validation.
 - **Game State:** Turn management, win detection, and reset logic.
+- **Tutorial System:** Interactive step-by-step tutorial teaching all game mechanics.
 
 ---
 

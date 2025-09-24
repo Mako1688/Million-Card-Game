@@ -435,6 +435,10 @@ class TableManager {
 
     // Handles clicking on table cards to add hand cards to existing groups or take table cards to hand
     handleCardClickOnTable(card, group, groupIndex) {
+        // Special handling for tutorial scene
+        if (this.scene.scene.key === "tutorialScene") {
+            return this.handleTutorialCardClick(card, group, groupIndex);
+        }
         // Play card selection sound for table card interaction
         if (this.scene.audioSystem) {
             this.scene.audioSystem.playCardSelect();
@@ -850,6 +854,17 @@ class TableManager {
     moveSelectedCardsToTable(currentHand) {
         // Before adding a new group, preserve the current positions of all existing groups
         this.preserveExistingGroupPositions();
+        
+        // First, destroy any sprites associated with the cards being played
+        this.scene.cardsSelected.forEach((card) => {
+            if (card.sprite) {
+                // Clear any tweens running on this sprite
+                this.scene.tweens.killTweensOf(card.sprite);
+                // Destroy the sprite
+                card.sprite.destroy();
+                card.sprite = null;
+            }
+        });
         
         const newGroup = [];
         this.scene.cardsSelected.forEach((card) => {
@@ -1281,5 +1296,73 @@ class TableManager {
                 y: targetY
             };
         });
+    }
+
+    // Special handler for tutorial card clicks
+    handleTutorialCardClick(card, group, groupIndex) {
+        const cardRank = card.card ? card.card.rank : card.rank;
+        const cardSuit = card.card ? card.card.suit : card.suit;
+        
+        // Step 7: Allow taking the 9 of clubs from the table
+        if (this.scene.tutorialStep === 7 && cardRank === "9" && cardSuit === "club") {
+            // Remove the clicked card from the table group
+            const cardIndex = group.findIndex(c => {
+                const cRank = c.card ? c.card.rank : c.rank;
+                const cSuit = c.card ? c.card.suit : c.suit;
+                return cRank === cardRank && cSuit === cardSuit;
+            });
+            if (cardIndex !== -1) {
+                group.splice(cardIndex, 1);
+                
+                // Add the card to player's hand
+                this.scene.playerHands[0].push(card);
+                
+                // Refresh displays
+                this.scene.refreshDisplays();
+                
+                // Check tutorial progression
+                this.scene.checkTutorialProgression();
+                
+                // Play sound
+                this.scene.audioSystem.playCardSelect();
+                
+                return true;
+            }
+        }
+        
+        // Step 8: Allow adding selected cards from hand to existing groups (normal table interaction)
+        if (this.scene.tutorialStep === 8 && this.scene.cardsSelected.length > 0) {
+            // Check if selected cards from hand can be added to this group
+            const testGroup = [...group, ...this.scene.cardsSelected];
+            const result = this.scene.cardSystem.checkValidGroup(testGroup);
+            
+            if (result) {
+                // Move selected cards from hand to this table group
+                this.scene.cardsSelected.forEach((selectedCard) => {
+                    this.scene.handManager.removeCardFromHand(
+                        this.scene.handManager.getCurrentHand(), 
+                        selectedCard
+                    );
+                    group.push(selectedCard);
+                    selectedCard.table = true;
+                });
+                
+                this.scene.cardsSelected = [];
+                this.scene.placedCards = true;
+                
+                // Refresh displays
+                this.scene.refreshDisplays();
+                
+                // Check tutorial progression
+                this.scene.checkTutorialProgression();
+                
+                // Play sound
+                this.scene.audioSystem.playCardSelect();
+                
+                return true;
+            }
+        }
+        
+        return false;
     }
 }
