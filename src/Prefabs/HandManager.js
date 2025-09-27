@@ -9,6 +9,11 @@ class HandManager {
         this.clearExistingHandSprites();
         this.layoutHand(currentHand);
 
+        // Hide hand sprites if pause screen is active
+        if (this.scene.pauseScreenActive) {
+            this.hideHandSpritesForPauseScreen();
+        }
+
         // If a new card was added, trigger poof effect at its position
         if (newCard) {
             // Find the sprite for the new card (it should be the last one in the hand)
@@ -442,5 +447,17 @@ class HandManager {
                 if (sprite) sprite.setInteractive();
             });
         }
+    }
+
+    // Hides hand sprites when pause screen is active for complete privacy
+    hideHandSpritesForPauseScreen() {
+        if (this.scene.handSelected) {
+            this.scene.handSelected.forEach((sprite) => {
+                if (sprite) {
+                    sprite.setVisible(false);
+                }
+            });
+        }
+        console.log("Hidden hand sprites for pause screen privacy");
     }
 }

@@ -31,6 +31,7 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 - **Table Groups:** Place, drag, and rearrange groups of cards on the table. Groups are validated in real time.
 - **Validation:** When a valid group is selected, a confirmation box appears.
 - **Turn System:** Clearly displays whose turn it is.
+- **Privacy Screen:** Turn transitions include a pause screen that completely hides the current player's hand to prevent peeking.
 - **Sorting:** Sort your hand by rank or suit with a single click.
 - **Reset:** Reset the table and hand (if no card has been drawn this turn).
 - **Settings Menu:** Accessible from main menu and settings button during play with fullscreen and audio controls.

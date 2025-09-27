@@ -188,8 +188,10 @@ class GameLogic {
             
             this.updateOriginalPositions();
             this.updateActualHandLengths(); // Update tracked hand lengths when turn completes
-            this.switchTurn();
-            this.resetTurnFlags();
+            
+            // Show pause screen instead of directly switching turns
+            console.log("Turn ended successfully - showing pause screen");
+            this.scene.showPauseScreen();
         } else {
             // Invalid turn end attempt - could provide user feedback here
             // Reasons: must draw or place cards, all table groups must be valid, 
@@ -330,6 +332,21 @@ class GameLogic {
                 }
             });
         }
+    }
+
+    // Completes the turn transition after the pause screen is dismissed
+    completeTurnTransition() {
+        console.log("Completing turn transition - switching from", this.scene.p1Turn ? "Player 1" : "Player 2");
+        this.switchTurn();
+        this.resetTurnFlags();
+        
+        // Refresh displays to show new player's hand
+        this.refreshDisplays();
+        
+        // Update validation box visibility based on current selection
+        this.scene.uiSystem.updateValidationBoxVisibility();
+        
+        console.log("Turn transition complete - now", this.scene.p1Turn ? "Player 1" : "Player 2", "turn");
     }
 
     // Switches the active player turn
