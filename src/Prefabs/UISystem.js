@@ -319,4 +319,128 @@ class UISystem {
             this.scene.turnText.setText("Turn:\nP2");
         }
     }
+
+    // Creates and shows the pause screen for turn transitions
+    showPauseScreen() {
+        console.log("Showing pause screen - Current turn:", this.scene.p1Turn ? "Player 1" : "Player 2");
+        
+        // Set pause screen active flag
+        this.scene.pauseScreenActive = true;
+        
+        // Hide the current player's hand completely for privacy
+        this.scene.handManager.hideCurrentPlayerHand();
+        
+        // Create semi-transparent overlay
+        this.scene.pauseOverlay = this.scene.add.rectangle(0, 0, this.scene.scale.width, this.scene.scale.height, 0x000000, 0.8)
+            .setOrigin(0, 0)
+            .setDepth(1000); // Ensure it's on top of everything
+
+        // Determine which player's turn is next
+        const nextPlayer = this.scene.p1Turn ? "Player 2" : "Player 1";
+        
+        // Create main text
+        this.scene.pauseText = this.scene.add.text(this.scene.scale.width / 2, this.scene.scale.height / 2 - 60, `${nextPlayer} Ready?`, {
+            fontFamily: 'PressStart2P',
+            fontSize: '48px',
+            color: '#FFFFFF',
+            stroke: '#000000',
+            strokeThickness: 4,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(1001);
+
+        // Create instruction text
+        this.scene.pauseInstructionText = this.scene.add.text(this.scene.scale.width / 2, this.scene.scale.height / 2 + 60, 'Click anywhere to continue', {
+            fontFamily: 'PressStart2P',
+            fontSize: '24px',
+            color: '#CCCCCC',
+            stroke: '#000000',
+            strokeThickness: 2,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(1001);
+
+        // Add pulsing effect to the instruction text
+        this.scene.pauseInstructionTween = this.scene.tweens.add({
+            targets: this.scene.pauseInstructionText,
+            alpha: { from: 1, to: 0.3 },
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        // Make the overlay clickable
+        this.scene.pauseOverlay.setInteractive();
+        this.scene.pauseOverlay.on('pointerdown', () => {
+            console.log("Pause screen clicked - hiding pause screen");
+            this.hidePauseScreen();
+        });
+
+        // Disable all other game interactions while pause screen is active
+        this.disableGameInteractions();
+    }
+
+    // Hides the pause screen and resumes the game
+    hidePauseScreen() {
+        console.log("Hiding pause screen and completing turn transition");
+        
+        // Clear pause screen active flag
+        this.scene.pauseScreenActive = false;
+        
+        if (this.scene.pauseInstructionTween) {
+            this.scene.pauseInstructionTween.stop();
+            this.scene.pauseInstructionTween = null;
+        }
+        if (this.scene.pauseOverlay) {
+            this.scene.pauseOverlay.destroy();
+            this.scene.pauseOverlay = null;
+        }
+        if (this.scene.pauseText) {
+            this.scene.pauseText.destroy();
+            this.scene.pauseText = null;
+        }
+        if (this.scene.pauseInstructionText) {
+            this.scene.pauseInstructionText.destroy();
+            this.scene.pauseInstructionText = null;
+        }
+
+        // Re-enable game interactions
+        this.enableGameInteractions();
+
+        // Actually complete the turn transition
+        this.scene.gameLogic.completeTurnTransition();
+    }
+
+    // Disables all game interactions while pause screen is shown
+    disableGameInteractions() {
+        // Disable UI buttons
+        if (this.scene.endTurnButton) this.scene.endTurnButton.disableInteractive();
+        if (this.scene.restart) this.scene.restart.disableInteractive();
+        if (this.scene.sortRank) this.scene.sortRank.disableInteractive();
+        if (this.scene.sortSuit) this.scene.sortSuit.disableInteractive();
+        if (this.scene.deckSprite) this.scene.deckSprite.disableInteractive();
+        if (this.scene.settingsButton) this.scene.settingsButton.disableInteractive();
+
+        // Disable validation box interactivity
+        if (this.scene.validationBox) this.scene.validationBox.disableInteractive();
+
+        // Disable hand card interactions
+        this.scene.handManager.disableCardInteractivity();
+    }
+
+    // Re-enables all game interactions after pause screen is hidden
+    enableGameInteractions() {
+        // Re-enable UI buttons
+        if (this.scene.endTurnButton) this.scene.endTurnButton.setInteractive();
+        if (this.scene.restart) this.scene.restart.setInteractive();
+        if (this.scene.sortRank) this.scene.sortRank.setInteractive();
+        if (this.scene.sortSuit) this.scene.sortSuit.setInteractive();
+        if (this.scene.deckSprite) this.scene.deckSprite.setInteractive();
+        if (this.scene.settingsButton) this.scene.settingsButton.setInteractive();
+
+        // Re-enable validation box interactivity
+        if (this.scene.validationBox) this.scene.validationBox.setInteractive();
+
+        // Re-enable hand card interactions
+        this.scene.handManager.enableCardInteractivity();
+    }
 }

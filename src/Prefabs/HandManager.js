@@ -460,4 +460,36 @@ class HandManager {
         }
         console.log("Hidden hand sprites for pause screen privacy");
     }
+
+    // Hides the current player's hand sprites for complete privacy
+    hideCurrentPlayerHand() {
+        // Hide the validation box during pause screen
+        if (this.scene.validationBoxContainer && this.scene.validationBoxContainer.visible) {
+            this.scene.validationBoxContainer.setVisible(false);
+        }
+        
+        console.log("Hidden hand sprites and validation box for privacy");
+    }
+
+    // Disables interactivity for all hand card sprites
+    disableCardInteractivity() {
+        if (this.scene.handSelected) {
+            this.scene.handSelected.forEach((sprite) => {
+                if (sprite) {
+                    sprite.disableInteractive();
+                }
+            });
+        }
+    }
+
+    // Re-enables interactivity for all hand card sprites
+    enableCardInteractivity() {
+        if (this.scene.handSelected) {
+            this.scene.handSelected.forEach((sprite) => {
+                if (sprite) {
+                    sprite.setInteractive();
+                }
+            });
+        }
+    }
 }
