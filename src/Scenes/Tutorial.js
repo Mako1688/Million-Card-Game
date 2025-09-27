@@ -6,11 +6,15 @@ class Tutorial extends Phaser.Scene {
     }
 
     init() {
+        // Clean up any existing tutorial state
+        this.cleanup();
+        
         // Tutorial state tracking
         this.tutorialStep = 0;
         this.tutorialComplete = false;
         this.waitingForPlayerAction = false;
         this.playerActionCompleted = false;
+        this.tutorialInitialized = false;
         
         // Game state for tutorial
         this.currentPlayer = 0; // Always player 0 for tutorial
@@ -22,16 +26,8 @@ class Tutorial extends Phaser.Scene {
         this.cardsSelected = []; // Alternative reference for compatibility
         this.tableCards = [];
         
-        // Initialize tutorial-specific hands first
-        this.playerHands = [
-            [
-                { card: { suit: "club", rank: "5" }, table: false },     // 5 of clubs
-                { card: { suit: "heart", rank: "5" }, table: false },   // 5 of hearts  
-                { card: { suit: "diamond", rank: "J" }, table: false }, // Jack of diamonds
-                { card: { suit: "diamond", rank: "Q" }, table: false }  // Queen of diamonds
-            ],
-            [] // Player 2 hand (empty for tutorial)
-        ];
+        // Initialize tutorial-specific hands fresh each time
+        this.initializeTutorialHands();
         
         // Initialize properties that HandManager expects - map to tutorial hands
         this.currentPlayer = 0;
@@ -45,15 +41,36 @@ class Tutorial extends Phaser.Scene {
             "Hello and welcome to Million Card Game! Click anywhere to continue.",
             "The goal of the game is to be the first player with no cards left in your hand.",
             "Draw cards from the deck on the right when you don't have any valid cards to play.",
-            "You now have a valid sandwich pair to play with your 5s. Select the 5s and click the play button when it appears.",
+            "You now have a valid color sandwich pair to play with your 5s. Select the 5s and click the play button when it appears.",
             "You placed a valid group of cards! All cards on the table need to be apart of a valid group for you to be able to end your turn.",
             "Draw again since you have no valid groups in your hand.",
             "You have a valid run of cards which is valid to play as well as sandwiches.",
-            "During your turn you can take cards from existing groups on the table. Click the 9 of hearts from the group to take it to your hand.",
+            "During your turn you can take cards from existing groups on the table. Click the 9 of diamonds from the group to take it to your hand.",
             "Now play your 7-8-9 of hearts as a run. Select all three cards and click play.",
-            "Finally, place your last remaining card (9 of spades) into the existing group to make it valid again. Click on one of the remaining 9s on the table.",
+            "Finally, place your last remaining card (9 of clubs) into the existing group to make it valid again. Click on one of the remaining 9s on the table.",
             "Congratulations, you have completed the tutorial! Click anywhere to return to the main menu."
         ];
+        
+        // Add flag to prevent multiple scene transitions
+        this.sceneTransitioning = false;
+    }
+
+    // Initialize tutorial hands with fresh card objects
+    initializeTutorialHands() {
+        this.playerHands = [
+            [
+                { card: { suit: "club", rank: "5" }, table: false },     // 5 of clubs
+                { card: { suit: "heart", rank: "5" }, table: false },   // 5 of hearts  
+                { card: { suit: "diamond", rank: "J" }, table: false }, // Jack of diamonds
+                { card: { suit: "diamond", rank: "Q" }, table: false }  // Queen of diamonds
+            ],
+            [] // Player 2 hand (empty for tutorial)
+        ];
+        
+        // Clear any sprite references from previous runs
+        this.playerHands[0].forEach(card => {
+            card.sprite = null;
+        });
     }
 
     preload() {}
@@ -89,6 +106,9 @@ class Tutorial extends Phaser.Scene {
         // Display initial hand and start tutorial
         this.refreshDisplays();
         console.log("Tutorial displays refreshed");
+        
+        // Mark tutorial as fully initialized
+        this.tutorialInitialized = true;
         
         this.startTutorialStep(0);
         console.log("Tutorial started");
@@ -227,6 +247,16 @@ class Tutorial extends Phaser.Scene {
     addTutorialInteractivity() {
         // Allow clicking anywhere on the screen to advance tutorial (when not waiting for specific action)
         this.input.on('pointerdown', (pointer, currentlyOver) => {
+            // Prevent multiple transitions or actions before tutorial is initialized
+            if (this.sceneTransitioning || !this.tutorialInitialized) return;
+            
+            // If tutorial is complete, return to main menu
+            if (this.tutorialComplete && currentlyOver.length === 0) {
+                this.sceneTransitioning = true;
+                this.scene.start("titleScene");
+                return;
+            }
+            
             // Only advance if we're not waiting for a specific player action
             // and if the click wasn't on an interactive element (cards, buttons, deck)
             if (!this.waitingForPlayerAction && currentlyOver.length === 0) {
@@ -237,6 +267,16 @@ class Tutorial extends Phaser.Scene {
         // Tutorial advance button (keep as backup/visual indicator)
         this.tutorialAdvanceButton.setInteractive({ useHandCursor: true })
             .on('pointerdown', () => {
+                // Prevent multiple transitions or actions before tutorial is initialized
+                if (this.sceneTransitioning || !this.tutorialInitialized) return;
+                
+                // If tutorial is complete, return to main menu
+                if (this.tutorialComplete) {
+                    this.sceneTransitioning = true;
+                    this.scene.start("titleScene");
+                    return;
+                }
+                
                 if (!this.waitingForPlayerAction) {
                     this.advanceTutorial();
                 }
@@ -266,7 +306,11 @@ class Tutorial extends Phaser.Scene {
         // Restart button
         this.restart.setInteractive({ useHandCursor: true })
             .on('pointerdown', () => {
+                // Prevent multiple transitions or actions before tutorial is initialized
+                if (this.sceneTransitioning || !this.tutorialInitialized) return;
+                
                 this.audioSystem.playButtonPress();
+                this.sceneTransitioning = true;
                 this.scene.start("titleScene");
             });
     }
@@ -350,9 +394,8 @@ class Tutorial extends Phaser.Scene {
             case 10: // Tutorial complete
                 this.tutorialComplete = true;
                 this.hideArrow();
-                setTimeout(() => {
-                    this.scene.start("titleScene");
-                }, 3000);
+                // Tutorial is complete - wait for user click to exit (no automatic timeout)
+                this.waitingForPlayerAction = false; // Allow clicking anywhere to exit
                 break;
                 
             default:
@@ -418,14 +461,24 @@ class Tutorial extends Phaser.Scene {
     }
 
     advanceTutorial() {
-        if (this.tutorialStep < this.tutorialMessages.length - 1) {
+        // Prevent multiple transitions
+        if (this.sceneTransitioning) return;
+        
+        console.log("AdvanceTutorial called - Step:", this.tutorialStep, "Messages length:", this.tutorialMessages?.length);
+        
+        if (this.tutorialMessages && this.tutorialStep < this.tutorialMessages.length - 1) {
             this.startTutorialStep(this.tutorialStep + 1);
         } else {
-            // Tutorial completed - return to main menu
-            this.scene.start("titleScene");
+            console.log("Tutorial should be complete now - step:", this.tutorialStep, "vs max:", (this.tutorialMessages?.length - 1));
+            // Tutorial completed - show completion message and wait for user click
+            this.tutorialComplete = true;
+            this.tutorialText.setText("Congratulations, you have completed the tutorial! Click anywhere to return to the main menu.");
+            this.waitingForPlayerAction = false; // Allow clicking anywhere to exit
         }
         
-        this.audioSystem.playMenuButton();
+        if (this.audioSystem) {
+            this.audioSystem.playMenuButton();
+        }
     }
 
     // Check tutorial progression before playing cards (when cards are still selected)
@@ -548,18 +601,20 @@ class Tutorial extends Phaser.Scene {
         }
         
         // Clear sprite references from all card objects
-        this.playerHands[0].forEach(card => {
-            if (card.sprite) {
-                if (card.sprite.scene) {
-                    this.tweens.killTweensOf(card.sprite);
-                    if (this.animationSystem) {
-                        this.animationSystem.stopWaveTint(card.sprite);
+        if (this.playerHands && this.playerHands[0]) {
+            this.playerHands[0].forEach(card => {
+                if (card.sprite) {
+                    if (card.sprite.scene) {
+                        this.tweens.killTweensOf(card.sprite);
+                        if (this.animationSystem) {
+                            this.animationSystem.stopWaveTint(card.sprite);
+                        }
+                        card.sprite.destroy();
                     }
-                    card.sprite.destroy();
+                    card.sprite = null;
                 }
-                card.sprite = null;
-            }
-        });
+            });
+        }
         
         // Also clean up any sprites that might be in selected arrays
         [this.selectedCards, this.cardsSelected].forEach(array => {
@@ -684,5 +739,63 @@ class Tutorial extends Phaser.Scene {
         if (this.animationSystem) {
             this.animationSystem.update(time, delta);
         }
+    }
+
+    // Comprehensive cleanup method to reset tutorial state
+    cleanup() {
+        console.log("Tutorial cleanup starting");
+        
+        // Clean up any existing sprites and animations
+        if (this.scene) {
+            // Clear all hand sprites
+            this.clearAllHandSprites();
+            
+            // Clear table sprites
+            if (this.tableManager) {
+                this.tableManager.clearPreviousTableSprites();
+            }
+            
+            // Stop all tweens that might be running
+            if (this.tweens) {
+                this.tweens.killAll();
+            }
+            
+            // Clear arrow graphics
+            if (this.arrow) {
+                this.arrow.clear();
+                this.arrow.setVisible(false);
+            }
+            
+            // Clean up play button if it exists
+            if (this.playButton) {
+                this.playButton.destroy();
+                this.playButton = null;
+            }
+            
+            // Clear tutorial text
+            if (this.tutorialText) {
+                this.tutorialText.destroy();
+                this.tutorialText = null;
+            }
+        }
+        
+        // Reset all arrays and state
+        this.selectedCards = [];
+        this.handSelected = [];
+        this.cardsSelected = [];
+        this.tableCards = [];
+        
+        // Reset tutorial state
+        this.tutorialStep = 0;
+        this.tutorialComplete = false;
+        this.waitingForPlayerAction = false;
+        this.playerActionCompleted = false;
+        this.turnValid = false;
+        this.cardDrawnThisTurn = false;
+        this.drawnCard = false;
+        this.sceneTransitioning = false;
+        this.tutorialInitialized = false;
+        
+        console.log("Tutorial cleanup completed");
     }
 }
