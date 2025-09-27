@@ -49,8 +49,9 @@ class Tutorial extends Phaser.Scene {
             "You placed a valid group of cards! All cards on the table need to be apart of a valid group for you to be able to end your turn.",
             "Draw again since you have no valid groups in your hand.",
             "You have a valid run of cards which is valid to play as well as sandwiches.",
-            "During your turn you are able to take cards from already placed groups on the table in order to make valid pairs in your hand.",
-            "However, before ending your turn you have to make sure all cards left on the table are valid groups meaning they have at least 3 cards and are either a run or a sandwich.",
+            "During your turn you can take cards from existing groups on the table. Click the 9 of hearts from the group to take it to your hand.",
+            "Now play your 7-8-9 of hearts as a run. Select all three cards and click play.",
+            "Finally, place your last remaining card (9 of spades) into the existing group to make it valid again. Click on one of the remaining 9s on the table.",
             "Congratulations, you have completed the tutorial! Click anywhere to return to the main menu."
         ];
     }
@@ -292,7 +293,7 @@ class Tutorial extends Phaser.Scene {
                 
             case 2: // Point to deck
                 this.waitingForPlayerAction = true;
-                this.drawArrow(this.deckSprite.x - 100, this.deckSprite.y, this.deckSprite.x, this.deckSprite.y);
+                this.drawArrow(this.deckSprite.x - 300, this.deckSprite.y, this.deckSprite.x - 100, this.deckSprite.y);
                 break;
                 
             case 3: // Wait for 5s selection and play
@@ -306,7 +307,7 @@ class Tutorial extends Phaser.Scene {
                 
             case 5: // Wait for second deck draw
                 this.waitingForPlayerAction = true;
-                this.drawArrow(this.deckSprite.x - 100, this.deckSprite.y, this.deckSprite.x, this.deckSprite.y);
+                this.drawArrow(this.deckSprite.x - 300, this.deckSprite.y, this.deckSprite.x - 100, this.deckSprite.y);
                 break;
                 
             case 6: // Wait for JQK run play
@@ -321,12 +322,32 @@ class Tutorial extends Phaser.Scene {
                 this.setupStep7();
                 break;
                 
-            case 8: // Wait for final play
+            case 8: // Wait for 7-8-9 clubs run play
                 this.waitingForPlayerAction = true;
                 this.hideArrow();
                 break;
                 
-            case 9: // Tutorial complete
+            case 9: // Wait for final card placement
+                this.waitingForPlayerAction = true;
+                this.hideArrow();
+                console.log("Step 9: Player should select 9 of spades and click on table card");
+                console.log("Player hand:", this.playerHands[0].map(c => `${c.card.rank} of ${c.card.suit}`));
+                console.log("Table cards:", this.tableCards.map(group => 
+                    group.map(c => `${c.card.rank} of ${c.card.suit}`)
+                ));
+                // Point to the first remaining 9 on the table
+                setTimeout(() => {
+                    if (this.tableCards.length > 0 && this.tableCards[0].length > 0) {
+                        const firstCard = this.tableCards[0][0];
+                        if (firstCard && firstCard.sprite) {
+                            this.drawArrow(firstCard.sprite.x - 50, firstCard.sprite.y - 50, 
+                                         firstCard.sprite.x, firstCard.sprite.y);
+                        }
+                    }
+                }, 500);
+                break;
+                
+            case 10: // Tutorial complete
                 this.tutorialComplete = true;
                 this.hideArrow();
                 setTimeout(() => {
@@ -343,28 +364,30 @@ class Tutorial extends Phaser.Scene {
     setupStep7() {
         // Add cards to player hand for step 7
         this.playerHands[0].push(
-            { card: { suit: "club", rank: "7" }, table: false },   // 7 of clubs
-            { card: { suit: "club", rank: "8" }, table: false },   // 8 of clubs  
-            { card: { suit: "spade", rank: "9" }, table: false }   // 9 of spades
+            { card: { suit: "heart", rank: "7" }, table: false },   // 7 of hearts
+            { card: { suit: "heart", rank: "8" }, table: false },   // 8 of hearts  
+            { card: { suit: "spade", rank: "9" }, table: false }    // 9 of spades
         );
         
-        // Add 9s sandwich to table
+        // Add valid 9s sandwich to table (3 cards - valid group)
         this.tableCards.push([
             { card: { suit: "club", rank: "9" }, table: true },     // 9 of clubs
             { card: { suit: "heart", rank: "9" }, table: true },    // 9 of hearts
-            { card: { suit: "diamond", rank: "9" }, table: true }    // 9 of diamonds
+            { card: { suit: "diamond", rank: "9" }, table: true }   // 9 of diamonds
         ]);
         
         this.refreshDisplays();
         this.waitingForPlayerAction = true;
         
-        // Point to 9 of clubs on table
+        // Point to 9 of hearts on table
         setTimeout(() => {
             if (this.tableCards.length > 0 && this.tableCards[0].length > 0) {
-                const firstCard = this.tableCards[0][0];
-                if (firstCard.sprite) {
-                    this.drawArrow(firstCard.sprite.x - 50, firstCard.sprite.y - 50, 
-                                 firstCard.sprite.x, firstCard.sprite.y);
+                const heartCard = this.tableCards[0].find(card => 
+                    (card.card ? card.card.suit : card.suit) === "heart"
+                );
+                if (heartCard && heartCard.sprite) {
+                    this.drawArrow(heartCard.sprite.x - 50, heartCard.sprite.y - 50, 
+                                 heartCard.sprite.x, heartCard.sprite.y);
                 }
             }
         }, 500);
@@ -435,6 +458,20 @@ class Tutorial extends Phaser.Scene {
                     }
                 }
                 break;
+                
+            case 8: // Check if 7-8-9 hearts run was played
+                if (cardsToPlay.length === 3) {
+                    const heartsRun = cardsToPlay.every(card => (card.card ? card.card.suit : card.suit) === "heart");
+                    const hasRun = cardsToPlay.map(card => card.card ? card.card.rank : card.rank).sort()
+                                    .join('') === "789";
+                    console.log("Step 8: Has hearts run?", heartsRun && hasRun, "with", cardsToPlay.length, "cards");
+                    if (heartsRun && hasRun) {
+                        this.playerActionCompleted = true;
+                        this.waitingForPlayerAction = false;
+                        console.log("Step 8 completed! Setting playerActionCompleted to true");
+                    }
+                }
+                break;
         }
     }
 
@@ -445,24 +482,36 @@ class Tutorial extends Phaser.Scene {
         const cardsToCheck = this.selectedCards.length > 0 ? this.selectedCards : this.cardsSelected;
         
         switch (this.tutorialStep) {
-            case 7: // Check if 9 of clubs was taken from table
+            case 7: // Check if 9 of hearts was taken from table
                 const hand = this.playerHands[0];
-                const has9OfClubs = hand.some(card => 
-                    (card.card ? card.card.rank === "9" && card.card.suit === "club" : card.rank === "9" && card.suit === "club")
+                const has9OfHearts = hand.some(card => 
+                    (card.card ? card.card.rank === "9" && card.card.suit === "heart" : card.rank === "9" && card.suit === "heart")
                 );
-                if (has9OfClubs && this.tableCards[0] && this.tableCards[0].length === 2) {
+                if (has9OfHearts && this.tableCards[0] && this.tableCards[0].length === 2) {
                     this.playerActionCompleted = true;
                     this.advanceTutorial();
                 }
                 break;
                 
-            case 8: // Check if final plays were made correctly
-                // Check that both groups are valid and the original group has 3 cards again
-                const originalGroup = this.tableCards[0]; // The remaining 9s group
-                if (this.tableCards.length >= 2 && originalGroup && originalGroup.length === 3) {
-                    // Verify the original group is valid again
-                    const isOriginalGroupValid = this.cardSystem.checkValidGroup(originalGroup);
-                    if (isOriginalGroupValid) {
+            case 9: // Check if final card was placed to complete the tutorial
+                console.log("Step 9 progression check:");
+                console.log("Player hand length:", this.playerHands[0].length);
+                console.log("Table groups count:", this.tableCards.length);
+                console.log("Table groups:", this.tableCards.map(group => 
+                    group.map(c => `${c.card.rank} of ${c.card.suit}`)
+                ));
+                
+                // Check that player has no cards left and all table groups are valid
+                if (this.playerHands[0].length === 0 && this.tableCards.length >= 2) {
+                    // Verify all groups on table are valid
+                    const allGroupsValid = this.tableCards.every(group => {
+                        const isValid = group.length >= 3 && this.cardSystem.checkValidGroup(group);
+                        console.log("Group valid:", isValid, "- cards:", group.map(c => `${c.card.rank} of ${c.card.suit}`));
+                        return isValid;
+                    });
+                    console.log("All groups valid:", allGroupsValid);
+                    if (allGroupsValid) {
+                        console.log("Tutorial step 9 completed!");
                         this.playerActionCompleted = true;
                         this.advanceTutorial();
                     }

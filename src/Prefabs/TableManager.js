@@ -1303,8 +1303,8 @@ class TableManager {
         const cardRank = card.card ? card.card.rank : card.rank;
         const cardSuit = card.card ? card.card.suit : card.suit;
         
-        // Step 7: Allow taking the 9 of clubs from the table
-        if (this.scene.tutorialStep === 7 && cardRank === "9" && cardSuit === "club") {
+        // Step 7: Allow taking the 9 of hearts from the table
+        if (this.scene.tutorialStep === 7 && cardRank === "9" && cardSuit === "heart") {
             // Remove the clicked card from the table group
             const cardIndex = group.findIndex(c => {
                 const cRank = c.card ? c.card.rank : c.rank;
@@ -1316,6 +1316,7 @@ class TableManager {
                 
                 // Add the card to player's hand
                 this.scene.playerHands[0].push(card);
+                card.table = false; // Mark as not on table anymore
                 
                 // Refresh displays
                 this.scene.refreshDisplays();
@@ -1330,36 +1331,59 @@ class TableManager {
             }
         }
         
-        // Step 8: Allow adding selected cards from hand to existing groups (normal table interaction)
-        if (this.scene.tutorialStep === 8 && this.scene.cardsSelected.length > 0) {
-            // Check if selected cards from hand can be added to this group
-            const testGroup = [...group, ...this.scene.cardsSelected];
-            const result = this.scene.cardSystem.checkValidGroup(testGroup);
+        // Step 9: Allow placing the 9 of spades back into the existing group
+        if (this.scene.tutorialStep === 9) {
+            console.log("Step 9: Tutorial card click detected");
+            console.log("cardsSelected:", this.scene.cardsSelected);
+            console.log("selectedCards:", this.scene.selectedCards);
             
-            if (result) {
-                // Move selected cards from hand to this table group
-                this.scene.cardsSelected.forEach((selectedCard) => {
-                    this.scene.handManager.removeCardFromHand(
-                        this.scene.handManager.getCurrentHand(), 
-                        selectedCard
-                    );
-                    group.push(selectedCard);
-                    selectedCard.table = true;
-                });
+            // Check both possible selected card arrays for 9 of spades
+            const selectedCardsArray = this.scene.cardsSelected.length > 0 ? this.scene.cardsSelected : this.scene.selectedCards;
+            const has9OfSpades = selectedCardsArray.some(card => {
+                const rank = card.card ? card.card.rank : card.rank;
+                const suit = card.card ? card.card.suit : card.suit;
+                console.log("Checking card:", rank, "of", suit);
+                return rank === "9" && suit === "spade";
+            });
+            
+            console.log("Has 9 of spades selected:", has9OfSpades);
+            
+            if (has9OfSpades) {
+                // Check if this group can accept the 9 of spades
+                const testGroup = [...group, ...selectedCardsArray];
+                const result = this.scene.cardSystem.checkValidGroup(testGroup);
                 
-                this.scene.cardsSelected = [];
-                this.scene.placedCards = true;
+                console.log("Group would be valid:", result);
+                console.log("Test group:", testGroup.map(c => `${c.card.rank} of ${c.card.suit}`));
                 
-                // Refresh displays
-                this.scene.refreshDisplays();
-                
-                // Check tutorial progression
-                this.scene.checkTutorialProgression();
-                
-                // Play sound
-                this.scene.audioSystem.playCardSelect();
-                
-                return true;
+                if (result) {
+                    // Move selected cards from hand to this table group
+                    selectedCardsArray.forEach((selectedCard) => {
+                        this.scene.handManager.removeCardFromHand(
+                            this.scene.handManager.getCurrentHand(), 
+                            selectedCard
+                        );
+                        group.push(selectedCard);
+                        selectedCard.table = true;
+                    });
+                    
+                    // Clear both selected arrays
+                    this.scene.cardsSelected = [];
+                    this.scene.selectedCards = [];
+                    this.scene.placedCards = true;
+                    
+                    // Refresh displays
+                    this.scene.refreshDisplays();
+                    
+                    // Check tutorial progression
+                    this.scene.checkTutorialProgression();
+                    
+                    // Play sound
+                    this.scene.audioSystem.playCardSelect();
+                    
+                    console.log("Step 9: Card placement completed");
+                    return true;
+                }
             }
         }
         
