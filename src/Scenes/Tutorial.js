@@ -412,12 +412,24 @@ class Tutorial extends Phaser.Scene {
             { card: { suit: "spade", rank: "9" }, table: false }    // 9 of spades
         );
         
-        // Add valid 9s sandwich to table (3 cards - valid group)
-        this.tableCards.push([
+        // Add valid 9s sandwich to table (3 cards - valid group) with custom positions
+        const ninesGroup = [
             { card: { suit: "club", rank: "9" }, table: true },     // 9 of clubs
             { card: { suit: "heart", rank: "9" }, table: true },    // 9 of hearts
             { card: { suit: "diamond", rank: "9" }, table: true }   // 9 of diamonds
-        ]);
+        ];
+        
+        // Set custom positions for the 9s group (left side of table)
+        const tableStartX = 150; // Left side of table area with more margin
+        const tableStartY = 200; // Upper table area
+        ninesGroup.forEach((card, index) => {
+            card.customPosition = {
+                x: tableStartX + (index * 65), // 65px spacing between cards
+                y: tableStartY
+            };
+        });
+        
+        this.tableCards.push(ninesGroup);
         
         this.refreshDisplays();
         this.waitingForPlayerAction = true;
@@ -705,8 +717,25 @@ class Tutorial extends Phaser.Scene {
             }
         });
         
-        // Add selected cards to table
-        this.tableCards.push([...cardsToPlay]);
+        // Add selected cards to table with custom positioning for tutorial
+        const newGroup = [...cardsToPlay];
+        
+        // Set custom positions for tutorial groups to prevent overlapping
+        if (this.tutorialStep === 4 || this.tutorialStep === 8) {
+            // Step 4: First 5s group goes in center-left
+            // Step 8: Hearts run goes in center-right  
+            const baseX = this.tutorialStep === 4 ? 350 : 600; // Increased spacing between groups
+            const baseY = this.tutorialStep === 4 ? 200 : 300; // Different Y positions too
+            
+            newGroup.forEach((card, index) => {
+                card.customPosition = {
+                    x: baseX + (index * 65), // 65px spacing between cards
+                    y: baseY
+                };
+            });
+        }
+        
+        this.tableCards.push(newGroup);
         
         // Remove played cards from hand
         cardsToPlay.forEach(playedCard => {
