@@ -16,24 +16,21 @@ class Tutorial extends Phaser.Scene {
         this.playerActionCompleted = false;
         this.tutorialInitialized = false;
         
-        // Game state for tutorial
-        this.currentPlayer = 0; // Always player 0 for tutorial
+        this.currentPlayer = 0;
         this.turnValid = false;
         this.cardDrawnThisTurn = false;
-        this.drawnCard = false; // For compatibility with HandManager
+        this.drawnCard = false;
         this.selectedCards = [];
         this.handSelected = [];
-        this.cardsSelected = []; // Alternative reference for compatibility
+        this.cardsSelected = [];
         this.tableCards = [];
         
-        // Initialize tutorial-specific hands fresh each time
         this.initializeTutorialHands();
         
-        // Initialize properties that HandManager expects - map to tutorial hands
         this.currentPlayer = 0;
-        this.p1Hand = this.playerHands[0]; // Reference to tutorial hand
-        this.p2Hand = this.playerHands[1]; // Empty for tutorial
-        this.p1Turn = true; // Always player 1's turn in tutorial
+        this.p1Hand = this.playerHands[0];
+        this.p2Hand = this.playerHands[1];
+        this.p1Turn = true;
         this.p2Turn = false;
         
         // Tutorial messages for each step
@@ -55,19 +52,17 @@ class Tutorial extends Phaser.Scene {
         this.sceneTransitioning = false;
     }
 
-    // Initialize tutorial hands with fresh card objects
     initializeTutorialHands() {
         this.playerHands = [
             [
-                { card: { suit: "club", rank: "5" }, table: false },     // 5 of clubs
-                { card: { suit: "heart", rank: "5" }, table: false },   // 5 of hearts  
-                { card: { suit: "diamond", rank: "J" }, table: false }, // Jack of diamonds
-                { card: { suit: "diamond", rank: "Q" }, table: false }  // Queen of diamonds
+                { card: { suit: "club", rank: "5" }, table: false },
+                { card: { suit: "heart", rank: "5" }, table: false },
+                { card: { suit: "diamond", rank: "J" }, table: false },
+                { card: { suit: "diamond", rank: "Q" }, table: false }
             ],
-            [] // Player 2 hand (empty for tutorial)
+            []
         ];
         
-        // Clear any sprite references from previous runs
         this.playerHands[0].forEach(card => {
             card.sprite = null;
         });
@@ -76,42 +71,18 @@ class Tutorial extends Phaser.Scene {
     preload() {}
 
     create() {
-        console.log("Tutorial scene create() started");
-        
-        // Add background
         this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0);
 
-        // Initialize all systems like the main game
         this.initializeSystems();
-        console.log("Tutorial systems initialized");
-        
-        // Create UI elements but replace end turn with tutorial advance
         this.createTutorialUI();
-        console.log("Tutorial UI created");
         
-        // Create a minimal deck for visual purposes (not used in tutorial)
         this.deck = this.cardSystem.createDeck();
-        console.log("Tutorial deck created");
-        
-        // Initialize the handSelected array properly (for sprites, not cards)
         this.handSelected = [];
-        
-        // Initialize borderUISize like the main game does
         this.borderUISize = -25;
         
-        // Add debugging to check our tutorial hand structure
-        console.log("Tutorial p1Hand:", this.p1Hand);
-        console.log("Tutorial hand cards:", this.p1Hand.map(card => `${card.card.rank} of ${card.card.suit}`));
-        
-        // Display initial hand and start tutorial
         this.refreshDisplays();
-        console.log("Tutorial displays refreshed");
-        
-        // Mark tutorial as fully initialized
         this.tutorialInitialized = true;
-        
         this.startTutorialStep(0);
-        console.log("Tutorial started");
     }
 
     initializeSystems() {
@@ -361,8 +332,7 @@ class Tutorial extends Phaser.Scene {
                 
             case 7: // Clear table (remove both 5s and JQK run), then setup table with 9s and wait for click
                 this.tableCards = []; // Clear the table (removes 5s from step 3 and JQK from step 6)
-                this.tableManager.displayTable(); // Refresh display
-                console.log("Step 7: Cleared table - removed 5s and JQK run, setting up 9s");
+                this.tableManager.displayTable();
                 this.setupStep7();
                 break;
                 
@@ -374,12 +344,6 @@ class Tutorial extends Phaser.Scene {
             case 9: // Wait for final card placement
                 this.waitingForPlayerAction = true;
                 this.hideArrow();
-                console.log("Step 9: Player should select 9 of spades and click on table card");
-                console.log("Player hand:", this.playerHands[0].map(c => `${c.card.rank} of ${c.card.suit}`));
-                console.log("Table cards:", this.tableCards.map(group => 
-                    group.map(c => `${c.card.rank} of ${c.card.suit}`)
-                ));
-                // Point to the first remaining 9 on the table
                 setTimeout(() => {
                     if (this.tableCards.length > 0 && this.tableCards[0].length > 0) {
                         const firstCard = this.tableCards[0][0];
@@ -405,26 +369,23 @@ class Tutorial extends Phaser.Scene {
     }
 
     setupStep7() {
-        // Add cards to player hand for step 7
         this.playerHands[0].push(
-            { card: { suit: "heart", rank: "7" }, table: false },   // 7 of hearts
-            { card: { suit: "heart", rank: "8" }, table: false },   // 8 of hearts  
-            { card: { suit: "spade", rank: "9" }, table: false }    // 9 of spades
+            { card: { suit: "heart", rank: "7" }, table: false },
+            { card: { suit: "heart", rank: "8" }, table: false },
+            { card: { suit: "spade", rank: "9" }, table: false }
         );
         
-        // Add valid 9s sandwich to table (3 cards - valid group) with custom positions
         const ninesGroup = [
-            { card: { suit: "club", rank: "9" }, table: true },     // 9 of clubs
-            { card: { suit: "heart", rank: "9" }, table: true },    // 9 of hearts
-            { card: { suit: "diamond", rank: "9" }, table: true }   // 9 of diamonds
+            { card: { suit: "club", rank: "9" }, table: true },
+            { card: { suit: "heart", rank: "9" }, table: true },
+            { card: { suit: "diamond", rank: "9" }, table: true }
         ];
         
-        // Set custom positions for the 9s group (left side of table)
-        const tableStartX = 150; // Left side of table area with more margin
-        const tableStartY = 200; // Upper table area
+        const tableStartX = 150;
+        const tableStartY = 200;
         ninesGroup.forEach((card, index) => {
             card.customPosition = {
-                x: tableStartX + (index * 65), // 65px spacing between cards
+                x: tableStartX + (index * 65),
                 y: tableStartY
             };
         });
@@ -473,19 +434,14 @@ class Tutorial extends Phaser.Scene {
     }
 
     advanceTutorial() {
-        // Prevent multiple transitions
         if (this.sceneTransitioning) return;
-        
-        console.log("AdvanceTutorial called - Step:", this.tutorialStep, "Messages length:", this.tutorialMessages?.length);
         
         if (this.tutorialMessages && this.tutorialStep < this.tutorialMessages.length - 1) {
             this.startTutorialStep(this.tutorialStep + 1);
         } else {
-            console.log("Tutorial should be complete now - step:", this.tutorialStep, "vs max:", (this.tutorialMessages?.length - 1));
-            // Tutorial completed - show completion message and wait for user click
             this.tutorialComplete = true;
             this.tutorialText.setText("Congratulations, you have completed the tutorial! Click anywhere to return to the main menu.");
-            this.waitingForPlayerAction = false; // Allow clicking anywhere to exit
+            this.waitingForPlayerAction = false;
         }
         
         if (this.audioSystem) {
@@ -493,22 +449,16 @@ class Tutorial extends Phaser.Scene {
         }
     }
 
-    // Check tutorial progression before playing cards (when cards are still selected)
     checkTutorialProgressionBeforePlay(cardsToPlay) {
-        console.log("Checking tutorial progression for step", this.tutorialStep, "waiting:", this.waitingForPlayerAction);
-        console.log("Cards to play:", cardsToPlay.map(card => `${card.card ? card.card.rank : card.rank} of ${card.card ? card.card.suit : card.suit}`));
-        
         if (!this.waitingForPlayerAction) return;
         
         switch (this.tutorialStep) {
             case 3: // Check if 5s were played
                 if (cardsToPlay.length >= 2) {
                     const has5s = cardsToPlay.every(card => card.card ? card.card.rank === "5" : card.rank === "5");
-                    console.log("Step 3: Has 5s?", has5s, "with", cardsToPlay.length, "cards");
                     if (has5s) {
                         this.playerActionCompleted = true;
                         this.waitingForPlayerAction = false;
-                        console.log("Step 3 completed! Setting playerActionCompleted to true");
                     }
                 }
                 break;
@@ -519,7 +469,7 @@ class Tutorial extends Phaser.Scene {
                     if (ranks.includes("J") && ranks.includes("Q") && ranks.includes("K")) {
                         this.playerActionCompleted = true;
                         this.waitingForPlayerAction = false;
-                        console.log("Step 6 completed! Setting playerActionCompleted to true");
+
                     }
                 }
                 break;
@@ -529,11 +479,9 @@ class Tutorial extends Phaser.Scene {
                     const heartsRun = cardsToPlay.every(card => (card.card ? card.card.suit : card.suit) === "heart");
                     const hasRun = cardsToPlay.map(card => card.card ? card.card.rank : card.rank).sort()
                                     .join('') === "789";
-                    console.log("Step 8: Has hearts run?", heartsRun && hasRun, "with", cardsToPlay.length, "cards");
                     if (heartsRun && hasRun) {
                         this.playerActionCompleted = true;
                         this.waitingForPlayerAction = false;
-                        console.log("Step 8 completed! Setting playerActionCompleted to true");
                     }
                 }
                 break;
@@ -559,24 +507,11 @@ class Tutorial extends Phaser.Scene {
                 break;
                 
             case 9: // Check if final card was placed to complete the tutorial
-                console.log("Step 9 progression check:");
-                console.log("Player hand length:", this.playerHands[0].length);
-                console.log("Table groups count:", this.tableCards.length);
-                console.log("Table groups:", this.tableCards.map(group => 
-                    group.map(c => `${c.card.rank} of ${c.card.suit}`)
-                ));
-                
-                // Check that player has no cards left and all table groups are valid
                 if (this.playerHands[0].length === 0 && this.tableCards.length >= 2) {
-                    // Verify all groups on table are valid
                     const allGroupsValid = this.tableCards.every(group => {
-                        const isValid = group.length >= 3 && this.cardSystem.checkValidGroup(group);
-                        console.log("Group valid:", isValid, "- cards:", group.map(c => `${c.card.rank} of ${c.card.suit}`));
-                        return isValid;
+                        return group.length >= 3 && this.cardSystem.checkValidGroup(group);
                     });
-                    console.log("All groups valid:", allGroupsValid);
                     if (allGroupsValid) {
-                        console.log("Tutorial step 9 completed!");
                         this.playerActionCompleted = true;
                         this.advanceTutorial();
                     }
@@ -585,24 +520,16 @@ class Tutorial extends Phaser.Scene {
         }
     }
 
-    // Wrapper methods to maintain compatibility with existing systems
     refreshDisplays() {
-        // Force comprehensive cleanup of all hand sprites to prevent duplicates
         this.clearAllHandSprites();
-        
         this.handManager.displayHand();
         this.tableManager.displayTable();
     }
-
-    // Comprehensive sprite cleanup method
     clearAllHandSprites() {
-        // Clear main hand sprite array
         if (this.handSelected) {
             this.handSelected.forEach((sprite) => {
                 if (sprite && sprite.scene) {
-                    // Clear any tweens that might be running on this sprite
                     this.tweens.killTweensOf(sprite);
-                    // Clear any animation system effects
                     if (this.animationSystem) {
                         this.animationSystem.stopWaveTint(sprite);
                     }
@@ -612,7 +539,6 @@ class Tutorial extends Phaser.Scene {
             this.handSelected = [];
         }
         
-        // Clear sprite references from all card objects
         if (this.playerHands && this.playerHands[0]) {
             this.playerHands[0].forEach(card => {
                 if (card.sprite) {
@@ -628,7 +554,6 @@ class Tutorial extends Phaser.Scene {
             });
         }
         
-        // Also clean up any sprites that might be in selected arrays
         [this.selectedCards, this.cardsSelected].forEach(array => {
             if (array) {
                 array.forEach(card => {
@@ -700,36 +625,26 @@ class Tutorial extends Phaser.Scene {
         const cardsToPlay = this.selectedCards.length > 0 ? this.selectedCards : this.cardsSelected;
         if (cardsToPlay.length === 0) return;
         
-        // Check tutorial progression BEFORE resetting cards (important for step validation)
         this.checkTutorialProgressionBeforePlay(cardsToPlay);
-        
-        // Store whether we should advance tutorial (before it gets reset)
         const shouldAdvanceTutorial = this.playerActionCompleted;
         
-        // First, destroy any sprites associated with the cards being played
         cardsToPlay.forEach(playedCard => {
             if (playedCard.sprite) {
-                // Clear any tweens running on this sprite
                 this.tweens.killTweensOf(playedCard.sprite);
-                // Destroy the sprite
                 playedCard.sprite.destroy();
                 playedCard.sprite = null;
             }
         });
         
-        // Add selected cards to table with custom positioning for tutorial
         const newGroup = [...cardsToPlay];
         
-        // Set custom positions for tutorial groups to prevent overlapping
         if (this.tutorialStep === 4 || this.tutorialStep === 8) {
-            // Step 4: First 5s group goes in center-left
-            // Step 8: Hearts run goes in center-right  
-            const baseX = this.tutorialStep === 4 ? 350 : 600; // Increased spacing between groups
-            const baseY = this.tutorialStep === 4 ? 200 : 300; // Different Y positions too
+            const baseX = this.tutorialStep === 4 ? 350 : 600;
+            const baseY = this.tutorialStep === 4 ? 200 : 300;
             
             newGroup.forEach((card, index) => {
                 card.customPosition = {
-                    x: baseX + (index * 65), // 65px spacing between cards
+                    x: baseX + (index * 65),
                     y: baseY
                 };
             });
@@ -737,7 +652,6 @@ class Tutorial extends Phaser.Scene {
         
         this.tableCards.push(newGroup);
         
-        // Remove played cards from hand
         cardsToPlay.forEach(playedCard => {
             const handIndex = this.playerHands[0].findIndex(handCard => {
                 const playedRank = playedCard.card ? playedCard.card.rank : playedCard.rank;
@@ -755,9 +669,7 @@ class Tutorial extends Phaser.Scene {
         this.refreshDisplays();
         this.playButton.setVisible(false);
         
-        // Check if tutorial step was completed and advance if needed
         if (shouldAdvanceTutorial) {
-            console.log("Tutorial advancing from step", this.tutorialStep, "to", this.tutorialStep + 1);
             this.advanceTutorial();
         }
         
@@ -770,11 +682,7 @@ class Tutorial extends Phaser.Scene {
         }
     }
 
-    // Comprehensive cleanup method to reset tutorial state
     cleanup() {
-        console.log("Tutorial cleanup starting");
-        
-        // Clean up any existing sprites and animations
         if (this.scene) {
             // Clear all hand sprites
             this.clearAllHandSprites();
@@ -824,7 +732,5 @@ class Tutorial extends Phaser.Scene {
         this.drawnCard = false;
         this.sceneTransitioning = false;
         this.tutorialInitialized = false;
-        
-        console.log("Tutorial cleanup completed");
     }
 }
