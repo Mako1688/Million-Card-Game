@@ -29,15 +29,11 @@ class GameLogic {
         // Flag to track when moves are being processed to prevent inappropriate flashing
         this.isProcessingMove = false;
         
-        // Track cards that were on table at start of turn for validation
-        this.cardsOnTableAtTurnStart = [];
-        
-        // Track cards that were in hands at start of turn for validation
-        this.cardsInHandAtTurnStart = [];
-        
-        // Track hand sizes at turn start for validation
+        // Track hand sizes and card identities at turn start for validation
         this.p1HandSizeAtTurnStart = 0;
         this.p2HandSizeAtTurnStart = 0;
+        this.p1HandCardsAtTurnStart = [];
+        this.p2HandCardsAtTurnStart = [];
     }
 
     // Resets turn-specific flags when starting a new turn
@@ -49,26 +45,17 @@ class GameLogic {
         this.scene.cardsSelected = [];
         this.scene.turnValid = false;
         
-        // Track cards that start this turn on the table for validation
-        this.cardsOnTableAtTurnStart = [];
-        this.scene.tableCards.forEach(group => {
-            group.forEach(card => {
-                this.cardsOnTableAtTurnStart.push(card);
-            });
-        });
-        
-        // Track cards that start this turn in hands for validation
-        this.cardsInHandAtTurnStart = [];
-        [...this.scene.p1Hand, ...this.scene.p2Hand].forEach(card => {
-            this.cardsInHandAtTurnStart.push(card);
-        });
-        
-        // Also track the hand sizes at turn start for validation
+        // Track starting hand sizes for validation
         this.p1HandSizeAtTurnStart = this.scene.p1Hand.length;
         this.p2HandSizeAtTurnStart = this.scene.p2Hand.length;
         
+        // Track starting hand cards by their identity (rank + suit)
+        this.p1HandCardsAtTurnStart = this.scene.p1Hand.map(card => `${card.card.rank}_${card.card.suit}`);
+        this.p2HandCardsAtTurnStart = this.scene.p2Hand.map(card => `${card.card.rank}_${card.card.suit}`);
+        
         console.log(`Turn start - P1 hand: ${this.scene.p1Hand.length}, P2 hand: ${this.scene.p2Hand.length}`);
-        console.log(`Total cards in hands at turn start: ${this.cardsInHandAtTurnStart.length}`);
+        console.log(`P1 starting cards: ${this.p1HandCardsAtTurnStart.join(', ')}`);
+        console.log(`P2 starting cards: ${this.p2HandCardsAtTurnStart.join(', ')}`);
         
         // Flag all cards currently on the table as "must return to table"
         this.flagTableCardsForTurn();
@@ -183,8 +170,8 @@ class GameLogic {
             this.clearTableCardFlags();
             
             // Clear the turn start tracking
-            this.cardsOnTableAtTurnStart = [];
-            this.cardsInHandAtTurnStart = [];
+            this.p1HandCardsAtTurnStart = [];
+            this.p2HandCardsAtTurnStart = [];
             
             this.updateOriginalPositions();
             this.updateActualHandLengths(); // Update tracked hand lengths when turn completes
@@ -193,13 +180,12 @@ class GameLogic {
             console.log("Turn ended successfully - showing pause screen");
             this.scene.showPauseScreen();
         } else {
-            // Invalid turn end attempt - could provide user feedback here
-            // Reasons: must draw or place cards, all table groups must be valid, 
-            // no table cards can remain in hands, and must make valid turn action
+            // Invalid turn end attempt - provide clear feedback about why
             if (tableCardsInHands) {
                 console.log("Cannot end turn: cards taken from table must be returned to table");
             } else if (!validTurnAction) {
-                console.log("Cannot end turn: must draw a card or place at least one hand card on table");
+                console.log("Cannot end turn: must draw a card or permanently remove at least one card from hand");
+                console.log("Note: Simply rearranging table cards does not constitute a valid turn");
             } else if (!canEndTurn) {
                 if (!this.scene.drawnCard && !this.scene.placedCards) {
                     console.log("Cannot end turn: must draw a card or place cards on table");
@@ -238,13 +224,8 @@ class GameLogic {
             card.originalPosition && card.originalPosition.type === "table"
         );
         
-        // Tertiary check: look for cards that were on table at start of turn
-        const turnStartTableCards = allHandCards.filter(card => 
-            this.cardsOnTableAtTurnStart && this.cardsOnTableAtTurnStart.includes(card)
-        );
-        
         // Combine all checks - if ANY card from table is in hand, block turn end
-        const allProblematicCards = [...flaggedCards, ...tableOriginCards, ...turnStartTableCards];
+        const allProblematicCards = [...flaggedCards, ...tableOriginCards];
         
         // Remove duplicates by using a Set with card identity
         const uniqueProblematicCards = Array.from(new Set(allProblematicCards));
@@ -254,8 +235,7 @@ class GameLogic {
             uniqueProblematicCards.forEach(card => {
                 console.log("- " + card.card.rank + " of " + card.card.suit, 
                     "(flagged:", !!card.mustReturnToTable, 
-                    "tableOrigin:", !!(card.originalPosition && card.originalPosition.type === "table"),
-                    "turnStart:", !!(this.cardsOnTableAtTurnStart && this.cardsOnTableAtTurnStart.includes(card)), ")");
+                    "tableOrigin:", !!(card.originalPosition && card.originalPosition.type === "table"), ")");
             });
         }
         
@@ -339,6 +319,9 @@ class GameLogic {
         console.log("Completing turn transition - switching from", this.scene.p1Turn ? "Player 1" : "Player 2");
         this.switchTurn();
         this.resetTurnFlags();
+        
+        // Start tracking for the new player's turn
+        this.startNewTurn();
         
         // Refresh displays to show new player's hand
         this.refreshDisplays();
@@ -491,19 +474,12 @@ class GameLogic {
         // After refresh, ensure all groups have proper card spacing to prevent overlap
         this.scene.tableManager.ensureProperGroupSpacing();
         
-        // Restore the turn start tracking arrays to match the current state
+        // Restore the turn start tracking to match the current state
         // This ensures validation checks work correctly after reset
-        this.cardsOnTableAtTurnStart = [];
-        this.scene.tableCards.forEach(group => {
-            group.forEach(card => {
-                this.cardsOnTableAtTurnStart.push(card);
-            });
-        });
-        
-        this.cardsInHandAtTurnStart = [];
-        [...this.scene.p1Hand, ...this.scene.p2Hand].forEach(card => {
-            this.cardsInHandAtTurnStart.push(card);
-        });
+        this.p1HandSizeAtTurnStart = this.scene.p1Hand.length;
+        this.p2HandSizeAtTurnStart = this.scene.p2Hand.length;
+        this.p1HandCardsAtTurnStart = this.scene.p1Hand.map(card => `${card.card.rank}_${card.card.suit}`);
+        this.p2HandCardsAtTurnStart = this.scene.p2Hand.map(card => `${card.card.rank}_${card.card.suit}`);
         
         // Re-flag all table cards as must return to table (since we're back to turn start)
         this.flagTableCardsForTurn();
@@ -522,7 +498,7 @@ class GameLogic {
         console.log("Reset completed: Turn state restored to beginning of turn");
     }
 
-    // Checks if the player has made a valid turn action (drew card or placed hand card on table)
+    // Checks if the player has made a valid turn action (drew card or reduced hand size)
     checkValidTurnAction() {
         // If a card was drawn, that's a valid turn action
         if (this.scene.drawnCard) {
@@ -530,46 +506,37 @@ class GameLogic {
             return true;
         }
         
-        // Debug: Log what we're checking
-        console.log("Checking valid turn action...");
-        console.log("Cards in hand at turn start:", this.cardsInHandAtTurnStart?.length || 0);
+        // Get current player's hand and starting data
+        const currentHand = this.scene.p1Turn ? this.scene.p1Hand : this.scene.p2Hand;
+        const startingHandSize = this.scene.p1Turn ? this.p1HandSizeAtTurnStart : this.p2HandSizeAtTurnStart;
+        const startingHandCards = this.scene.p1Turn ? this.p1HandCardsAtTurnStart : this.p2HandCardsAtTurnStart;
         
-        // Check if at least one card that started in hand is now on the table
-        let handCardsFoundOnTable = 0;
-        this.scene.tableCards.forEach((group, groupIndex) => {
-            group.forEach(card => {
-                if (this.cardsInHandAtTurnStart && this.cardsInHandAtTurnStart.includes(card)) {
-                    handCardsFoundOnTable++;
-                    console.log(`Found hand card on table: ${card.card.rank} of ${card.card.suit}`);
-                }
-            });
-        });
+        console.log(`Checking valid turn action for Player ${this.scene.p1Turn ? 1 : 2}:`);
+        console.log(`Starting hand size: ${startingHandSize}, Current hand size: ${currentHand.length}`);
         
-        // Alternative check: if placedCards is true, verify that at least one card moved from hand to table
-        if (this.scene.placedCards && handCardsFoundOnTable === 0) {
-            console.log("placedCards is true but no hand cards found on table - checking alternative method");
-            
-            // Use the simple hand size tracking method
-            const currentHand = this.scene.p1Turn ? this.scene.p1Hand : this.scene.p2Hand;
-            const originalHandSize = this.scene.p1Turn ? this.p1HandSizeAtTurnStart : this.p2HandSizeAtTurnStart;
-            
-            console.log(`Player ${this.scene.p1Turn ? 1 : 2} - Original hand size: ${originalHandSize}, Current hand size: ${currentHand.length}`);
-            
-            // If current hand is smaller than original, cards were placed on table
-            if (currentHand.length < originalHandSize) {
-                const cardsPlaced = originalHandSize - currentHand.length;
-                console.log(`Valid turn action: ${cardsPlaced} hand card(s) placed on table (detected by hand size change)`);
-                return true;
+        // Convert current hand to card identities for comparison
+        const currentHandCards = currentHand.map(card => `${card.card.rank}_${card.card.suit}`);
+        console.log(`Starting cards: ${startingHandCards.join(', ')}`);
+        console.log(`Current cards: ${currentHandCards.join(', ')}`);
+        
+        // Check that current hand size is less than starting hand size (cards were permanently placed)
+        if (currentHand.length >= startingHandSize) {
+            console.log("Invalid turn action: hand size not reduced (no cards permanently placed)");
+            return false;
+        }
+        
+        // Check that all current hand cards were in the starting hand (no new cards added except through drawing)
+        for (let cardId of currentHandCards) {
+            if (!startingHandCards.includes(cardId)) {
+                console.log(`Invalid turn action: found card ${cardId} in hand that wasn't there at turn start`);
+                return false;
             }
         }
         
-        if (handCardsFoundOnTable > 0) {
-            console.log(`Valid turn action: ${handCardsFoundOnTable} hand card(s) placed on table`);
-            return true;
-        }
-        
-        console.log("Invalid turn action: no card drawn and no hand cards placed on table");
-        console.log("Note: Just moving table cards around doesn't constitute a valid turn");
-        return false;
+        const cardsRemoved = startingHandSize - currentHand.length;
+        console.log(`Valid turn action: ${cardsRemoved} card(s) permanently removed from hand`);
+        return true;
     }
+    
+
 }

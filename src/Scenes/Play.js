@@ -57,8 +57,12 @@ class Play extends Phaser.Scene {
 
 		// Create deck and deal cards
 		this.deck = this.cardSystem.createDeck();
+		console.log("Created deck with", this.deck.length, "cards");
 		// this.deck = this.cardSystem.shuffle(this.deck);
 		this.cardSystem.dealCards();
+		console.log("After dealing: deck has", this.deck.length, "cards");
+		console.log("P1 hand:", this.p1Hand.map(card => `${card.card.rank}_${card.card.suit}`));
+		console.log("P2 hand:", this.p2Hand.map(card => `${card.card.rank}_${card.card.suit}`));
 
 		// Display initial hand and start new turn
 		this.handManager.displayHand();
@@ -72,6 +76,9 @@ class Play extends Phaser.Scene {
 
 		// Add interactivity to buttons and deck
 		this.uiSystem.addInteractivity();
+
+		// Show initial pause screen for Player 1 to start the game properly
+		this.showPauseScreen();
 
 		// Initialize particle effects
 		this.animationSystem.initializeParticles();

@@ -328,7 +328,7 @@ class UISystem {
         this.scene.pauseScreenActive = true;
         
         // Hide the current player's hand completely for privacy
-        this.scene.handManager.hideCurrentPlayerHand();
+        this.scene.handManager.hideHandSpritesForPauseScreen();
         
         // Create semi-transparent overlay
         this.scene.pauseOverlay = this.scene.add.rectangle(0, 0, this.scene.scale.width, this.scene.scale.height, 0x000000, 0.8)
