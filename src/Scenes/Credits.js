@@ -1,16 +1,16 @@
 // Credits.js - Displays game credits and acknowledgments (placeholder)
 
 class Credits extends Phaser.Scene {
-  constructor() {
-    super("creditsScene");
-  }
+	constructor() {
+		super("creditsScene");
+	}
 
-  init() { }
+	init() { }
 
-  preload() { }
+	preload() { }
 
-  // Creates the credits display (to be implemented)
-  create() { }
+	// Creates the credits display (to be implemented)
+	create() { }
 
-  update() { }
+	update() { }
 }

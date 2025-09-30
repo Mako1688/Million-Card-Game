@@ -12,12 +12,12 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 - The game uses two standard decks of cards.
 - Each player starts with 7 cards in their hand.
 - Players take turns. On their turn, a player may:
-  - Draw a card from the deck **or**
-  - Place a group of cards from their hand onto the table.
+	- Draw a card from the deck **or**
+	- Place a group of cards from their hand onto the table.
 - **Groups** must be:
-  - At least 3 cards.
-  - Either a **set** (all cards of the same rank, different suits) or a **run** (consecutive ranks, same suit; Ace can be high or low).
-  - Players may also play any amount of cards into existing valid groups counting as their turn
+	- At least 3 cards.
+	- Either a **set** (all cards of the same rank, different suits) or a **run** (consecutive ranks, same suit; Ace can be high or low).
+	- Players may also play any amount of cards into existing valid groups counting as their turn
 - Players can temporarily take cards from the table into their hand to make new valid groups, but all cards taken must be placed back on the table during the same turn (not necessarily in the same spot).
 - Only one card can be drawn per turn, and you cannot draw after placing cards.
 - The table must always contain only valid groups.
@@ -38,11 +38,11 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 - **Interactive Tutorial:** Step-by-step guided tutorial teaching all game mechanics from basic card play to advanced strategies.
 - **Visual Feedback:** Cards flash green when selected, red when invalid, and wave gently for a lively feel.
 - **Audio Feedback:** Sound effects for card interactions, button presses, and game actions.
-  - African1: Card selection/deselection sounds and drawing cards
-  - African2: End turn button
-  - African3: Sort and reset buttons
-  - African4: Play cards confirmation
-  - Wood Block1: Menu navigation buttons
+	- African1: Card selection/deselection sounds and drawing cards
+	- African2: End turn button
+	- African3: Sort and reset buttons
+	- African4: Play cards confirmation
+	- Wood Block1: Menu navigation buttons
 - **Responsive Design:** Works on different screen sizes.
 
 ---
