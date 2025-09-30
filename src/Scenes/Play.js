@@ -133,4 +133,9 @@ class Play extends Phaser.Scene {
 	hidePauseScreen() {
 		this.uiSystem.hidePauseScreen();
 	}
+
+	// Shows invalid turn notification
+	showInvalidTurnNotification() {
+		this.uiSystem.showInvalidTurnNotification();
+	}
 }

@@ -21,6 +21,9 @@ class GameLogic {
         this.scene.cardsSelected = [];
         this.scene.tableCards = [];
         
+        // UI state flags
+        this.scene.invalidTurnActive = false;
+        
         // Track actual hand lengths for win condition (updated only when turn completes)
         // Initialize to 0 - will be set correctly after dealing cards
         this.scene.p1ActualHandLength = 0; 
@@ -180,7 +183,11 @@ class GameLogic {
             console.log("Turn ended successfully - showing pause screen");
             this.scene.showPauseScreen();
         } else {
-            // Invalid turn end attempt - provide clear feedback about why
+            // Invalid turn end attempt - show visual feedback
+            console.log("Invalid turn attempt - showing notification");
+            this.scene.showInvalidTurnNotification();
+            
+            // Log specific reasons for debugging
             if (tableCardsInHands) {
                 console.log("Cannot end turn: cards taken from table must be returned to table");
             } else if (!validTurnAction) {

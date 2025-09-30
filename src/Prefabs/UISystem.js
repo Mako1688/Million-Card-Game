@@ -210,6 +210,23 @@ class UISystem {
                 if (this.scene.audioSystem) {
                     this.scene.audioSystem.playButtonPress();
                 }
+                
+                // Clear any selected cards before sorting
+                if (this.scene.cardsSelected && this.scene.cardsSelected.length > 0) {
+                    console.log("Clearing selected cards before sorting by rank");
+                    
+                    // Clear the selected cards array
+                    this.scene.cardsSelected = [];
+                    
+                    // Clear visual selection tints from all hand cards
+                    if (this.scene.gameLogic) {
+                        this.scene.gameLogic.clearHandSelectionTints();
+                    }
+                    
+                    // Update validation box visibility to hide it
+                    this.updateValidationBoxVisibility();
+                }
+                
                 this.scene.handManager.sortRankHand();
             },
             this.scene.handManager.displayHand.bind(this.scene.handManager)
@@ -222,6 +239,23 @@ class UISystem {
                 if (this.scene.audioSystem) {
                     this.scene.audioSystem.playButtonPress();
                 }
+                
+                // Clear any selected cards before sorting
+                if (this.scene.cardsSelected && this.scene.cardsSelected.length > 0) {
+                    console.log("Clearing selected cards before sorting by suit");
+                    
+                    // Clear the selected cards array
+                    this.scene.cardsSelected = [];
+                    
+                    // Clear visual selection tints from all hand cards
+                    if (this.scene.gameLogic) {
+                        this.scene.gameLogic.clearHandSelectionTints();
+                    }
+                    
+                    // Update validation box visibility to hide it
+                    this.updateValidationBoxVisibility();
+                }
+                
                 this.scene.handManager.sortSuitHand();
             },
             this.scene.handManager.displayHand.bind(this.scene.handManager)
@@ -442,5 +476,94 @@ class UISystem {
 
         // Re-enable hand card interactions
         this.scene.handManager.enableCardInteractivity();
+    }
+
+    // Shows invalid turn notification with darkened screen
+    showInvalidTurnNotification() {
+        // Don't show multiple notifications at once or if pause screen is active
+        if (this.scene.invalidTurnActive || this.scene.pauseScreenActive) {
+            return;
+        }
+
+        console.log("Showing invalid turn notification");
+        
+        // Clear any selected cards when showing invalid turn notification
+        // This ensures cards are deselected both visually and in the game state
+        if (this.scene.cardsSelected && this.scene.cardsSelected.length > 0) {
+            console.log("Clearing selected cards due to invalid turn attempt");
+            
+            // Clear the selected cards array
+            this.scene.cardsSelected = [];
+            
+            // Clear visual selection tints from all hand cards
+            if (this.scene.gameLogic) {
+                this.scene.gameLogic.clearHandSelectionTints();
+            }
+            
+            // Update validation box visibility to hide it
+            this.updateValidationBoxVisibility();
+        }
+        
+        // Set invalid turn active flag
+        this.scene.invalidTurnActive = true;
+        
+        // Create semi-transparent overlay (similar to pause screen but slightly less dark)
+        this.scene.invalidTurnOverlay = this.scene.add.rectangle(0, 0, this.scene.scale.width, this.scene.scale.height, 0x000000, 0.6)
+            .setOrigin(0, 0)
+            .setDepth(1000); // Ensure it's on top of everything
+
+        // Create "Invalid Turn" text in red
+        this.scene.invalidTurnText = this.scene.add.text(this.scene.scale.width / 2, this.scene.scale.height / 2, 'Invalid Turn', {
+            fontFamily: 'PressStart2P',
+            fontSize: '48px',
+            color: '#FF4444',
+            stroke: '#000000',
+            strokeThickness: 4,
+            align: 'center'
+        }).setOrigin(0.5).setDepth(1001);
+
+        // Start the fade out sequence after a brief display
+        this.scene.time.delayedCall(1000, () => {
+            this.hideInvalidTurnNotification();
+        });
+
+        // Play audio feedback if available
+        if (this.scene.audioSystem) {
+            // Could use a different sound or modify existing one for error feedback
+            this.scene.audioSystem.playButtonPress();
+        }
+    }
+
+    // Hides the invalid turn notification with fade effect
+    hideInvalidTurnNotification() {
+        if (!this.scene.invalidTurnActive) {
+            return;
+        }
+
+        console.log("Hiding invalid turn notification");
+
+        // Fade out the overlay and text
+        this.scene.tweens.add({
+            targets: [this.scene.invalidTurnOverlay, this.scene.invalidTurnText],
+            alpha: 0,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+                // Clean up the notification elements
+                if (this.scene.invalidTurnOverlay) {
+                    this.scene.invalidTurnOverlay.destroy();
+                    this.scene.invalidTurnOverlay = null;
+                }
+                if (this.scene.invalidTurnText) {
+                    this.scene.invalidTurnText.destroy();
+                    this.scene.invalidTurnText = null;
+                }
+                
+                // Reset the flag
+                this.scene.invalidTurnActive = false;
+                
+                console.log("Invalid turn notification cleanup complete");
+            }
+        });
     }
 }
