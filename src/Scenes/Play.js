@@ -39,48 +39,30 @@ class Play extends Phaser.Scene {
 		super("playScene");
 	}
 
-	init() { }
+	init(data) { 
+		this.playerCount = data.playerCount || 2;
+		this.deckCount = data.deckCount || 2;
+	}
 
 	preload() { }
 
 	create() {
 		this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0);
 
-		// Initialize all systems
 		this.initializeSystems();
-
-		// Initialize variables
-		this.gameLogic.initializeVariables();
-
-		// Create UI elements
+		this.gameLogic.initializeVariables(this.playerCount);
 		this.uiSystem.createUIElements();
 
-		// Create deck and deal cards
-		this.deck = this.cardSystem.createDeck();
-		console.log("Created deck with", this.deck.length, "cards");
-		// this.deck = this.cardSystem.shuffle(this.deck);
-		this.cardSystem.dealCards();
-		console.log("After dealing: deck has", this.deck.length, "cards");
-		console.log("P1 hand:", this.p1Hand.map(card => `${card.card.rank}_${card.card.suit}`));
-		console.log("P2 hand:", this.p2Hand.map(card => `${card.card.rank}_${card.card.suit}`));
+		this.deck = this.cardSystem.createDeck(this.deckCount);
+		this.deck = this.cardSystem.shuffle(this.deck);
+		this.cardSystem.dealCards(this.playerCount);
 
-		// Display initial hand and start new turn
 		this.handManager.displayHand();
 		this.startNewTurn();
 
-		// Print deck
-		console.log(this.deck);
-
-		// Create validation box
 		this.uiSystem.createValidationBox();
-
-		// Add interactivity to buttons and deck
 		this.uiSystem.addInteractivity();
-
-		// Show initial pause screen for Player 1 to start the game properly
 		this.showPauseScreen();
-
-		// Initialize particle effects
 		this.animationSystem.initializeParticles();
 	}
 

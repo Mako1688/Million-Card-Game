@@ -71,7 +71,7 @@ by Marco Ogaz-Vega and Lois Million Zerai in dedication to Lois Million Zerai <3
 ## TODO
 
 - [ ] **Credits Scene:** Display game credits and acknowledgments.
-- [ ] **Win Scene:** Show the winner and allow restarting the game.
+- [x] **Win Scene:** Show the winner and allow restarting the game.
 - [ ] **Title Scene:** Main menu with start, instructions, and credits.
 - [x] **Audio:** Add sound effects and background music for actions and feedback.
 - [ ] **Polish:** Additional visual effects, bug fixes, and performance improvements.

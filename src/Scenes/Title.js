@@ -63,11 +63,9 @@ class Title extends Phaser.Scene {
 		});
 
 		tutorialButton.on('pointerdown', () => {
-			console.log("Tutorial button clicked");
 			if (this.audioSystem) {
 				this.audioSystem.playMenuButton();
 			}
-			console.log("Starting tutorial scene");
 			this.scene.start("tutorialScene");
 		});
 
@@ -146,14 +144,11 @@ class Title extends Phaser.Scene {
 				if (this.scale.startFullscreen) {
 					this.scale.startFullscreen();
 				} else {
-					// Fallback for browsers that support fullscreen
 					this.scale.toggleFullscreen();
 				}
 			}
 			
-			// Code to execute when the card is clicked
-			console.log("Card clicked!");
-			this.scene.start("playScene");
+			this.scene.start("playerSelectionScene");
 		});
 	}
 

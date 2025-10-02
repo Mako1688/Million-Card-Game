@@ -6,28 +6,9 @@ class Load extends Phaser.Scene {
 	}
 
 	init() { 
-		// Add comprehensive error handling for asset loading
-		this.load.on('loaderror', (file) => {
-			console.error('Failed to load file:', file.src);
-			console.error('File key:', file.key);
-			console.error('File type:', file.type);
-		});
-		
-		this.load.on('complete', () => {
-			console.log('All assets loaded successfully');
-		});
-		
-		this.load.on('progress', (progress) => {
-			console.log('Loading progress:', Math.round(progress * 100) + '%');
-		});
 	}
 
-	// Loads all game assets (sprites, images, sounds)
 	preload() {
-		// Use relative paths from the index.html location
-		// Since Electron loads from the root directory, we can use relative paths
-		
-		//load background
 		this.load.spritesheet("play_background", "assets/SpriteSheets/Million_CG.png", {
 			frameWidth: 1688,
 			frameHeight: 780,
@@ -36,7 +17,7 @@ class Load extends Phaser.Scene {
 		});
 		
 		//load card spritesheet
-		this.load.spritesheet("card_deck", "assets/SpriteSheets/Card_Deck-Sheet.png", {
+		this.load.spritesheet("card_deck", "assets/SpriteSheets/Card_Deck.png", {
 			frameWidth: 60,
 			frameHeight: 92,
 			startFrame: 0,
@@ -83,29 +64,19 @@ class Load extends Phaser.Scene {
 
 	// Creates animations and sets up initial configurations
 	create() {
-		try {
-			//create animations
-			this.anims.create({
-				key: "shuffle",
-				frames: this.anims.generateFrameNumbers("card_deck", {
-					start: 0,
-					end: 53,
-					first: 0,
-				}),
-				frameRate: 12,
-			});
-			
-			// Transition to title scene after assets are loaded
-			this.scene.start("titleScene");
-		} catch (error) {
-			console.error("Error in Load scene create method:", error);
-			// Try to continue anyway
-			this.scene.start("titleScene");
-		}
+		this.anims.create({
+			key: "shuffle",
+			frames: this.anims.generateFrameNumbers("card_deck", {
+				start: 0,
+				end: 53,
+				first: 0,
+			}),
+			frameRate: 12,
+		});
+		
+		this.scene.start("titleScene");
 	}
 
-	// No longer needed - transition happens in create()
 	update() {
-		// Empty update method
 	}
 }

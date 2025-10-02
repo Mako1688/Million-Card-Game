@@ -346,16 +346,14 @@ class UISystem {
 
 	// Updates the turn display text to show which player's turn it is
 	displayTurn() {
-		if (this.scene.p1Turn) {
-			this.scene.turnText.setText("Turn:\nP1");
-		} else {
-			this.scene.turnText.setText("Turn:\nP2");
-		}
+		const currentPlayer = this.scene.currentPlayerIndex + 1;
+		this.scene.turnText.setText(`Turn:\nP${currentPlayer}`);
 	}
 
 	// Creates and shows the pause screen for turn transitions
 	showPauseScreen() {
-		console.log("Showing pause screen - Current turn:", this.scene.p1Turn ? "Player 1" : "Player 2");
+		const currentPlayer = this.scene.currentPlayerIndex + 1;
+		console.log("Showing pause screen - Current turn: Player", currentPlayer);
 
 		// Set pause screen active flag
 		this.scene.pauseScreenActive = true;
@@ -369,7 +367,8 @@ class UISystem {
 			.setDepth(1000); // Ensure it's on top of everything
 
 		// Determine which player's turn is next
-		const nextPlayer = this.scene.p1Turn ? "Player 2" : "Player 1";
+		const nextPlayerIndex = (this.scene.currentPlayerIndex + 1) % this.scene.playerCount;
+		const nextPlayer = `Player ${nextPlayerIndex + 1}`;
 
 		// Create main text
 		this.scene.pauseText = this.scene.add.text(this.scene.scale.width / 2, this.scene.scale.height / 2 - 60, `${nextPlayer} Ready?`, {

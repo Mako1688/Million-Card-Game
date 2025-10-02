@@ -7,7 +7,8 @@ class Win extends Phaser.Scene {
 
 	// Receives data about which player won
 	init(data) {
-		this.p1Win = data.p1Win;
+		this.winningPlayer = data.winningPlayer || (data.p1Win ? 1 : 2);
+		this.p1Win = data.p1Win; // Maintain backwards compatibility
 	}
 
 	preload() { }
@@ -21,7 +22,7 @@ class Win extends Phaser.Scene {
 		this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0);
 
 		// Determine winner text
-		const winnerText = this.p1Win ? "Player 1 Wins!" : "Player 2 Wins!";
+		const winnerText = `Player ${this.winningPlayer} Wins!`;
 		
 		// Display winner text
 		this.add.text(centerX, centerY - 100, winnerText, {
@@ -64,7 +65,7 @@ class Win extends Phaser.Scene {
 				if (this.audioSystem) {
 					this.audioSystem.playMenuButton();
 				}
-				this.scene.start("playScene");
+				this.scene.start("playerSelectionScene");
 			});
 
 		// Add return to title button

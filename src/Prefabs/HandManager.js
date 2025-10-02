@@ -35,6 +35,10 @@ class HandManager {
 
 	// Returns the current player's hand array
 	getCurrentHand() {
+		// Use current player index if available, otherwise fall back to p1Turn logic
+		if (this.scene.currentPlayerIndex !== undefined) {
+			return this.scene.playerHands[this.scene.currentPlayerIndex];
+		}
 		return this.scene.p1Turn ? this.scene.p1Hand : this.scene.p2Hand;
 	}
 
@@ -391,11 +395,8 @@ class HandManager {
 
 	// Sorts the current player's hand by rank
 	sortRankHand() {
-		if (this.scene.p1Turn) {
-			this.sortHandByRank(this.scene.p1Hand);
-		} else {
-			this.sortHandByRank(this.scene.p2Hand);
-		}
+		const currentHand = this.getCurrentHand();
+		this.sortHandByRank(currentHand);
 	}
 
 	// Sorts the current player's hand by suit, then by rank within each suit
