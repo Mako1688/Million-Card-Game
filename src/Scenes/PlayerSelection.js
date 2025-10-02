@@ -96,7 +96,6 @@ class PlayerSelection extends Phaser.Scene {
 		}).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
 		this.addButtonInteractions();
-		this.addButtonInteractions();
 	}
 
 	addButtonInteractions() {
@@ -176,7 +175,7 @@ class PlayerSelection extends Phaser.Scene {
 	}
 
 	getDeckInfoText() {
-		const deckCount = this.selectedPlayerCount >= 4 ? 3 : 2;
+		const deckCount = this.selectedPlayerCount >= 5 ? 3 : 2;
 		const totalCards = deckCount * 52;
 		const cardsPerPlayer = 7;
 		const cardsDealt = this.selectedPlayerCount * cardsPerPlayer;
@@ -190,7 +189,7 @@ class PlayerSelection extends Phaser.Scene {
 		// Pass player count to the play scene
 		this.scene.start("playScene", { 
 			playerCount: this.selectedPlayerCount,
-			deckCount: this.selectedPlayerCount >= 4 ? 3 : 2
+			deckCount: this.selectedPlayerCount >= 5 ? 3 : 2
 		});
 	}
 
