@@ -35,6 +35,15 @@ class CardSystem {
 			}
 		}
 		
+		// Auto-sort bot hands after dealing
+		if (this.scene.botPlayers) {
+			this.scene.botPlayers.forEach(bot => {
+				if (bot && bot.autoSortHand) {
+					bot.autoSortHand();
+				}
+			});
+		}
+		
 		if (this.scene.gameLogic) {
 			this.scene.gameLogic.updateActualHandLengths();
 		}

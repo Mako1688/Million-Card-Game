@@ -46,7 +46,7 @@ class HandManager {
 	clearExistingHandSprites() {
 		if (this.scene.handSelected) {
 			this.scene.handSelected.forEach((sprite) => {
-				if (sprite) {
+				if (sprite && sprite.destroy && typeof sprite.destroy === 'function') {
 					// Clear any tweens that might be running on this sprite
 					this.scene.tweens.killTweensOf(sprite);
 					sprite.destroy();
@@ -55,10 +55,12 @@ class HandManager {
 			this.scene.handSelected = [];
 		}
 		
-		// Also clear sprite references from the current hand cards
+		// Also clear sprite references from the current hand cards and properly destroy them
 		const currentHand = this.getCurrentHand();
 		currentHand.forEach(card => {
-			if (card.sprite) {
+			if (card.sprite && card.sprite.destroy && typeof card.sprite.destroy === 'function') {
+				this.scene.tweens.killTweensOf(card.sprite);
+				card.sprite.destroy();
 				card.sprite = null;
 			}
 		});

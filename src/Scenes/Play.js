@@ -42,6 +42,9 @@ class Play extends Phaser.Scene {
 	init(data) { 
 		this.playerCount = data.playerCount || 2;
 		this.deckCount = data.deckCount || 2;
+		this.gameMode = data.gameMode || 'multiplayer';
+		this.botDifficulty = data.botDifficulty || 'medium';
+		this.isSinglePlayer = data.isSinglePlayer || false;
 	}
 
 	preload() { }
@@ -52,6 +55,12 @@ class Play extends Phaser.Scene {
 		this.initializeSystems();
 		this.gameLogic.initializeVariables(this.playerCount);
 		this.uiSystem.createUIElements();
+
+		// Initialize bot player if in single player mode
+		if (this.isSinglePlayer) {
+			this.botPlayer = new BotPlayer(this, 1); // Bot is player 2 (index 1)
+			this.botPlayer.setDifficulty(this.botDifficulty);
+		}
 
 		this.deck = this.cardSystem.createDeck(this.deckCount);
 		this.deck = this.cardSystem.shuffle(this.deck);

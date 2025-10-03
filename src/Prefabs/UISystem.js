@@ -347,7 +347,18 @@ class UISystem {
 	// Updates the turn display text to show which player's turn it is
 	displayTurn() {
 		const currentPlayer = this.scene.currentPlayerIndex + 1;
-		this.scene.turnText.setText(`Turn:\nP${currentPlayer}`);
+		let playerName = `P${currentPlayer}`;
+		
+		// In single player mode, show more descriptive names
+		if (this.scene.isSinglePlayer) {
+			if (currentPlayer === 1) {
+				playerName = "You";
+			} else if (currentPlayer === 2) {
+				playerName = "Bot";
+			}
+		}
+		
+		this.scene.turnText.setText(`Turn:\n${playerName}`);
 	}
 
 	// Creates and shows the pause screen for turn transitions
@@ -368,10 +379,19 @@ class UISystem {
 
 		// Determine which player's turn is next
 		const nextPlayerIndex = (this.scene.currentPlayerIndex + 1) % this.scene.playerCount;
-		const nextPlayer = `Player ${nextPlayerIndex + 1}`;
+		let nextPlayerText = `Player ${nextPlayerIndex + 1}`;
+		
+		// In single player mode, use descriptive names
+		if (this.scene.isSinglePlayer) {
+			if (nextPlayerIndex === 0) {
+				nextPlayerText = "Your";
+			} else if (nextPlayerIndex === 1) {
+				nextPlayerText = "Bot's";
+			}
+		}
 
 		// Create main text
-		this.scene.pauseText = this.scene.add.text(this.scene.scale.width / 2, this.scene.scale.height / 2 - 60, `${nextPlayer} Ready?`, {
+		this.scene.pauseText = this.scene.add.text(this.scene.scale.width / 2, this.scene.scale.height / 2 - 60, `${nextPlayerText} ${this.scene.isSinglePlayer && nextPlayerIndex === 0 ? 'Turn!' : nextPlayerIndex === 1 && this.scene.isSinglePlayer ? 'Turn!' : 'Ready?'}`, {
 			fontFamily: 'PressStart2P',
 			fontSize: '48px',
 			color: '#FFFFFF',
@@ -380,8 +400,13 @@ class UISystem {
 			align: 'center'
 		}).setOrigin(0.5).setDepth(1001);
 
-		// Create instruction text
-		this.scene.pauseInstructionText = this.scene.add.text(this.scene.scale.width / 2, this.scene.scale.height / 2 + 60, 'Click anywhere to continue', {
+		// Create instruction text - different for bot turns
+		let instructionText = 'Click anywhere to continue';
+		if (this.scene.isSinglePlayer && nextPlayerIndex === 1) {
+			instructionText = 'Bot will play automatically';
+		}
+		
+		this.scene.pauseInstructionText = this.scene.add.text(this.scene.scale.width / 2, this.scene.scale.height / 2 + 60, instructionText, {
 			fontFamily: 'PressStart2P',
 			fontSize: '24px',
 			color: '#CCCCCC',

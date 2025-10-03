@@ -135,7 +135,8 @@ class GameLogic {
 	handleWin(winningPlayer) {
 		this.scene.scene.start("winScene", { 
 			winningPlayer: winningPlayer,
-			p1Win: winningPlayer === 1 
+			p1Win: winningPlayer === 1,
+			isSinglePlayer: this.scene.isSinglePlayer || false
 		});
 	}
 
@@ -180,7 +181,17 @@ class GameLogic {
 		const tableCardsInHands = this.checkForTableCardsInHands();
 		const validTurnAction = this.checkValidTurnAction();
 		
+		// Debug logging for validation
+		console.log('Turn validation checks:');
+		console.log('- canEndTurn:', canEndTurn);
+		console.log('  - drawnCard:', this.scene.drawnCard);
+		console.log('  - placedCards:', this.scene.placedCards);
+		console.log('  - tableValid:', this.scene.tableManager.checkTableValidity());
+		console.log('- tableCardsInHands:', tableCardsInHands);
+		console.log('- validTurnAction:', validTurnAction);
+		
 		if (canEndTurn && !tableCardsInHands && validTurnAction) {
+			console.log('Turn validation PASSED - ending turn');
 			this.clearHandSelectionTints();
 			this.clearTableCardFlags();
 			
@@ -192,6 +203,7 @@ class GameLogic {
 			
 			this.scene.showPauseScreen();
 		} else {
+			console.log('Turn validation FAILED - showing invalid turn notification');
 			this.scene.showInvalidTurnNotification();
 		}
 	}
@@ -302,6 +314,14 @@ class GameLogic {
 		this.startNewTurn();
 		this.refreshDisplays();
 		this.scene.uiSystem.updateValidationBoxVisibility();
+		
+		// If it's now the bot's turn, let the bot play
+		if (this.scene.isSinglePlayer && this.scene.currentPlayerIndex === 1 && this.scene.botPlayer) {
+			// Give a small delay for visual clarity
+			setTimeout(() => {
+				this.scene.botPlayer.takeTurn();
+			}, 500);
+		}
 	}
 
 	// Switches the active player turn
@@ -486,6 +506,14 @@ class GameLogic {
 	// Checks if the player has made a valid turn action (drew card or reduced hand size)
 	checkValidTurnAction() {
 		if (this.scene.drawnCard) {
+			console.log('checkValidTurnAction: TRUE (card was drawn)');
+			return true;
+		}
+		
+		// If cards were placed and the table is valid, consider it a valid turn
+		// This is especially important for bot moves that may have timing issues with hand tracking
+		if (this.scene.placedCards && this.scene.tableManager.checkTableValidity()) {
+			console.log('checkValidTurnAction: TRUE (cards placed and table valid)');
 			return true;
 		}
 		
@@ -496,16 +524,26 @@ class GameLogic {
 		
 		const currentHandCards = currentHand.map(card => `${card.card.rank}_${card.card.suit}`);
 		
+		console.log('checkValidTurnAction detailed check:');
+		console.log('- currentPlayerIndex:', currentPlayerIndex);
+		console.log('- currentHand.length:', currentHand.length);
+		console.log('- startingHandSize:', startingHandSize);
+		console.log('- currentHandCards:', currentHandCards);
+		console.log('- startingHandCards:', startingHandCards);
+		
 		if (currentHand.length >= startingHandSize) {
+			console.log('checkValidTurnAction: FALSE (hand size not reduced)');
 			return false;
 		}
 		
 		for (let cardId of currentHandCards) {
 			if (!startingHandCards.includes(cardId)) {
+				console.log('checkValidTurnAction: FALSE (new card found:', cardId, ')');
 				return false;
 			}
 		}
 		
+		console.log('checkValidTurnAction: TRUE (valid hand reduction)');
 		return true;
 	}
 }

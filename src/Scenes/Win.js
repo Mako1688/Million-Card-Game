@@ -9,6 +9,7 @@ class Win extends Phaser.Scene {
 	init(data) {
 		this.winningPlayer = data.winningPlayer || (data.p1Win ? 1 : 2);
 		this.p1Win = data.p1Win; // Maintain backwards compatibility
+		this.isSinglePlayer = data.isSinglePlayer || false;
 	}
 
 	preload() { }
@@ -22,7 +23,19 @@ class Win extends Phaser.Scene {
 		this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0);
 
 		// Determine winner text
-		const winnerText = `Player ${this.winningPlayer} Wins!`;
+		let winnerText = `Player ${this.winningPlayer} Wins!`;
+		let congratsText = "Congratulations!";
+		
+		// In single player mode, use more descriptive text
+		if (this.isSinglePlayer) {
+			if (this.winningPlayer === 1) {
+				winnerText = "You Win!";
+				congratsText = "Well played!";
+			} else {
+				winnerText = "Bot Wins!";
+				congratsText = "Better luck next time!";
+			}
+		}
 		
 		// Display winner text
 		this.add.text(centerX, centerY - 100, winnerText, {
@@ -34,7 +47,7 @@ class Win extends Phaser.Scene {
 		}).setOrigin(0.5);
 
 		// Add congratulations text
-		this.add.text(centerX, centerY - 40, "Congratulations!", {
+		this.add.text(centerX, centerY - 40, congratsText, {
 			fontFamily: 'PressStart2P',
 			fontSize: '24px',
 			color: '#FFFFFF',
