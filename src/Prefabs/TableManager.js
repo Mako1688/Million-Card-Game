@@ -1005,19 +1005,20 @@ class TableManager {
 		let redIndex = 0;
 		let blackIndex = 0;
 		
-		// Determine the starting color based on which has more cards or preference
-		let startWithRed = redCards.length > 0;
+		// Determine starting color based on which color has more cards
+		// This ensures better distribution and prevents minority colors from clustering at the start
+		let startWithRed;
 		
-		// If both colors have cards, ensure perfect alternation is possible
-		if (redCards.length > 0 && blackCards.length > 0) {
-			// Calculate if we can achieve perfect alternation
-			const maxDifference = Math.abs(redCards.length - blackCards.length);
-			
-			// If difference is more than 1, we can't perfectly alternate
-			if (maxDifference > 1) {
-				// Start with the color that has more cards to minimize clustering
-				startWithRed = redCards.length >= blackCards.length;
-			}
+		if (redCards.length === 0) {
+			// No red cards, must start with black
+			startWithRed = false;
+		} else if (blackCards.length === 0) {
+			// No black cards, must start with red
+			startWithRed = true;
+		} else {
+			// Both colors present - start with the color that has more cards
+			// If equal, start with black (arbitrary but consistent choice)
+			startWithRed = redCards.length > blackCards.length;
 		}
 		
 		let useRed = startWithRed;
@@ -1028,19 +1029,27 @@ class TableManager {
 				// Use red card
 				sortedGroup.push(redCards[redIndex]);
 				redIndex++;
-				useRed = false; // Next should be black
+				// Try to alternate only if there are black cards remaining
+				if (blackIndex < blackCards.length) {
+					useRed = false; // Next should be black
+				}
+				// If no black cards left, keep using red (useRed stays true)
 			} else if (!useRed && blackIndex < blackCards.length) {
 				// Use black card
 				sortedGroup.push(blackCards[blackIndex]);
 				blackIndex++;
-				useRed = true; // Next should be red
+				// Try to alternate only if there are red cards remaining
+				if (redIndex < redCards.length) {
+					useRed = true; // Next should be red
+				}
+				// If no red cards left, keep using black (useRed stays false)
 			} else if (redIndex < redCards.length) {
-				// No black cards available, must use red
+				// No black cards available or we're forced to use red, must use red
 				sortedGroup.push(redCards[redIndex]);
 				redIndex++;
 				// Don't change useRed since we couldn't alternate
 			} else if (blackIndex < blackCards.length) {
-				// No red cards available, must use black
+				// No red cards available or we're forced to use black, must use black
 				sortedGroup.push(blackCards[blackIndex]);
 				blackIndex++;
 				// Don't change useRed since we couldn't alternate
