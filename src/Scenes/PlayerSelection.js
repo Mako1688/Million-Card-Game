@@ -375,7 +375,7 @@ class PlayerSelection extends Phaser.Scene {
 			displayPlayerCount = 2; // Human + Bot
 		}
 		
-		const deckCount = displayPlayerCount >= 4 ? 3 : 2;
+		const deckCount = displayPlayerCount >= 5 ? 3 : 2;
 		const totalCards = deckCount * 52;
 		const cardsPerPlayer = 7;
 		const cardsDealt = displayPlayerCount * cardsPerPlayer;
@@ -400,7 +400,7 @@ class PlayerSelection extends Phaser.Scene {
 		// Pass data to the play scene
 		this.scene.start("playScene", { 
 			playerCount: actualPlayerCount,
-			deckCount: actualPlayerCount >= 4 ? 3 : 2,
+			deckCount: actualPlayerCount >= 5 ? 3 : 2,
 			gameMode: this.gameMode,
 			botDifficulty: this.botDifficulty,
 			isSinglePlayer: this.gameMode === 'singleplayer'
