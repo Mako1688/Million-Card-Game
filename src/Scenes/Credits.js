@@ -104,6 +104,14 @@ class Credits extends Phaser.Scene {
 			strokeThickness: 2
 		}).setOrigin(0.5);
 
+		this.add.text(centerX, h / 2 + 140, "Game Inspiration", {
+			fontFamily: 'PressStart2P',
+			fontSize: '16px',
+			color: '#FFFFFF',
+			stroke: '#000000',
+			strokeThickness: 2
+		}).setOrigin(0.5);
+
 		// Dedication
 		this.add.text(centerX, h / 4 * 3, "Made with Love <3", {
 			fontFamily: 'PressStart2P',
