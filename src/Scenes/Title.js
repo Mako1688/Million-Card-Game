@@ -69,18 +69,18 @@ class Title extends Phaser.Scene {
 			this.scene.start("tutorialScene");
 		});
 
-		// Settings button
-		const settingsButton = this.add.text(centerX, h / 3 + 220, "SETTINGS", {
-			fontFamily: "PressStart2P", // Restore original font
-			fontSize: "24px",
+		// Settings button - moved to top left
+		const settingsButton = this.add.text(50, 50, "SETTINGS", {
+			fontFamily: "PressStart2P",
+			fontSize: "20px",
 			backgroundColor: "#444444",
 			color: "#FFFFFF",
 			align: "center",
 			padding: {
-				x: 15,
-				y: 8,
+				x: 12,
+				y: 6,
 			}
-		}).setOrigin(0.5, 0.5).setInteractive({ useHandCursor: true });
+		}).setOrigin(0, 0).setInteractive({ useHandCursor: true });
 
 		// Settings button interaction
 		settingsButton.on('pointerover', () => {
@@ -96,6 +96,71 @@ class Title extends Phaser.Scene {
 				this.audioSystem.playMenuButton();
 			}
 			this.scene.start("settingsScene", { callingScene: "titleScene" });
+		});
+
+		// Credits button - moved to bottom left
+		const creditsButton = this.add.text(50, h - 50, "CREDITS", {
+			fontFamily: "PressStart2P",
+			fontSize: "20px",
+			backgroundColor: "#8B4513",
+			color: "#FFFFFF",
+			align: "center",
+			padding: {
+				x: 12,
+				y: 6,
+			}
+		}).setOrigin(0, 1).setInteractive({ useHandCursor: true });
+
+		// Credits button interaction
+		creditsButton.on('pointerover', () => {
+			creditsButton.setStyle({ backgroundColor: '#A0522D' });
+		});
+
+		creditsButton.on('pointerout', () => {
+			creditsButton.setStyle({ backgroundColor: '#8B4513' });
+		});
+
+		creditsButton.on('pointerdown', () => {
+			if (this.audioSystem) {
+				this.audioSystem.playMenuButton();
+			}
+			this.scene.start("creditsScene");
+		});
+
+		// Exit game button - added to bottom right
+		const exitButton = this.add.text(w - 50, h - 50, "EXIT GAME", {
+			fontFamily: "PressStart2P",
+			fontSize: "20px",
+			backgroundColor: "#D32F2F",
+			color: "#FFFFFF",
+			align: "center",
+			padding: {
+				x: 12,
+				y: 6,
+			}
+		}).setOrigin(1, 1).setInteractive({ useHandCursor: true });
+
+		// Exit button interaction
+		exitButton.on('pointerover', () => {
+			exitButton.setStyle({ backgroundColor: '#F44336' });
+		});
+
+		exitButton.on('pointerout', () => {
+			exitButton.setStyle({ backgroundColor: '#D32F2F' });
+		});
+
+		exitButton.on('pointerdown', () => {
+			if (this.audioSystem) {
+				this.audioSystem.playMenuButton();
+			}
+			// Close the game
+			if (window.electronAPI) {
+				// If running in Electron, close the app
+				window.electronAPI.closeApp();
+			} else {
+				// If running in browser, close the window
+				window.close();
+			}
 		});
 
 		this.card = this.add
@@ -137,17 +202,7 @@ class Title extends Phaser.Scene {
 				this.audioSystem.playMenuButton();
 			}
 			
-			// Check if fullscreen should be enabled on game start
-			const storedFullscreen = localStorage.getItem('gameSettings_fullscreen');
-			if (storedFullscreen === 'true') {
-				// Use the correct Phaser 3 fullscreen method
-				if (this.scale.startFullscreen) {
-					this.scale.startFullscreen();
-				} else {
-					this.scale.toggleFullscreen();
-				}
-			}
-			
+			// Start the player selection scene
 			this.scene.start("playerSelectionScene");
 		});
 	}
