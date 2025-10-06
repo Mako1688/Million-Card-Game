@@ -18,6 +18,8 @@ class Win extends Phaser.Scene {
 	create() {
 		// Initialize audio system
 		this.audioSystem = new AudioSystem(this);
+		// Initialize controller system
+		this.controllerSystem = new ControllerSystem(this);
 		
 		// Add background
 		this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0);
@@ -108,5 +110,9 @@ class Win extends Phaser.Scene {
 			});
 	}
 
-	update() { }
+	update() { 
+		if (this.controllerSystem) {
+			this.controllerSystem.update(this.time.now, this.game.loop.delta);
+		}
+	}
 }

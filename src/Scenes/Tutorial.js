@@ -93,6 +93,7 @@ class Tutorial extends Phaser.Scene {
 		this.animationSystem = new AnimationSystem(this);
 		this.audioSystem = new AudioSystem(this);
 		this.gameLogic = new GameLogic(this);
+		this.controllerSystem = new ControllerSystem(this);
 
 		this.animationSystem.initializeParticles();
 	}
@@ -679,6 +680,9 @@ class Tutorial extends Phaser.Scene {
 	update(time, delta) {
 		if (this.animationSystem) {
 			this.animationSystem.update(time, delta);
+		}
+		if (this.controllerSystem) {
+			this.controllerSystem.update(time, delta);
 		}
 	}
 

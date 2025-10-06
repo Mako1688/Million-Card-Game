@@ -83,6 +83,7 @@ class Play extends Phaser.Scene {
 		this.animationSystem = new AnimationSystem(this);
 		this.audioSystem = new AudioSystem(this);
 		this.gameLogic = new GameLogic(this);
+		this.controllerSystem = new ControllerSystem(this);
 	}
 
 	poofEffect(x, y) {
@@ -93,6 +94,7 @@ class Play extends Phaser.Scene {
 		this.uiSystem.displayTurn();
 		this.gameLogic.checkWinCondition();
 		this.animationSystem.update(time, delta);
+		this.controllerSystem.update(time, delta);
 	}
 
 	startNewTurn() {

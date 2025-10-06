@@ -13,6 +13,8 @@ class Title extends Phaser.Scene {
 	create() {
 		// Initialize audio system
 		this.audioSystem = new AudioSystem(this);
+		// Initialize controller system
+		this.controllerSystem = new ControllerSystem(this);
 		
 		//add any button to start text
 		// Menu config
@@ -207,5 +209,9 @@ class Title extends Phaser.Scene {
 		});
 	}
 
-	update() { }
+	update(time, delta) { 
+		if (this.controllerSystem) {
+			this.controllerSystem.update(time, delta);
+		}
+	}
 }

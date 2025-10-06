@@ -41,6 +41,9 @@ let config = {
 			},
 		},
 	},
+	input: {
+		gamepad: true, // Enable gamepad support
+	},
 	scene: [Load, Title, PlayerSelection, Play, Win, Settings, Credits, Tutorial],
 };
 
