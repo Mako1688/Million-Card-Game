@@ -283,12 +283,37 @@ class UISystem {
 	addButtonInteractivity(button, onClick, ...callbacks) {
 		button.setInteractive();
 		button.on("pointerover", () => {
+			// Check if it's bot's turn in single player mode - prevent hover effects
+			if (this.scene.botPlayers && 
+				this.scene.currentPlayerIndex !== undefined && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+				return;
+			}
+			
 			button.setFrame(2);
 		});
 		button.on("pointerout", () => {
+			// Check if it's bot's turn in single player mode - prevent hover effects
+			if (this.scene.botPlayers && 
+				this.scene.currentPlayerIndex !== undefined && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+				return;
+			}
+			
 			button.setFrame(0);
 		});
 		button.on("pointerdown", () => {
+			// Check if it's bot's turn in single player mode - prevent UI button interactions
+			if (this.scene.botPlayers && 
+				this.scene.currentPlayerIndex !== undefined && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+				console.log('Blocked UI button interaction during bot turn');
+				return;
+			}
+			
 			onClick();
 			button.setFrame(1);
 			callbacks.forEach((callback) => callback());
@@ -299,6 +324,14 @@ class UISystem {
 	addDeckInteractivity(deckSprite) {
 		deckSprite.setInteractive();
 		deckSprite.on("pointerover", () => {
+			// Check if it's bot's turn in single player mode - prevent hover effects
+			if (this.scene.botPlayers && 
+				this.scene.currentPlayerIndex !== undefined && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+				return;
+			}
+			
 			this.scene.tweens.add({
 				targets: deckSprite,
 				scaleX: 2.1,
@@ -308,6 +341,14 @@ class UISystem {
 			});
 		});
 		deckSprite.on("pointerout", () => {
+			// Check if it's bot's turn in single player mode - prevent hover effects
+			if (this.scene.botPlayers && 
+				this.scene.currentPlayerIndex !== undefined && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+				return;
+			}
+			
 			this.scene.tweens.add({
 				targets: deckSprite,
 				scaleX: 2,
@@ -317,6 +358,15 @@ class UISystem {
 			});
 		});
 		deckSprite.on("pointerdown", () => {
+			// Check if it's bot's turn in single player mode - prevent deck interactions
+			if (this.scene.botPlayers && 
+				this.scene.currentPlayerIndex !== undefined && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+				console.log('Blocked deck interaction during bot turn');
+				return;
+			}
+			
 			// Play card draw sound
 			if (this.scene.audioSystem) {
 				this.scene.audioSystem.playCardSelect();

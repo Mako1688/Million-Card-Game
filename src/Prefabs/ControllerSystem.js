@@ -7,6 +7,14 @@ class ControllerSystem {
 		this.cursorSpeed = 400; // pixels per second
 		this.deadzone = 0.2; // analog stick deadzone
 		this.cursorVisible = false;
+		this.botTurnActive = false; // Flag to disable controller during bot turns
+		
+		// Input mode management
+		this.inputMode = 'mouse'; // 'mouse' or 'controller'
+		this.lastMouseX = 0;
+		this.lastMouseY = 0;
+		this.mouseInactivityTime = 0;
+		this.MOUSE_INACTIVITY_THRESHOLD = 2000; // 2 seconds without mouse movement
 		
 		// Virtual cursor position - center of screen
 		this.cursorX = this.scene.scale.width / 2;
@@ -16,6 +24,11 @@ class ControllerSystem {
 		this.previousButtonStates = {};
 		this.buttonRepeatTimers = {};
 		
+		// A button state tracking for click vs drag detection
+		this.aButtonPressed = false;
+		this.aButtonPressTime = 0;
+		this.aButtonStartPos = { x: 0, y: 0 };
+		
 		// Currently hovered object
 		this.hoveredObject = null;
 		
@@ -23,6 +36,7 @@ class ControllerSystem {
 		
 		this.initializeController();
 		this.createVirtualCursor();
+		this.setupMouseDetection();
 		
 		// Initial detection
 		this.detectGamepad();
@@ -52,11 +66,78 @@ class ControllerSystem {
 		if (this.scene.input.gamepad.total > 0) {
 			this.gamepad = this.scene.input.gamepad.getPad(0);
 			console.log('Gamepad detected:', this.gamepad.id, 'Buttons:', this.gamepad.buttons.length);
-			this.showCursor();
+			// Don't automatically show cursor - wait for controller input
 		} else {
 			console.log('No gamepad detected, total controllers:', this.scene.input.gamepad.total);
 			// Keep checking periodically if no gamepad is found
 			this.hideCursor();
+		}
+	}
+
+	setupMouseDetection() {
+		// Store initial mouse position
+		if (this.scene.input.activePointer) {
+			this.lastMouseX = this.scene.input.activePointer.x;
+			this.lastMouseY = this.scene.input.activePointer.y;
+		}
+		
+		// Listen for mouse movement
+		this.scene.input.on('pointermove', (pointer) => {
+			this.onMouseMove(pointer.x, pointer.y);
+		});
+		
+		// Listen for mouse clicks to immediately switch to mouse mode
+		this.scene.input.on('pointerdown', () => {
+			this.switchToMouseMode();
+		});
+	}
+
+	onMouseMove(x, y) {
+		// Check if mouse actually moved significantly
+		const deltaX = Math.abs(x - this.lastMouseX);
+		const deltaY = Math.abs(y - this.lastMouseY);
+		
+		if (deltaX > 5 || deltaY > 5) { // Threshold to avoid tiny movements
+			this.lastMouseX = x;
+			this.lastMouseY = y;
+			this.mouseInactivityTime = 0;
+			this.switchToMouseMode();
+		}
+	}
+
+	switchToMouseMode() {
+		if (this.inputMode !== 'mouse') {
+			console.log('Switching to mouse mode');
+			this.inputMode = 'mouse';
+			this.hideCursor();
+			
+			// Re-enable mouse interactions for all objects
+			this.enableMouseInteractions();
+		}
+	}
+
+	switchToControllerMode() {
+		if (this.inputMode !== 'controller') {
+			console.log('Switching to controller mode');
+			this.inputMode = 'controller';
+			this.showCursor();
+			
+			// Disable mouse interactions to prevent conflicts
+			this.disableMouseInteractions();
+		}
+	}
+
+	enableMouseInteractions() {
+		// Re-enable mouse cursor
+		if (this.scene.input) {
+			this.scene.input.setDefaultCursor('default');
+		}
+	}
+
+	disableMouseInteractions() {
+		// Hide mouse cursor when controller is active
+		if (this.scene.input) {
+			this.scene.input.setDefaultCursor('none');
 		}
 	}
 
@@ -134,8 +215,24 @@ class ControllerSystem {
 		if (!this.gamepad.connected) {
 			console.log('Gamepad disconnected');
 			this.gamepad = null;
-			this.hideCursor();
+			this.switchToMouseMode(); // Switch back to mouse when controller disconnects
 			return;
+		}
+
+		// Skip controller processing during bot turns to prevent player interference
+		if (this.botTurnActive) {
+			// Keep cursor visible but don't process inputs during bot turns
+			return;
+		}
+
+		// Handle input mode management
+		this.updateInputMode(delta);
+
+		// Only process controller inputs if we're in controller mode
+		if (this.inputMode === 'controller') {
+			this.updateCursorPosition(delta);
+			this.handleButtonInputs();
+			this.updateHoverState();
 		}
 
 		// Debug: Log button states occasionally (but safely)
@@ -150,19 +247,47 @@ class ControllerSystem {
 				if (pressedButtons.length > 0) {
 					console.log('Pressed buttons:', pressedButtons);
 				}
-				console.log('Controller active, cursor visible:', this.cursorVisible, 'cursor exists:', !!this.cursor);
+				console.log('Input mode:', this.inputMode, 'Controller active, cursor visible:', this.cursorVisible, 'cursor exists:', !!this.cursor);
 			} catch (e) {
 				console.warn('Error checking button states:', e);
 			}
 		}
+	}
 
-		this.updateCursorPosition(delta);
-		this.handleButtonInputs();
-		this.updateHoverState();
+	updateInputMode(delta) {
+		// Track mouse inactivity
+		if (this.inputMode === 'mouse') {
+			this.mouseInactivityTime += delta;
+		}
+
+		// Check for controller input to switch modes
+		if (this.gamepad && this.inputMode === 'mouse') {
+			// Check for any significant controller input
+			const leftStick = this.gamepad.leftStick;
+			const hasStickInput = Math.abs(leftStick.x) > this.deadzone || Math.abs(leftStick.y) > this.deadzone;
+			
+			// Check for any button presses
+			let hasButtonInput = false;
+			try {
+				for (let i = 0; i < this.gamepad.buttons.length; i++) {
+					if (this.gamepad.buttons[i].pressed) {
+						hasButtonInput = true;
+						break;
+					}
+				}
+			} catch (e) {
+				// Ignore button check errors
+			}
+
+			// Switch to controller mode if we detect input
+			if (hasStickInput || hasButtonInput) {
+				this.switchToControllerMode();
+			}
+		}
 	}
 
 	updateCursorPosition(delta) {
-		if (!this.gamepad || !this.cursorVisible) return;
+		if (!this.gamepad || !this.cursorVisible || this.inputMode !== 'controller') return;
 
 		// Get left stick input
 		const leftStick = this.gamepad.leftStick;
@@ -191,13 +316,54 @@ class ControllerSystem {
 	}
 
 	handleButtonInputs() {
-		if (!this.gamepad) return;
+		if (!this.gamepad || this.inputMode !== 'controller') return;
 
-		// A button (primary action - like left click) - Use index 0 for A button
-		this.handleButtonByIndex(0, () => {
-			console.log('A button pressed!'); // Debug log
+		// A button (primary action) - Handle click vs drag detection
+		const aButton = this.gamepad.buttons[0];
+		if (aButton && aButton.pressed && !this.aButtonPressed) {
+			// Button just pressed - start timing for click vs drag detection
+			this.aButtonPressed = true;
+			this.aButtonPressTime = Date.now();
+			this.aButtonStartPos = { x: this.cursor.x, y: this.cursor.y };
+			console.log('A button pressed!');
 			this.simulatePointerDown();
-		});
+		} else if (aButton && !aButton.pressed && this.aButtonPressed) {
+			// Button just released
+			this.aButtonPressed = false;
+			const pressDuration = Date.now() - this.aButtonPressTime;
+			const moveDistance = Phaser.Math.Distance.Between(
+				this.aButtonStartPos.x, 
+				this.aButtonStartPos.y,
+				this.cursor.x, 
+				this.cursor.y
+			);
+			
+			// If it was a quick press with minimal movement, treat as click
+			if (pressDuration < 300 && moveDistance < 10) {
+				console.log('A button click detected - sending clean click sequence!');
+				// For a clean click, send a small pointermove at the same position
+				// This ensures the table card system recognizes it as a click (not drag)
+				this.simulateClickPointermove();
+			} else {
+				console.log('A button drag ended!');
+			}
+			// Always send pointerup to complete the interaction
+			this.simulatePointerUp();
+		} else if (aButton && aButton.pressed && this.aButtonPressed) {
+			// Button held down - check if we should be dragging
+			const pressDuration = Date.now() - this.aButtonPressTime;
+			const moveDistance = Phaser.Math.Distance.Between(
+				this.aButtonStartPos.x, 
+				this.aButtonStartPos.y,
+				this.cursor.x, 
+				this.cursor.y
+			);
+			
+			// If button held for a while or moved significantly, send pointermove for dragging
+			if (pressDuration > 100 || moveDistance > 3) {
+				this.simulatePointerMove();
+			}
+		}
 
 		// B button (secondary action - like right click or cancel) - Use index 1 for B button
 		this.handleButtonByIndex(1, () => {
@@ -226,6 +392,12 @@ class ControllerSystem {
 		this.handleButtonByIndex(5, () => {
 			console.log('R1 button pressed!'); // Debug log
 			this.handleQuickSort('suit');
+		});
+
+		// L2 button for debug info - Use index 6 for L2
+		this.handleButtonByIndex(6, () => {
+			console.log('L2 button pressed - Debug info!');
+			this.debugCursorObjects();
 		});
 
 		// D-pad navigation using axes or buttons (depends on gamepad)
@@ -304,55 +476,76 @@ class ControllerSystem {
 	}
 
 	updateHoverState() {
-		if (!this.cursorVisible) return;
+		if (!this.cursorVisible || this.inputMode !== 'controller') return;
 
-		// Get all interactive objects in the scene using a safer approach
+		// Get all interactive objects from multiple sources
 		let interactiveObjects = [];
 		
-		// Try different ways to get interactive objects
+		// Get objects from input manager
 		if (this.scene.input && this.scene.input.manager && this.scene.input.manager.list) {
-			interactiveObjects = this.scene.input.manager.list;
-		} else if (this.scene.children && this.scene.children.list) {
-			// Fallback: filter scene children for interactive objects
-			interactiveObjects = this.scene.children.list.filter(obj => 
+			interactiveObjects = [...this.scene.input.manager.list];
+		}
+		
+		// Also check scene children for interactive objects (some might not be in input manager)
+		if (this.scene.children && this.scene.children.list) {
+			const sceneInteractives = this.scene.children.list.filter(obj => 
 				obj.input && obj.input.enabled && obj.active && obj.visible
 			);
+			// Add to array, avoiding duplicates
+			sceneInteractives.forEach(obj => {
+				if (!interactiveObjects.includes(obj)) {
+					interactiveObjects.push(obj);
+				}
+			});
 		}
+
+		// IMPORTANT: Also check objects inside containers that might not be in the main lists
+		// Specifically check for validation box
+		if (this.scene.validationBox && 
+			this.scene.validationBoxContainer && 
+			this.scene.validationBoxContainer.visible &&
+			this.scene.validationBox.input && 
+			this.scene.validationBox.input.enabled &&
+			!interactiveObjects.includes(this.scene.validationBox)) {
+			interactiveObjects.push(this.scene.validationBox);
+		}
+
+		// Sort by depth (highest depth first) to properly handle overlapping objects
+		interactiveObjects.sort((a, b) => {
+			let depthA = a.depth || 0;
+			let depthB = b.depth || 0;
+			
+			// If object is in a container, add container's depth
+			if (a.parentContainer) depthA += a.parentContainer.depth || 0;
+			if (b.parentContainer) depthB += b.parentContainer.depth || 0;
+			
+			return depthB - depthA;
+		});
 
 		let newHoveredObject = null;
 
 		// Check each interactive object to see if cursor is over it
 		for (let i = 0; i < interactiveObjects.length; i++) {
 			const obj = interactiveObjects[i];
-			if (obj.input && obj.input.enabled && obj.active && obj.visible) {
-				// Check if cursor is within object bounds
-				let bounds;
-				
-				// Try to get bounds using different methods
-				if (obj.getBounds) {
-					bounds = obj.getBounds();
-				} else {
-					// Calculate bounds manually
-					const width = obj.displayWidth || obj.width || 0;
-					const height = obj.displayHeight || obj.height || 0;
-					const originX = obj.originX !== undefined ? obj.originX : 0.5;
-					const originY = obj.originY !== undefined ? obj.originY : 0.5;
-					
-					bounds = {
-						x: obj.x - (width * originX),
-						y: obj.y - (height * originY),
-						width: width,
-						height: height
-					};
-				}
+			
+			// Skip objects that aren't properly active/visible
+			if (!obj.input || !obj.input.enabled || !obj.active || !obj.visible) {
+				continue;
+			}
+			
+			// Skip objects in containers that aren't visible
+			if (obj.parentContainer && !obj.parentContainer.visible) {
+				continue;
+			}
+			
+			let bounds = this.getObjectBounds(obj);
 
-				if (this.cursorX >= bounds.x && 
-					this.cursorX <= bounds.x + bounds.width &&
-					this.cursorY >= bounds.y && 
-					this.cursorY <= bounds.y + bounds.height) {
-					newHoveredObject = obj;
-					break; // Take the first (topmost) object found
-				}
+			if (bounds && this.cursorX >= bounds.x && 
+				this.cursorX <= bounds.x + bounds.width &&
+				this.cursorY >= bounds.y && 
+				this.cursorY <= bounds.y + bounds.height) {
+				newHoveredObject = obj;
+				break; // Take the first (topmost by depth) object found
 			}
 		}
 
@@ -365,6 +558,7 @@ class ControllerSystem {
 
 			// Add hover to new object
 			if (newHoveredObject && newHoveredObject.emit) {
+				console.log('New hovered object:', newHoveredObject.constructor.name);
 				newHoveredObject.emit('pointerover');
 			}
 
@@ -372,28 +566,55 @@ class ControllerSystem {
 		}
 	}
 
+	// Helper method to get proper bounds for any object, accounting for containers
+	getObjectBounds(obj) {
+		try {
+			// Try Phaser's built-in getBounds first
+			if (obj.getBounds) {
+				return obj.getBounds();
+			}
+
+			// Calculate bounds manually
+			const width = obj.displayWidth || obj.width || 0;
+			const height = obj.displayHeight || obj.height || 0;
+			const originX = obj.originX !== undefined ? obj.originX : 0.5;
+			const originY = obj.originY !== undefined ? obj.originY : 0.5;
+			
+			// Get world position by traversing up the container hierarchy
+			let worldX = obj.x;
+			let worldY = obj.y;
+			let parent = obj.parentContainer;
+			
+			while (parent) {
+				worldX += parent.x;
+				worldY += parent.y;
+				parent = parent.parentContainer;
+			}
+			
+			return {
+				x: worldX - (width * originX),
+				y: worldY - (height * originY),
+				width: width,
+				height: height
+			};
+		} catch (e) {
+			console.warn('Error calculating bounds for object:', e);
+			return null;
+		}
+	}
+
 	simulatePointerDown() {
-		console.log('simulatePointerDown called, hoveredObject:', this.hoveredObject); // Debug log
+		console.log('simulatePointerDown called, hoveredObject:', this.hoveredObject?.constructor?.name); 
 		console.log('Cursor position:', this.cursorX, this.cursorY);
 		
 		if (!this.hoveredObject) {
-			console.log('No hovered object found at cursor position:', this.cursorX, this.cursorY);
-			// Let's also check if there are any interactive objects in the scene
-			if (this.scene.children && this.scene.children.list) {
-				const interactiveObjects = this.scene.children.list.filter(obj => 
-					obj.input && obj.input.enabled && obj.active && obj.visible
-				);
-				console.log('Interactive objects in scene:', interactiveObjects.length);
-				interactiveObjects.forEach((obj, index) => {
-					console.log(`Object ${index}:`, obj.constructor.name, 'at', obj.x, obj.y);
-				});
-			}
+			console.log('No hovered object found at cursor position');
 			return;
 		}
 
-		console.log('Simulating click on object:', this.hoveredObject.constructor.name, 'at', this.hoveredObject.x, this.hoveredObject.y);
+		console.log('Simulating click on object:', this.hoveredObject.constructor.name);
 
-		// Create a more complete fake pointer event
+		// Create a realistic fake pointer event that matches Phaser's pointer structure
 		const fakePointer = {
 			x: this.cursorX,
 			y: this.cursorY,
@@ -405,33 +626,217 @@ class ControllerSystem {
 			upY: this.cursorY,
 			button: 0,
 			buttons: 1,
-			isDown: true,
-			primaryDown: true,
+			isDown: false, // Start as not down
+			primaryDown: false,
 			dragState: 0,
 			clickTime: this.scene.time.now,
-			event: {
-				button: 0,
-				buttons: 1,
-				clientX: this.cursorX,
-				clientY: this.cursorY
-			}
+			downTime: this.scene.time.now,
+			time: this.scene.time.now,
+			identifier: 1,
+			pointerId: 1,
+			active: true,
+			wasTouch: false,
+			wasCanceled: false,
+			movementX: 0,
+			movementY: 0,
+			velocity: { x: 0, y: 0 },
+			angle: 0,
+			distance: 0
 		};
 
-		// Emit pointer events in the correct order
+		// Create a realistic DOM event object
+		const eventObject = {
+			button: 0,
+			buttons: 1,
+			clientX: this.cursorX,
+			clientY: this.cursorY,
+			screenX: this.cursorX,
+			screenY: this.cursorY,
+			pageX: this.cursorX,
+			pageY: this.cursorY,
+			offsetX: this.cursorX,
+			offsetY: this.cursorY,
+			target: this.scene.game.canvas,
+			currentTarget: this.scene.game.canvas,
+			timeStamp: this.scene.time.now,
+			type: 'pointerdown',
+			stopPropagation: () => {},
+			preventDefault: () => {},
+			stopImmediatePropagation: () => {}
+		};
+
+		// Calculate local coordinates relative to the object
+		const bounds = this.getObjectBounds(this.hoveredObject);
+		const localX = bounds ? (this.cursorX - bounds.x) : 0;
+		const localY = bounds ? (this.cursorY - bounds.y) : 0;
+
+		// Emit events in proper sequence to match mouse behavior exactly
 		if (this.hoveredObject.emit) {
+			// Phase 1: Pointer down
+			fakePointer.isDown = true;
+			fakePointer.primaryDown = true;
+			fakePointer.downTime = this.scene.time.now;
 			console.log('Emitting pointerdown event');
-			this.hoveredObject.emit('pointerdown', fakePointer, this.hoveredObject);
+			this.hoveredObject.emit('pointerdown', fakePointer, localX, localY, eventObject);
 			
-			// Small delay before pointerup to simulate realistic clicking
-			this.scene.time.delayedCall(50, () => {
-				if (this.hoveredObject && this.hoveredObject.emit) {
-					console.log('Emitting pointerup event');
-					fakePointer.isDown = false;
-					fakePointer.primaryDown = false;
-					this.hoveredObject.emit('pointerup', fakePointer, this.hoveredObject);
-				}
-			});
+			// Note: pointermove and pointerup are now handled separately based on actual button state
+			// This allows for proper click vs drag detection
 		}
+
+		// Special handling for specific object types
+		this.handleSpecificObjectTypes(this.hoveredObject, fakePointer, localX, localY, eventObject);
+	}
+
+	// Handle specific object types that need special treatment
+	handleSpecificObjectTypes(obj, fakePointer, localX, localY, eventObject) {
+		// Special handling for validation box
+		if (obj === this.scene.validationBox) {
+			console.log('Special handling for validation box click');
+			// The validation box click should be handled by its pointerdown event
+			// which calls this.scene.gameLogic.handleValidPlay()
+		}
+		
+		// Special handling for table cards - ensure they get proper drag detection
+		if (obj.isTableCard && obj.cardData) {
+			console.log('Special handling for table card click');
+			// Table cards need the drag threshold detection to work properly
+			// The pointerdown -> pointermove -> pointerup sequence handles this
+			// The TableManager.handleCardClickOnTable method should be called
+		}
+		
+		// Special handling for hand cards
+		if (obj.isHandCard) {
+			console.log('Special handling for hand card click');
+			// Hand cards should be handled by their standard events
+		}
+		
+		// Special handling for deck sprite
+		if (obj === this.scene.deckSprite) {
+			console.log('Special handling for deck click');
+			// Deck clicks should trigger card drawing
+		}
+		
+		// Special handling for UI buttons
+		if (obj === this.scene.endTurnButton || 
+			obj === this.scene.restart || 
+			obj === this.scene.sortRankButton || 
+			obj === this.scene.sortSuitButton) {
+			console.log('Special handling for UI button click');
+			// UI buttons should be handled by their standard events
+		}
+	}
+
+	simulatePointerUp() {
+		if (!this.hoveredObject) return;
+
+		const localX = this.cursor.x;
+		const localY = this.cursor.y;
+
+		// Create fake pointer event
+		const fakePointer = {
+			x: this.cursor.x,
+			y: this.cursor.y,
+			worldX: this.cursor.x,
+			worldY: this.cursor.y,
+			isDown: false,
+			primaryDown: false,
+			upTime: this.scene.time.now,
+			downTime: this.aButtonPressTime || this.scene.time.now,
+			button: 0,
+			leftButtonDown: false,
+			rightButtonDown: false,
+			middleButtonDown: false,
+			velocity: { x: 0, y: 0 }
+		};
+
+		const eventObject = {
+			x: this.cursor.x,
+			y: this.cursor.y,
+			type: 'pointerup',
+			event: fakePointer
+		};
+
+		console.log('simulatePointerUp called for object:', this.hoveredObject);
+		
+		// Emit pointerup event to the specific object
+		if (this.hoveredObject && this.hoveredObject.emit) {
+			this.hoveredObject.emit('pointerup', fakePointer, localX, localY, eventObject);
+		}
+
+		// IMPORTANT: Also emit to scene input for global up detection
+		// This is critical for table card click/drag detection cleanup
+		this.scene.input.emit('pointerup', fakePointer);
+	}
+
+	simulatePointerMove() {
+		if (!this.hoveredObject) return;
+
+		const localX = this.cursor.x;
+		const localY = this.cursor.y;
+
+		// Create fake pointer event for movement
+		const fakePointer = {
+			x: this.cursor.x,
+			y: this.cursor.y,
+			worldX: this.cursor.x,
+			worldY: this.cursor.y,
+			isDown: this.aButtonPressed,
+			primaryDown: this.aButtonPressed,
+			downTime: this.aButtonPressTime || this.scene.time.now,
+			button: 0,
+			leftButtonDown: this.aButtonPressed,
+			rightButtonDown: false,
+			middleButtonDown: false,
+			velocity: { x: 0, y: 0 }
+		};
+
+		const eventObject = {
+			x: this.cursor.x,
+			y: this.cursor.y,
+			type: 'pointermove',
+			event: fakePointer
+		};
+
+		console.log('simulatePointerMove called for object:', this.hoveredObject);
+		
+		// Emit pointermove event to object if it has emit method
+		if (this.hoveredObject && this.hoveredObject.emit) {
+			const bounds = this.getObjectBounds(this.hoveredObject);
+			const localX = bounds ? (this.cursor.x - bounds.x) : 0;
+			const localY = bounds ? (this.cursor.y - bounds.y) : 0;
+			this.hoveredObject.emit('pointermove', fakePointer, localX, localY, eventObject);
+		}
+
+		// IMPORTANT: Also emit to scene input for global move detection
+		// This is critical for table card drag detection
+		this.scene.input.emit('pointermove', fakePointer);
+	}
+
+	simulateClickPointermove() {
+		// Send a pointermove event at the exact same position to simulate a clean click
+		// This is important for table cards to detect it as a click (not drag)
+		if (!this.hoveredObject) return;
+
+		// Create fake pointer event with no actual movement
+		const fakePointer = {
+			x: this.aButtonStartPos.x, // Use the original press position
+			y: this.aButtonStartPos.y,
+			worldX: this.aButtonStartPos.x,
+			worldY: this.aButtonStartPos.y,
+			isDown: false, // Button is being released
+			primaryDown: false,
+			downTime: this.aButtonPressTime || this.scene.time.now,
+			button: 0,
+			leftButtonDown: false,
+			rightButtonDown: false,
+			middleButtonDown: false,
+			velocity: { x: 0, y: 0 }
+		};
+
+		console.log('simulateClickPointermove - sending minimal move for click detection');
+		
+		// Emit to scene input for global move detection (table cards listen to this)
+		this.scene.input.emit('pointermove', fakePointer);
 	}
 
 	simulateRightClick() {
@@ -484,10 +889,99 @@ class ControllerSystem {
 		return this.gamepad !== null;
 	}
 
+	// Debug method to check what's under the cursor
+	debugCursorObjects() {
+		console.log('=== CURSOR DEBUG INFO ===');
+		console.log('Input mode:', this.inputMode);
+		console.log('Cursor position:', this.cursorX, this.cursorY);
+		console.log('Cursor visible:', this.cursorVisible);
+		console.log('Current hovered object:', this.hoveredObject?.constructor?.name);
+		console.log('Current scene:', this.scene.scene.key);
+		console.log('Mouse inactivity time:', this.mouseInactivityTime);
+		
+		// Check game state
+		if (this.scene.scene.key === 'playScene') {
+			console.log('Game state:');
+			console.log('- Current player:', this.scene.currentPlayerIndex);
+			console.log('- Cards selected:', this.scene.cardsSelected?.length || 0);
+			console.log('- Drawn card:', this.scene.drawnCard);
+			console.log('- Turn valid:', this.scene.turnValid);
+		}
+		
+		// Check validation box specifically with detailed info
+		if (this.scene.validationBox && this.scene.validationBoxContainer) {
+			const container = this.scene.validationBoxContainer;
+			const box = this.scene.validationBox;
+			const bounds = this.getObjectBounds(box);
+			console.log('=== VALIDATION BOX DETAILED INFO ===');
+			console.log('- Container visible:', container.visible);
+			console.log('- Container position:', container.x, container.y);
+			console.log('- Container depth:', container.depth);
+			console.log('- Box local position:', box.x, box.y);
+			console.log('- Box size:', box.width, box.height);
+			console.log('- Box displaySize:', box.displayWidth, box.displayHeight);
+			console.log('- Box origin:', box.originX, box.originY);
+			console.log('- Box interactive:', box.input?.enabled);
+			console.log('- Box active:', box.active);
+			console.log('- Box visible:', box.visible);
+			console.log('- Calculated bounds:', bounds);
+			console.log('- Cursor in bounds:', bounds && 
+				this.cursorX >= bounds.x && this.cursorX <= bounds.x + bounds.width &&
+				this.cursorY >= bounds.y && this.cursorY <= bounds.y + bounds.height);
+			
+			// Manual calculation check
+			if (container.visible && box.input?.enabled) {
+				const manualWorldX = container.x + box.x;
+				const manualWorldY = container.y + box.y;
+				const manualBounds = {
+					x: manualWorldX - (box.width * box.originX),
+					y: manualWorldY - (box.height * box.originY),
+					width: box.width,
+					height: box.height
+				};
+				console.log('- Manual calculation bounds:', manualBounds);
+				console.log('- Manual cursor in bounds:', 
+					this.cursorX >= manualBounds.x && this.cursorX <= manualBounds.x + manualBounds.width &&
+					this.cursorY >= manualBounds.y && this.cursorY <= manualBounds.y + manualBounds.height);
+			}
+		}
+		
+		// List all interactive objects
+		let interactiveObjects = [];
+		if (this.scene.input?.manager?.list) {
+			interactiveObjects = this.scene.input.manager.list;
+		}
+		
+		console.log('Interactive objects:', interactiveObjects.length);
+		interactiveObjects.forEach((obj, i) => {
+			if (obj.active && obj.visible && obj.input?.enabled) {
+				const bounds = this.getObjectBounds(obj);
+				const inBounds = bounds && 
+					this.cursorX >= bounds.x && this.cursorX <= bounds.x + bounds.width &&
+					this.cursorY >= bounds.y && this.cursorY <= bounds.y + bounds.height;
+				
+				let objType = obj.constructor.name;
+				if (obj.isTableCard) objType += ' (Table Card)';
+				if (obj.isHandCard) objType += ' (Hand Card)';
+				if (obj === this.scene.validationBox) objType += ' (Validation Box)';
+				if (obj === this.scene.deckSprite) objType += ' (Deck)';
+				
+				console.log(`${i}: ${objType} - In bounds: ${inBounds}${bounds ? ` - Bounds: (${bounds.x},${bounds.y},${bounds.width}x${bounds.height})` : ''}`);
+			}
+		});
+		console.log('========================');
+	}
+
 	// Destroy the controller system
 	destroy() {
 		if (this.cursor) {
 			this.cursor.destroy();
+		}
+		
+		// Clean up mouse event listeners
+		if (this.scene.input) {
+			this.scene.input.off('pointermove');
+			this.scene.input.off('pointerdown');
 		}
 		
 		// Restore default cursor

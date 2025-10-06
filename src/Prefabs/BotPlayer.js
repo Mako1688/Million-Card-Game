@@ -1080,6 +1080,7 @@ class BotPlayer {
 
 	disablePlayerInteractions() {
 		try {
+			// Disable UI buttons
 			if (this.scene.endTurnButton) {
 				this.scene.endTurnButton.disableInteractive();
 			}
@@ -1095,13 +1096,51 @@ class BotPlayer {
 			if (this.scene.sortSuitButton) {
 				this.scene.sortSuitButton.disableInteractive();
 			}
+			if (this.scene.sortRank) {
+				this.scene.sortRank.disableInteractive();
+			}
+			if (this.scene.sortSuit) {
+				this.scene.sortSuit.disableInteractive();
+			}
+			if (this.scene.settingsButton) {
+				this.scene.settingsButton.disableInteractive();
+			}
+			if (this.scene.validationBox) {
+				this.scene.validationBox.disableInteractive();
+			}
+			
+			// Disable all hand card interactions
+			if (this.scene.handSelected) {
+				this.scene.handSelected.forEach((sprite) => {
+					if (sprite) {
+						sprite.disableInteractive();
+					}
+				});
+			}
+			
+			// Disable all table card interactions
+			if (this.scene.tableSprites) {
+				this.scene.tableSprites.forEach((sprite) => {
+					if (sprite) {
+						sprite.disableInteractive();
+					}
+				});
+			}
+			
+			// Disable controller cursor interactions during bot turn
+			if (this.scene.controllerSystem) {
+				this.scene.controllerSystem.botTurnActive = true;
+			}
+			
+			console.log('Bot: Disabled all player interactions (UI, cards, controller)');
 		} catch (error) {
-			// Ignore errors during interaction disabling
+			console.warn('Bot: Error during interaction disabling:', error);
 		}
 	}
 
 	enablePlayerInteractions() {
 		try {
+			// Re-enable UI buttons
 			if (this.scene.endTurnButton) {
 				this.scene.endTurnButton.setInteractive();
 			}
@@ -1117,8 +1156,45 @@ class BotPlayer {
 			if (this.scene.sortSuitButton) {
 				this.scene.sortSuitButton.setInteractive();
 			}
+			if (this.scene.sortRank) {
+				this.scene.sortRank.setInteractive();
+			}
+			if (this.scene.sortSuit) {
+				this.scene.sortSuit.setInteractive();
+			}
+			if (this.scene.settingsButton) {
+				this.scene.settingsButton.setInteractive();
+			}
+			if (this.scene.validationBox) {
+				this.scene.validationBox.setInteractive();
+			}
+			
+			// Re-enable all hand card interactions
+			if (this.scene.handSelected) {
+				this.scene.handSelected.forEach((sprite) => {
+					if (sprite) {
+						sprite.setInteractive();
+					}
+				});
+			}
+			
+			// Re-enable all table card interactions
+			if (this.scene.tableSprites) {
+				this.scene.tableSprites.forEach((sprite) => {
+					if (sprite) {
+						sprite.setInteractive();
+					}
+				});
+			}
+			
+			// Re-enable controller cursor interactions after bot turn
+			if (this.scene.controllerSystem) {
+				this.scene.controllerSystem.botTurnActive = false;
+			}
+			
+			console.log('Bot: Re-enabled all player interactions (UI, cards, controller)');
 		} catch (error) {
-			// Ignore errors during interaction enabling
+			console.warn('Bot: Error during interaction enabling:', error);
 		}
 	}
 

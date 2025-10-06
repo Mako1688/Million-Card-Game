@@ -114,6 +114,7 @@ class HandManager {
 			
 			const cardSprite = this.createCardSprite(xPosition, frameIndex, scaleAdjustment);
 			card.sprite = cardSprite;
+			cardSprite.cardData = card; // Set the card data reference for controller system
 			this.scene.handSelected.push(cardSprite);
 			this.addCardInteractivity(cardSprite, card, i);
 			
@@ -152,6 +153,7 @@ class HandManager {
 		cardSprite.isSelected = false;
 		cardSprite.waveTintTween = null;
 		cardSprite.baseScale = finalScale; // Store base scale for selection scaling
+		cardSprite.isHandCard = true; // Flag for controller system identification
 
 		return cardSprite;
 	}
@@ -168,6 +170,14 @@ class HandManager {
 
 	// Handles mouse hover over a card - scales up and moves slightly
 	handlePointerOver(cardSprite) {
+		// Check if it's bot's turn in single player mode - prevent hover effects
+		if (this.scene.botPlayers && 
+			this.scene.currentPlayerIndex !== undefined && 
+			this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+			this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+			return;
+		}
+		
 		if (!cardSprite.isSelected) {
 			cardSprite.interactionOffsetY = -40;
 			// Scale based on the card's base scale for consistency
@@ -184,6 +194,14 @@ class HandManager {
 
 	// Handles mouse leaving a card - returns to normal state
 	handlePointerOut(cardSprite, card) {
+		// Check if it's bot's turn in single player mode - prevent hover effects
+		if (this.scene.botPlayers && 
+			this.scene.currentPlayerIndex !== undefined && 
+			this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+			this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+			return;
+		}
+		
 		if (!cardSprite.isSelected) {
 			cardSprite.interactionOffsetY = 0;
 			// Return to the card's base scale
@@ -200,6 +218,15 @@ class HandManager {
 
 	// Handles clicking on a card - toggles selection state
 	handlePointerDown(card, index, cardSprite) {
+		// Check if it's bot's turn in single player mode - prevent any card interactions
+		if (this.scene.botPlayers && 
+			this.scene.currentPlayerIndex !== undefined && 
+			this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+			this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+			console.log('Blocked hand card interaction during bot turn');
+			return;
+		}
+		
 		if (this.scene.drawnCard) {
 			return; // Cannot select card after drawing
 		}

@@ -229,6 +229,8 @@ class TableManager {
 
 		cardSprite.baseY = currentY;
 		cardSprite.interactionOffsetY = 0;
+		cardSprite.cardData = card; // Reference to the card data
+		cardSprite.isTableCard = true; // Flag for controller system identification
 
 		// Initialize properties for drag detection
 		cardSprite.dragStartX = 0;
@@ -238,6 +240,14 @@ class TableManager {
 
 		// Add hover effects
 		cardSprite.on("pointerover", () => {
+			// Check if it's bot's turn in single player mode - prevent hover effects
+			if (this.scene.botPlayers && 
+				this.scene.currentPlayerIndex !== undefined && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+				return;
+			}
+			
 			if (!card.isDragging) {
 				// Only change scale, not Y position to preserve wave animation
 				this.scene.tweens.add({
@@ -251,6 +261,14 @@ class TableManager {
 		});
 
 		cardSprite.on("pointerout", () => {
+			// Check if it's bot's turn in single player mode - prevent hover effects
+			if (this.scene.botPlayers && 
+				this.scene.currentPlayerIndex !== undefined && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+				return;
+			}
+			
 			if (!card.isDragging) {
 				// Only reset scale, not Y position to preserve wave animation
 				this.scene.tweens.add({
@@ -275,6 +293,15 @@ class TableManager {
 
 		// Handle pointer down - start tracking for drag vs click
 		cardSprite.on("pointerdown", (pointer, localX, localY, event) => {
+			// Check if it's bot's turn in single player mode - prevent table card interactions
+			if (this.scene.botPlayers && 
+				this.scene.currentPlayerIndex !== undefined && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex] && 
+				this.scene.botPlayers[this.scene.currentPlayerIndex].isThinking) {
+				console.log('Blocked table card interaction during bot turn');
+				return;
+			}
+			
 			if (this.scene.drawnCard) {
 				return; // Cannot interact with cards after drawing
 			}
