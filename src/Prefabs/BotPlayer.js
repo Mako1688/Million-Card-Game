@@ -21,9 +21,8 @@ class BotPlayer {
 		this.isThinking = true;
 		this.turnAttempts = 0;
 		
-		setTimeout(() => {
-			this.disablePlayerInteractions();
-		}, 100);
+		// No need to disable interactions here as it's already done in completeTurnTransition
+		// when transitioning to bot turn
 		
 		this.showThinkingIndicator();
 		const thinkTime = this.calculateThinkingTime();

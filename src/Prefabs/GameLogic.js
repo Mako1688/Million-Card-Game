@@ -315,12 +315,21 @@ class GameLogic {
 		this.refreshDisplays();
 		this.scene.uiSystem.updateValidationBoxVisibility();
 		
-		// If it's now the bot's turn, let the bot play
-		if (this.scene.isSinglePlayer && this.scene.currentPlayerIndex === 1 && this.scene.botPlayer) {
-			// Give a small delay for visual clarity
-			setTimeout(() => {
-				this.scene.botPlayer.takeTurn();
-			}, 500);
+		// Check if it's now a bot's turn and handle accordingly
+		const isCurrentPlayerBot = (this.scene.isSinglePlayer && this.scene.currentPlayerIndex === 1 && this.scene.botPlayer) ||
+								   (this.scene.botPlayers && this.scene.botPlayers[this.scene.currentPlayerIndex]);
+		
+		if (isCurrentPlayerBot) {
+			// Immediately disable player interactions to prevent interference
+			const currentBot = this.scene.botPlayer || this.scene.botPlayers[this.scene.currentPlayerIndex];
+			if (currentBot) {
+				currentBot.disablePlayerInteractions();
+				
+				// Give a small delay for visual clarity
+				setTimeout(() => {
+					currentBot.takeTurn();
+				}, 500);
+			}
 		}
 	}
 
