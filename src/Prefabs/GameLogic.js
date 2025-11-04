@@ -46,6 +46,8 @@ class GameLogic {
 		// Track hand sizes and card identities at turn start for validation
 		this.playerHandSizesAtTurnStart = new Array(playerCount).fill(0);
 		this.playerHandCardsAtTurnStart = new Array(playerCount).fill(null).map(() => []);
+		// Track table cards at turn start for validation
+		this.tableCardsAtTurnStart = [];
 		// Maintain backwards compatibility
 		this.p1HandSizeAtTurnStart = 0;
 		this.p2HandSizeAtTurnStart = 0;
@@ -79,11 +81,18 @@ class GameLogic {
 		this.scene.cardsSelected = [];
 		this.scene.turnValid = false;
 		
-		// Track starting hand sizes for validation
+		// Track starting hand sizes and cards for validation
 		for (let i = 0; i < this.scene.playerCount; i++) {
 			this.playerHandSizesAtTurnStart[i] = this.scene.playerHands[i].length;
 			this.playerHandCardsAtTurnStart[i] = this.scene.playerHands[i].map(card => `${card.card.rank}_${card.card.suit}`);
 		}
+		
+		// Track starting table cards for validation
+		this.tableCardsAtTurnStart = [];
+		this.scene.tableCards.forEach(group => {
+			const groupCards = group.map(card => `${card.card.rank}_${card.card.suit}`);
+			this.tableCardsAtTurnStart.push(groupCards);
+		});
 		
 		// Maintain backwards compatibility
 		this.p1HandSizeAtTurnStart = this.scene.playerHands[0].length;
@@ -171,26 +180,33 @@ class GameLogic {
 
 	// Attempts to end the current turn based on game rules
 	endTurn() {
-		// Allow ending turn if either:
-		// 1. A card was drawn (and no cards were permanently placed)
-		// 2. Cards were placed on the table AND all table groups are valid
-		const canEndTurn = this.scene.drawnCard || 
-						  (this.scene.placedCards && this.scene.tableManager.checkTableValidity());
-		
-		// Additional check: ensure no table cards are left in hands
+		// Check if any table cards are still in hands (invalid state)
 		const tableCardsInHands = this.checkForTableCardsInHands();
+		
+		// Check if all table cards from start of turn are still on table
+		const tableIntegrity = this.checkTableCardsIntegrity();
+		
+		// Check if the player made a valid turn action
 		const validTurnAction = this.checkValidTurnAction();
+		
+		// Additional validation: ensure the table is valid
+		const tableValid = this.scene.tableManager.checkTableValidity();
 		
 		// Debug logging for validation
 		console.log('Turn validation checks:');
-		console.log('- canEndTurn:', canEndTurn);
-		console.log('  - drawnCard:', this.scene.drawnCard);
-		console.log('  - placedCards:', this.scene.placedCards);
-		console.log('  - tableValid:', this.scene.tableManager.checkTableValidity());
+		console.log('- drawnCard:', this.scene.drawnCard);
+		console.log('- placedCards:', this.scene.placedCards);
+		console.log('- tableValid:', tableValid);
 		console.log('- tableCardsInHands:', tableCardsInHands);
+		console.log('- tableIntegrity:', tableIntegrity);
 		console.log('- validTurnAction:', validTurnAction);
 		
-		if (canEndTurn && !tableCardsInHands && validTurnAction) {
+		// A turn is valid if:
+		// 1. No table cards are in hands, AND
+		// 2. All starting table cards are still on table, AND
+		// 3. Table is valid, AND
+		// 4. Player made a valid action (drew card OR reduced hand size)
+		if (!tableCardsInHands && tableIntegrity && tableValid && validTurnAction) {
 			console.log('Turn validation PASSED - ending turn');
 			this.clearHandSelectionTints();
 			this.clearTableCardFlags();
@@ -223,6 +239,34 @@ class GameLogic {
 		const uniqueProblematicCards = Array.from(new Set(allProblematicCards));
 		
 		return uniqueProblematicCards.length > 0;
+	}
+	
+	// Checks if all table cards from the start of the turn are still on the table
+	checkTableCardsIntegrity() {
+		if (!this.tableCardsAtTurnStart) {
+			return true; // No starting table cards to validate
+		}
+		
+		// Create a flat list of all current table cards
+		const currentTableCards = [];
+		this.scene.tableCards.forEach(group => {
+			group.forEach(card => {
+				currentTableCards.push(`${card.card.rank}_${card.card.suit}`);
+			});
+		});
+		
+		// Check if all starting table cards are still present
+		for (const startingGroup of this.tableCardsAtTurnStart) {
+			for (const cardId of startingGroup) {
+				if (!currentTableCards.includes(cardId)) {
+					console.log('checkTableCardsIntegrity: FALSE - missing card:', cardId);
+					return false;
+				}
+			}
+		}
+		
+		console.log('checkTableCardsIntegrity: TRUE - all starting table cards preserved');
+		return true;
 	}
 	
 	// Clears the mustReturnToTable flags from all cards
@@ -514,18 +558,6 @@ class GameLogic {
 
 	// Checks if the player has made a valid turn action (drew card or reduced hand size)
 	checkValidTurnAction() {
-		if (this.scene.drawnCard) {
-			console.log('checkValidTurnAction: TRUE (card was drawn)');
-			return true;
-		}
-		
-		// If cards were placed and the table is valid, consider it a valid turn
-		// This is especially important for bot moves that may have timing issues with hand tracking
-		if (this.scene.placedCards && this.scene.tableManager.checkTableValidity()) {
-			console.log('checkValidTurnAction: TRUE (cards placed and table valid)');
-			return true;
-		}
-		
 		const currentPlayerIndex = this.scene.currentPlayerIndex;
 		const currentHand = this.scene.playerHands[currentPlayerIndex];
 		const startingHandSize = this.playerHandSizesAtTurnStart[currentPlayerIndex];
@@ -537,22 +569,70 @@ class GameLogic {
 		console.log('- currentPlayerIndex:', currentPlayerIndex);
 		console.log('- currentHand.length:', currentHand.length);
 		console.log('- startingHandSize:', startingHandSize);
+		console.log('- drawnCard flag:', this.scene.drawnCard);
+		console.log('- placedCards flag:', this.scene.placedCards);
 		console.log('- currentHandCards:', currentHandCards);
 		console.log('- startingHandCards:', startingHandCards);
 		
-		if (currentHand.length >= startingHandSize) {
-			console.log('checkValidTurnAction: FALSE (hand size not reduced)');
+		// Valid turn action 1: Player drew a card from deck
+		if (this.scene.drawnCard) {
+			// If they drew a card, their hand should be exactly 1 card larger
+			// and contain all original cards plus the new one
+			if (currentHand.length === startingHandSize + 1) {
+				// Verify all starting cards are still present
+				let allStartingCardsPresent = true;
+				for (let cardId of startingHandCards) {
+					if (!currentHandCards.includes(cardId)) {
+						allStartingCardsPresent = false;
+						break;
+					}
+				}
+				
+				if (allStartingCardsPresent) {
+					console.log('checkValidTurnAction: TRUE (valid card draw)');
+					return true;
+				}
+			}
+			console.log('checkValidTurnAction: FALSE (invalid state after drawing)');
 			return false;
 		}
 		
-		for (let cardId of currentHandCards) {
-			if (!startingHandCards.includes(cardId)) {
-				console.log('checkValidTurnAction: FALSE (new card found:', cardId, ')');
+		// Valid turn action 2: Player reduced hand size (played cards to table)
+		if (currentHand.length < startingHandSize) {
+			// Verify no new cards were added (all current cards were in starting hand)
+			for (let cardId of currentHandCards) {
+				if (!startingHandCards.includes(cardId)) {
+					console.log('checkValidTurnAction: FALSE (new card found in hand:', cardId, ')');
+					return false;
+				}
+			}
+			
+			// Verify that cards were actually placed (not just discarded)
+			if (this.scene.placedCards) {
+				console.log('checkValidTurnAction: TRUE (valid hand reduction with cards placed)');
+				return true;
+			} else {
+				console.log('checkValidTurnAction: FALSE (hand reduced but no cards placed)');
 				return false;
 			}
 		}
 		
-		console.log('checkValidTurnAction: TRUE (valid hand reduction)');
-		return true;
+		// Valid turn action 3: Player maintained original hand state exactly
+		// This allows for situations where player took table cards and returned them
+		// In this case, they should be allowed to draw a card if they haven't already
+		if (currentHand.length === startingHandSize && !this.scene.drawnCard && !this.scene.placedCards) {
+			// Check if hand composition is exactly the same
+			const startingSet = new Set(startingHandCards);
+			const currentSet = new Set(currentHandCards);
+			
+			if (startingSet.size === currentSet.size && 
+				[...startingSet].every(card => currentSet.has(card))) {
+				console.log('checkValidTurnAction: TRUE (hand unchanged, eligible to draw card)');
+				return true;
+			}
+		}
+		
+		console.log('checkValidTurnAction: FALSE (no valid turn action detected)');
+		return false;
 	}
 }

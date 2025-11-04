@@ -70,29 +70,68 @@ class CardSystem {
 	}
 
 	canDrawCard() {
+		console.log('canDrawCard: Starting validation');
+		
+		// Only check deck availability and if a card was already drawn
 		if (this.scene.deck.length === 0 || 
 			this.scene.drawn || 
-			this.scene.drawnCard || 
-			this.scene.placedCards) {
+			this.scene.drawnCard) {
+			console.log('canDrawCard: FALSE - basic checks failed', {
+				deckLength: this.scene.deck.length,
+				drawn: this.scene.drawn,
+				drawnCard: this.scene.drawnCard
+			});
 			return false;
 		}
+		
 		const currentHand = this.scene.handManager.getCurrentHand();
 		
-		const hasTableCards = currentHand.some(card => 
-			card.mustReturnToTable ||
-			(card.originalPosition && card.originalPosition.type === "table") ||
-			(this.scene.gameLogic.cardsOnTableAtTurnStart && 
-			 this.scene.gameLogic.cardsOnTableAtTurnStart.includes(card))
-		);
-
-		if (hasTableCards) {
+		// Check if player can draw based on the same logic as turn validation
+		// Players can draw if their hand and table are in the original state
+		const currentPlayerIndex = this.scene.currentPlayerIndex;
+		const startingHandSize = this.scene.gameLogic.playerHandSizesAtTurnStart[currentPlayerIndex];
+		const startingHandCards = this.scene.gameLogic.playerHandCardsAtTurnStart[currentPlayerIndex];
+		
+		console.log('canDrawCard: Hand state check', {
+			currentHandSize: currentHand.length,
+			startingHandSize: startingHandSize
+		});
+		
+		// If hand size is different from start, can't draw
+		if (currentHand.length !== startingHandSize) {
+			console.log('canDrawCard: FALSE - hand size changed');
 			return false;
 		}
-
+		
+		// If hand composition is different from start, can't draw
+		const currentHandCards = currentHand.map(card => `${card.card.rank}_${card.card.suit}`);
+		const startingSet = new Set(startingHandCards);
+		const currentSet = new Set(currentHandCards);
+		
+		console.log('canDrawCard: Hand composition check', {
+			starting: [...startingSet],
+			current: [...currentSet]
+		});
+		
+		if (startingSet.size !== currentSet.size || 
+			![...startingSet].every(card => currentSet.has(card))) {
+			console.log('canDrawCard: FALSE - hand composition changed');
+			return false;
+		}
+		
+		// Check if table is valid
 		if (!this.scene.tableManager.checkTableValidity()) {
+			console.log('canDrawCard: FALSE - table invalid');
+			return false;
+		}
+		
+		// Check if all table cards from start of turn are still on table
+		if (!this.scene.gameLogic.checkTableCardsIntegrity()) {
+			console.log('canDrawCard: FALSE - table integrity failed');
 			return false;
 		}
 
+		console.log('canDrawCard: TRUE - all checks passed');
 		return true;
 	}
 
