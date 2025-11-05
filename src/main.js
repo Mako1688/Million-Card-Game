@@ -1,6 +1,6 @@
 "use strict";
 
-let config = {
+const config = {
 	type: Phaser.CANVAS,
 	width: 1688,
 	height: 780,
@@ -21,45 +21,35 @@ let config = {
 		autoCenter: Phaser.Scale.CENTER_BOTH,
 		mode: Phaser.Scale.FIT,
 		parent: 'game-container',
-		min: {
-			width: 800,
-			height: 600
-		},
-		max: {
-			width: 1920,
-			height: 1080
-		}
+		min: { width: 800, height: 600 },
+		max: { width: 1920, height: 1080 }
 	},
 	frameRate: 60,
 	physics: {
 		default: "arcade",
 		arcade: {
 			debug: false,
-			gravity: {
-				x: 0,
-				y: 0,
-			},
-		},
+			gravity: { x: 0, y: 0 }
+		}
 	},
-	input: {
-		gamepad: true, // Enable gamepad support
-	},
-	scene: [Load, Title, PlayerSelection, Play, Win, Settings, Credits, Tutorial],
+	input: { gamepad: true },
+	scene: [Load, Title, PlayerSelection, Play, Win, Settings, Credits, Tutorial]
 };
 
-let game = new Phaser.Game(config);
-
-const storedFullscreen = localStorage.getItem('gameSettings_fullscreen');
+const game = new Phaser.Game(config);
 
 document.addEventListener('keydown', function(event) {
-	if (event.key === 'Escape' && (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement)) {
+	if (event.key === 'Escape' && 
+		(document.fullscreenElement || 
+		 document.webkitFullscreenElement || 
+		 document.mozFullScreenElement || 
+		 document.msFullscreenElement)) {
 		event.preventDefault();
 		event.stopPropagation();
 	}
 });
 
-let { width, height } = game.config;
-
+const { width, height } = game.config;
 const centerX = game.config.width / 2;
 const centerY = game.config.height / 2;
 const w = game.config.width;

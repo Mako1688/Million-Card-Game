@@ -1,64 +1,64 @@
-// HandManager.js - Handles hand display, sorting, and interactions
-
 class HandManager {
 	constructor(scene) {
 		this.scene = scene;
-	}    // Displays the current player's hand with proper layout and effects
+	}
+
 	displayHand(newCard = null) {
 		const currentHand = this.getCurrentHand();
 		this.clearExistingHandSprites();
 		this.layoutHand(currentHand);
 
-		// Hide hand sprites if pause screen is active
 		if (this.scene.pauseScreenActive) {
 			this.hideHandSpritesForPauseScreen();
 		}
 
-		// If a new card was added, trigger poof effect at its position
 		if (newCard) {
-			// Find the sprite for the new card (it should be the last one in the hand)
-			const newCardIndex = currentHand.indexOf(newCard);
-			if (newCardIndex !== -1 && this.scene.handSelected && this.scene.handSelected[newCardIndex]) {
-				const cardSprite = this.scene.handSelected[newCardIndex];
-				// Trigger poof effect slightly above the card
-				this.scene.poofEffect(cardSprite.x, cardSprite.y - 50);
-			}
+			this.triggerNewCardEffect(newCard, currentHand);
 		}
 	}
 
-	// Arranges cards in the hand with proper spacing and positioning
+	triggerNewCardEffect(newCard, currentHand) {
+		const newCardIndex = currentHand.indexOf(newCard);
+		if (newCardIndex !== -1 && this.scene.handSelected?.[newCardIndex]) {
+			const cardSprite = this.scene.handSelected[newCardIndex];
+			this.scene.poofEffect(cardSprite.x, cardSprite.y - 50);
+		}
+	}
+
 	layoutHand(currentHand) {
 		const spacing = this.calculateCardSpacing(currentHand.length);
 		const startX = this.calculateStartX(currentHand.length, spacing);
 		this.createHandSprites(currentHand, startX, spacing);
 	}
 
-	// Returns the current player's hand array
 	getCurrentHand() {
-		// Use current player index if available, otherwise fall back to p1Turn logic
 		if (this.scene.currentPlayerIndex !== undefined) {
 			return this.scene.playerHands[this.scene.currentPlayerIndex];
 		}
 		return this.scene.p1Turn ? this.scene.p1Hand : this.scene.p2Hand;
 	}
 
-	// Removes all existing hand sprites and clears references
 	clearExistingHandSprites() {
+		this.destroyHandSprites();
+		this.cleanupCardSprites();
+	}
+
+	destroyHandSprites() {
 		if (this.scene.handSelected) {
 			this.scene.handSelected.forEach((sprite) => {
-				if (sprite && sprite.destroy && typeof sprite.destroy === 'function') {
-					// Clear any tweens that might be running on this sprite
+				if (sprite?.destroy && typeof sprite.destroy === 'function') {
 					this.scene.tweens.killTweensOf(sprite);
 					sprite.destroy();
 				}
 			});
 			this.scene.handSelected = [];
 		}
-		
-		// Also clear sprite references from the current hand cards and properly destroy them
+	}
+
+	cleanupCardSprites() {
 		const currentHand = this.getCurrentHand();
 		currentHand.forEach(card => {
-			if (card.sprite && card.sprite.destroy && typeof card.sprite.destroy === 'function') {
+			if (card.sprite?.destroy && typeof card.sprite.destroy === 'function') {
 				this.scene.tweens.killTweensOf(card.sprite);
 				card.sprite.destroy();
 				card.sprite = null;
@@ -66,28 +66,20 @@ class HandManager {
 		});
 	}
 
-	// Calculates optimal spacing between cards based on hand size and screen width
 	calculateCardSpacing(handLength) {
 		const baseSpacing = 60;
-		const minSpacing = 20; // Minimum spacing for tighter packing
-		
-		// Calculate available width considering UI elements on the sides
-		// Leave more space for UI elements (deck, buttons, etc.)
-		const uiSafeZone = 400; // Safe zone for UI elements on both sides
+		const minSpacing = 20;
+		const uiSafeZone = 400;
 		const maxWidth = this.scene.scale.width - uiSafeZone;
 		const requiredWidth = handLength * baseSpacing;
 
 		if (requiredWidth > maxWidth) {
-			// Calculate the spacing needed to fit all cards within safe zone
 			const calculatedSpacing = maxWidth / handLength;
-			
-			// Ensure we don't go below minimum spacing
 			return Math.max(minSpacing, calculatedSpacing);
 		}
 		return baseSpacing;
 	}
 
-	// Calculates the starting X position for centering the hand
 	calculateStartX(handLength, spacing) {
 		return (this.scene.scale.width - (handLength - 1) * spacing) / 2;
 	}

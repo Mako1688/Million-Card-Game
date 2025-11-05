@@ -935,28 +935,12 @@ class BotPlayer {
 				// temporarily adjust the tracking to reflect the valid move
 				if (this.scene.placedCards && currentHandSize < startingHandSize) {
 					// The hand size reduction is valid, ensure the validation passes
-					console.log('Bot: Valid move detected, ensuring turn validation passes');
 				}
 			}
 		}
 		
-		// Debug logging to help identify validation issues
-		console.log('Bot ending turn - Debug info:');
-		console.log('- placedCards:', this.scene.placedCards);
-		console.log('- drawnCard:', this.scene.drawnCard);
-		console.log('- turnValid:', this.scene.turnValid);
-		console.log('- current hand size:', this.getMyHand().length);
-		console.log('- starting hand size:', this.scene.gameLogic.playerHandSizesAtTurnStart[this.playerIndex]);
-		console.log('- table valid:', this.scene.tableManager.checkTableValidity());
-		
-		// Additional debug: check for problematic cards
-		const problematicCards = myHand.filter(card => 
-			card.mustReturnToTable || 
-			(card.originalPosition && card.originalPosition.type === "table")
-		);
-		console.log('- problematic cards in hand:', problematicCards.length);
-		
-		this.enablePlayerInteractions();
+		// Do not re-enable player interactions here - let the pause screen handle it
+		// when it's actually the player's turn
 		
 		setTimeout(() => {
 			this.scene.gameLogic.endTurn();

@@ -5,46 +5,57 @@ class TableManager {
 		this.scene = scene;
 	}
 
-	// Displays all card groups on the table with proper layout and positioning
 	displayTable() {
 		this.clearPreviousTableSprites();
-		
-		// Sort all groups before displaying to ensure proper order
+		this.sortAllGroups();
+		this.renderTableGroups();
+		this.updateInvalidGroupsIfNeeded();
+	}
+
+	sortAllGroups() {
 		this.scene.tableCards.forEach(group => {
 			if (group.length > 1) {
 				this.sortGroup(group);
 			}
 		});
-		
-		const { minX, minY, maxX, rowHeight, colWidth } = this.getTableDimensions();
+	}
 
+	renderTableGroups() {
 		this.scene.tableSprites = [];
 		this.scene.tableCards.forEach((group, groupIndex) => {
-			// Check if this group has custom positions (from dragging or previous placement)
-			const hasCustomPositions = group.some(card => card.customPosition);
-			
-			if (!hasCustomPositions) {
-				// For groups without custom positions, find an available position
-				const availablePosition = this.findAvailableGroupPosition(group.length);
-				this.displayTableGroup(group, groupIndex, availablePosition.x, availablePosition.y);
-				// Custom positions are now set within displayTableGroup method
-			} else {
-				// Preserve custom positions - just recreate sprites at their existing positions
+			if (this.hasCustomPositions(group)) {
 				this.displayTableGroupAtCustomPositions(group, groupIndex);
+			} else {
+				this.displayGroupAtAvailablePosition(group, groupIndex);
 			}
 		});
+	}
+
+	hasCustomPositions(group) {
+		return group.some(card => card.customPosition);
+	}
+
+	displayGroupAtAvailablePosition(group, groupIndex) {
+		const availablePosition = this.findAvailableGroupPosition(group.length);
+		this.displayTableGroup(group, groupIndex, availablePosition.x, availablePosition.y);
+	}
+
+	updateInvalidGroupsIfNeeded() {
+		const shouldUpdate = !this.scene.resetPressed && 
+						   !this.scene.gameLogic?.isProcessingMove && 
+						   !this.scene.drawnCard;
 		
-		// Only check for invalid groups when not in middle of operations that might cause temporary invalid states
-		// This prevents inappropriate flashing during card moves, resets, or other temporary operations
-		if (!this.scene.resetPressed && 
-			!this.scene.gameLogic?.isProcessingMove && 
-			!this.scene.drawnCard) {
+		if (shouldUpdate) {
 			this.updateInvalidGroupStates();
 		}
 	}
 
-	// Removes all existing table sprites and clears references
 	clearPreviousTableSprites() {
+		this.destroyExistingSprites();
+		this.resetCardStates();
+	}
+
+	destroyExistingSprites() {
 		if (this.scene.tableSprites) {
 			this.scene.tableSprites.forEach((sprite) => {
 				if (sprite) {
@@ -54,38 +65,35 @@ class TableManager {
 			});
 			this.scene.tableSprites = [];
 		}
-		
-		// Also clear sprite references and reset state from all table cards
+	}
+
+	resetCardStates() {
 		this.scene.tableCards.forEach(group => {
 			group.forEach(card => {
 				if (card.sprite) {
-					// Stop any flashing effects
 					this.stopGroupFlash(card);
 					card.sprite = null;
 				}
-				card.isDragging = false; // Reset drag state
+				card.isDragging = false;
 			});
 		});
 	}
 
-	// Returns the dimensions and boundaries for table layout
 	getTableDimensions() {
-		const minX = 50;
-		const minY = 150;
-		const maxX = this.scene.scale.width - 150; // More room for dragging
-		const maxY = this.scene.scale.height - 250; // More room above hand
-		const rowHeight = 120;
-		const colWidth = 60;
-		return { minX, minY, maxX, maxY, rowHeight, colWidth };
+		return {
+			minX: 50,
+			minY: 150,
+			maxX: this.scene.scale.width - 150,
+			maxY: this.scene.scale.height - 250,
+			rowHeight: 120,
+			colWidth: 60
+		};
 	}
 
-	// Returns drag boundaries for individual cards to prevent off-screen dragging
 	getDragBoundaries() {
-		// Allow dragging anywhere on screen with appropriate borders
-		// This ensures no part of the card sprites pass the border
 		const BORDER_SIZE = 20;
-		const CARD_WIDTH = 60 * 2; // Card width * scale
-		const CARD_HEIGHT = 92 * 2; // Card height * scale
+		const CARD_WIDTH = 60 * 2;
+		const CARD_HEIGHT = 92 * 2;
 		
 		return {
 			minX: BORDER_SIZE,

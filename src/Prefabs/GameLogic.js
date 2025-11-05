@@ -3,52 +3,53 @@
 class GameLogic {
 	constructor(scene) {
 		this.scene = scene;
+		this.isProcessingMove = false;
 	}
 
-	// Initializes all game state variables at the start of the game
 	initializeVariables(playerCount = 2) {
-		this.scene.playerCount = playerCount; // Set player count
-		this.scene.currentPlayerIndex = 0; // 0-based index for current player
-		this.scene.handSelected = [];
-		this.scene.borderUISize = -25;
+		this.initializePlayerData(playerCount);
+		this.initializeTurnData();
+		this.initializeGameState();
+		this.initializeValidationData(playerCount);
+	}
+
+	initializePlayerData(playerCount) {
+		this.scene.playerCount = playerCount;
+		this.scene.currentPlayerIndex = 0;
+		this.scene.playerHands = [];
+		this.scene.playerActualHandLengths = new Array(playerCount).fill(0);
+		
+		for (let i = 0; i < playerCount; i++) {
+			this.scene.playerHands[i] = [];
+			this.scene[`p${i + 1}Hand`] = this.scene.playerHands[i];
+		}
+		
+		this.scene.p1ActualHandLength = 0;
+		this.scene.p2ActualHandLength = 0;
+	}
+
+	initializeTurnData() {
+		this.scene.p1Turn = true;
+		this.scene.p2Turn = false;
 		this.scene.turnValid = false;
 		this.scene.drawn = false;
 		this.scene.drawnCard = false;
 		this.scene.placedCards = false;
 		this.scene.resetPressed = false;
+	}
+
+	initializeGameState() {
+		this.scene.handSelected = [];
+		this.scene.borderUISize = -25;
 		this.scene.cardsSelected = [];
 		this.scene.tableCards = [];
-		
-		// Initialize hands for all players
-		this.scene.playerHands = [];
-		for (let i = 0; i < playerCount; i++) {
-			this.scene.playerHands[i] = [];
-			// Also create individual hand references for backwards compatibility
-			this.scene[`p${i + 1}Hand`] = this.scene.playerHands[i];
-		}
-		
-		// Maintain backwards compatibility for 2-player game logic
-		this.scene.p1Turn = true;
-		this.scene.p2Turn = false;
-		
-		// UI state flags
 		this.scene.invalidTurnActive = false;
-		
-		// Track actual hand lengths for win condition (updated only when turn completes)
-		this.scene.playerActualHandLengths = new Array(playerCount).fill(0);
-		// Maintain backwards compatibility
-		this.scene.p1ActualHandLength = 0; 
-		this.scene.p2ActualHandLength = 0;
-		
-		// Flag to track when moves are being processed to prevent inappropriate flashing
-		this.isProcessingMove = false;
-		
-		// Track hand sizes and card identities at turn start for validation
+	}
+
+	initializeValidationData(playerCount) {
 		this.playerHandSizesAtTurnStart = new Array(playerCount).fill(0);
 		this.playerHandCardsAtTurnStart = new Array(playerCount).fill(null).map(() => []);
-		// Track table cards at turn start for validation
 		this.tableCardsAtTurnStart = [];
-		// Maintain backwards compatibility
 		this.p1HandSizeAtTurnStart = 0;
 		this.p2HandSizeAtTurnStart = 0;
 		this.p1HandCardsAtTurnStart = [];
@@ -56,15 +57,20 @@ class GameLogic {
 	}
 
 	updateOriginalPositions() {
-		// Update original positions for all players' hands
+		this.updatePlayerHandPositions();
+		this.updateTableCardPositions();
+	}
+
+	updatePlayerHandPositions() {
 		for (let playerIndex = 0; playerIndex < this.scene.playerCount; playerIndex++) {
 			const hand = this.scene.playerHands[playerIndex];
 			hand.forEach((card, index) => {
 				card.originalPosition = { type: "hand", player: playerIndex + 1, index };
 			});
 		}
-		
-		// Update original positions for table cards
+	}
+
+	updateTableCardPositions() {
 		this.scene.tableCards.forEach((group, groupIndex) => {
 			group.forEach((card, cardIndex) => {
 				card.originalPosition = { type: "table", groupIndex, cardIndex };
@@ -72,39 +78,53 @@ class GameLogic {
 		});
 	}
 
-	// Resets turn-specific flags when starting a new turn
 	startNewTurn() {
+		this.resetTurnFlags();
+		this.captureInitialState();
+		this.flagTableCardsForTurn();
+		this.clearHandSelectionTints();
+	}
+
+	resetTurnFlags() {
 		this.scene.drawn = false;
 		this.scene.drawnCard = false;
 		this.scene.placedCards = false;
 		this.scene.resetPressed = false;
 		this.scene.cardsSelected = [];
 		this.scene.turnValid = false;
-		
-		// Track starting hand sizes and cards for validation
+	}
+
+	captureInitialState() {
+		this.captureHandStates();
+		this.captureTableState();
+		this.maintainBackwardsCompatibility();
+	}
+
+	captureHandStates() {
 		for (let i = 0; i < this.scene.playerCount; i++) {
 			this.playerHandSizesAtTurnStart[i] = this.scene.playerHands[i].length;
-			this.playerHandCardsAtTurnStart[i] = this.scene.playerHands[i].map(card => `${card.card.rank}_${card.card.suit}`);
+			this.playerHandCardsAtTurnStart[i] = this.scene.playerHands[i]
+				.map(card => `${card.card.rank}_${card.card.suit}`);
 		}
-		
-		// Track starting table cards for validation
+	}
+
+	captureTableState() {
 		this.tableCardsAtTurnStart = [];
 		this.scene.tableCards.forEach(group => {
 			const groupCards = group.map(card => `${card.card.rank}_${card.card.suit}`);
 			this.tableCardsAtTurnStart.push(groupCards);
 		});
-		
-		// Maintain backwards compatibility
+	}
+
+	maintainBackwardsCompatibility() {
 		this.p1HandSizeAtTurnStart = this.scene.playerHands[0].length;
-		this.p2HandSizeAtTurnStart = this.scene.playerHands[1] ? this.scene.playerHands[1].length : 0;
-		this.p1HandCardsAtTurnStart = this.scene.playerHands[0].map(card => `${card.card.rank}_${card.card.suit}`);
-		this.p2HandCardsAtTurnStart = this.scene.playerHands[1] ? this.scene.playerHands[1].map(card => `${card.card.rank}_${card.card.suit}`) : [];
-		
-		this.flagTableCardsForTurn();
-		this.clearHandSelectionTints();
+		this.p2HandSizeAtTurnStart = this.scene.playerHands[1]?.length || 0;
+		this.p1HandCardsAtTurnStart = this.scene.playerHands[0]
+			.map(card => `${card.card.rank}_${card.card.suit}`);
+		this.p2HandCardsAtTurnStart = this.scene.playerHands[1]
+			?.map(card => `${card.card.rank}_${card.card.suit}`) || [];
 	}
 	
-	// Flags all cards currently on the table as needing to return to the table by turn end
 	flagTableCardsForTurn() {
 		this.scene.tableCards.forEach(group => {
 			group.forEach(card => {
@@ -113,34 +133,33 @@ class GameLogic {
 		});
 	}
 
-	// Checks if any player has won by emptying their hand
 	checkWinCondition() {
-		// During a reset operation, don't check win conditions at all
-		if (this.scene.resetPressed) {
-			return; // Skip win check during reset
-		}
+		if (this.shouldSkipWinCheck()) return;
 		
-		// Don't check win conditions if the game hasn't started (no cards dealt yet)
-		const totalActualHandLength = this.scene.playerActualHandLengths.reduce((sum, length) => sum + length, 0);
-		if (totalActualHandLength === 0) {
-			return;
-		}
-		
-		// Check each player for win condition
 		for (let i = 0; i < this.scene.playerCount; i++) {
-			const playerHand = this.scene.playerHands[i];
-			const actualEmpty = playerHand.length === 0;
-			const trackedEmpty = this.scene.playerActualHandLengths[i] === 0;
-			
-			// Only trigger win if both tracked and actual agree (this prevents false wins)
-			if (actualEmpty && trackedEmpty) {
+			if (this.isPlayerWinner(i)) {
 				this.handleWin(i + 1);
 				return;
 			}
 		}
 	}
 
-	// Handles the win condition by transitioning to the win scene
+	shouldSkipWinCheck() {
+		if (this.scene.resetPressed) return true;
+		
+		const totalActualHandLength = this.scene.playerActualHandLengths
+			.reduce((sum, length) => sum + length, 0);
+		return totalActualHandLength === 0;
+	}
+
+	isPlayerWinner(playerIndex) {
+		const playerHand = this.scene.playerHands[playerIndex];
+		const actualEmpty = playerHand.length === 0;
+		const trackedEmpty = this.scene.playerActualHandLengths[playerIndex] === 0;
+		
+		return actualEmpty && trackedEmpty;
+	}
+
 	handleWin(winningPlayer) {
 		this.scene.scene.start("winScene", { 
 			winningPlayer: winningPlayer,
@@ -149,79 +168,57 @@ class GameLogic {
 		});
 	}
 
-	// Handles successful card placement from hand to table
 	handleValidPlay() {
 		const currentHand = this.scene.handManager.getCurrentHand();
 		this.scene.tableManager.moveSelectedCardsToTable(currentHand);
 		this.scene.refreshDisplays();
 		this.scene.resetSelectedCards();
 		this.scene.markTurnAsValid();
-		
-		// Don't update tracked hand lengths here - only update when turn actually ends
-		// This allows for proper reset functionality
 	}
 
-	// Refreshes both hand and table displays
 	refreshDisplays() {
 		this.scene.handManager.displayHand();
 		this.scene.tableManager.displayTable();
 	}
 
-	// Clears the selected cards array and updates UI
 	resetSelectedCards() {
 		this.scene.cardsSelected = [];
 		this.scene.uiSystem.updateValidationBoxVisibility();
 	}
 
-	// Marks the current turn as having valid moves
 	markTurnAsValid() {
 		this.scene.turnValid = true;
 	}
 
-	// Attempts to end the current turn based on game rules
 	endTurn() {
-		// Check if any table cards are still in hands (invalid state)
-		const tableCardsInHands = this.checkForTableCardsInHands();
+		const validationResult = this.validateTurnEnd();
 		
-		// Check if all table cards from start of turn are still on table
-		const tableIntegrity = this.checkTableCardsIntegrity();
-		
-		// Check if the player made a valid turn action
-		const validTurnAction = this.checkValidTurnAction();
-		
-		// Additional validation: ensure the table is valid
-		const tableValid = this.scene.tableManager.checkTableValidity();
-		
-		// Debug logging for validation
-		console.log('Turn validation checks:');
-		console.log('- drawnCard:', this.scene.drawnCard);
-		console.log('- placedCards:', this.scene.placedCards);
-		console.log('- tableValid:', tableValid);
-		console.log('- tableCardsInHands:', tableCardsInHands);
-		console.log('- tableIntegrity:', tableIntegrity);
-		console.log('- validTurnAction:', validTurnAction);
-		
-		// A turn is valid if:
-		// 1. No table cards are in hands, AND
-		// 2. All starting table cards are still on table, AND
-		// 3. Table is valid, AND
-		// 4. Player made a valid action (drew card OR reduced hand size)
-		if (!tableCardsInHands && tableIntegrity && tableValid && validTurnAction) {
-			console.log('Turn validation PASSED - ending turn');
-			this.clearHandSelectionTints();
-			this.clearTableCardFlags();
-			
-			this.p1HandCardsAtTurnStart = [];
-			this.p2HandCardsAtTurnStart = [];
-			
-			this.updateOriginalPositions();
-			this.updateActualHandLengths();
-			
-			this.scene.showPauseScreen();
+		if (validationResult.isValid) {
+			this.completeTurnEnd();
 		} else {
-			console.log('Turn validation FAILED - showing invalid turn notification');
 			this.scene.showInvalidTurnNotification();
 		}
+	}
+
+	validateTurnEnd() {
+		const tableCardsInHands = this.checkForTableCardsInHands();
+		const tableIntegrity = this.checkTableCardsIntegrity();
+		const validTurnAction = this.checkValidTurnAction();
+		const tableValid = this.scene.tableManager.checkTableValidity();
+		
+		const isValid = !tableCardsInHands && tableIntegrity && tableValid && validTurnAction;
+		
+		return { isValid, tableCardsInHands, tableIntegrity, validTurnAction, tableValid };
+	}
+
+	completeTurnEnd() {
+		this.clearHandSelectionTints();
+		this.clearTableCardFlags();
+		this.p1HandCardsAtTurnStart = [];
+		this.p2HandCardsAtTurnStart = [];
+		this.updateOriginalPositions();
+		this.updateActualHandLengths();
+		this.scene.showPauseScreen();
 	}
 	
 	checkForTableCardsInHands() {
@@ -241,37 +238,40 @@ class GameLogic {
 		return uniqueProblematicCards.length > 0;
 	}
 	
-	// Checks if all table cards from the start of the turn are still on the table
 	checkTableCardsIntegrity() {
-		if (!this.tableCardsAtTurnStart) {
-			return true; // No starting table cards to validate
-		}
+		if (!this.tableCardsAtTurnStart) return true;
 		
-		// Create a flat list of all current table cards
+		const currentTableCards = this.getAllCurrentTableCards();
+		return this.areAllStartingCardsPresent(currentTableCards);
+	}
+
+	getAllCurrentTableCards() {
 		const currentTableCards = [];
 		this.scene.tableCards.forEach(group => {
 			group.forEach(card => {
 				currentTableCards.push(`${card.card.rank}_${card.card.suit}`);
 			});
 		});
-		
-		// Check if all starting table cards are still present
+		return currentTableCards;
+	}
+
+	areAllStartingCardsPresent(currentTableCards) {
 		for (const startingGroup of this.tableCardsAtTurnStart) {
 			for (const cardId of startingGroup) {
 				if (!currentTableCards.includes(cardId)) {
-					console.log('checkTableCardsIntegrity: FALSE - missing card:', cardId);
 					return false;
 				}
 			}
 		}
-		
-		console.log('checkTableCardsIntegrity: TRUE - all starting table cards preserved');
 		return true;
 	}
 	
-	// Clears the mustReturnToTable flags from all cards
 	clearTableCardFlags() {
-		// Clear flags from all players' hand cards
+		this.clearHandCardFlags();
+		this.clearTableCardFlagsFromTable();
+	}
+
+	clearHandCardFlags() {
 		const allHandCards = [];
 		for (let i = 0; i < this.scene.playerCount; i++) {
 			allHandCards.push(...this.scene.playerHands[i]);
@@ -279,8 +279,9 @@ class GameLogic {
 		allHandCards.forEach(card => {
 			delete card.mustReturnToTable;
 		});
-		
-		// Clear flags from table cards
+	}
+
+	clearTableCardFlagsFromTable() {
 		this.scene.tableCards.forEach(group => {
 			group.forEach(card => {
 				delete card.mustReturnToTable;

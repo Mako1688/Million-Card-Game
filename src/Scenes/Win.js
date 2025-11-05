@@ -1,54 +1,37 @@
-// Win.js - Displays the winner and handles game completion
-
 class Win extends Phaser.Scene {
 	constructor() {
 		super("winScene");
 	}
 
-	// Receives data about which player won
 	init(data) {
 		this.winningPlayer = data.winningPlayer || (data.p1Win ? 1 : 2);
-		this.p1Win = data.p1Win; // Maintain backwards compatibility
+		this.p1Win = data.p1Win;
 		this.isSinglePlayer = data.isSinglePlayer || false;
 	}
 
 	preload() { }
 
-	// Creates the win screen display
 	create() {
-		// Initialize audio system
 		this.audioSystem = new AudioSystem(this);
-		// Initialize controller system
 		this.controllerSystem = new ControllerSystem(this);
 		
-		// Add background
 		this.add.sprite(0, 0, "play_background", 0).setOrigin(0, 0);
+		
+		this.createWinnerDisplay();
+		this.createActionButtons();
+	}
 
-		// Determine winner text
-		let winnerText = `Player ${this.winningPlayer} Wins!`;
-		let congratsText = "Congratulations!";
+	createWinnerDisplay() {
+		const { winnerText, congratsText } = this.getWinnerTexts();
 		
-		// In single player mode, use more descriptive text
-		if (this.isSinglePlayer) {
-			if (this.winningPlayer === 1) {
-				winnerText = "You Win!";
-				congratsText = "Well played!";
-			} else {
-				winnerText = "Bot Wins!";
-				congratsText = "Better luck next time!";
-			}
-		}
-		
-		// Display winner text
 		this.add.text(centerX, centerY - 100, winnerText, {
 			fontFamily: 'PressStart2P',
 			fontSize: '48px',
-			color: '#FFD700', // Gold color for winner
+			color: '#FFD700',
 			stroke: '#000000',
 			strokeThickness: 4
 		}).setOrigin(0.5);
 
-		// Add congratulations text
 		this.add.text(centerX, centerY - 40, congratsText, {
 			fontFamily: 'PressStart2P',
 			fontSize: '24px',
@@ -56,8 +39,26 @@ class Win extends Phaser.Scene {
 			stroke: '#000000',
 			strokeThickness: 2
 		}).setOrigin(0.5);
+	}
 
-		// Create play again button
+	getWinnerTexts() {
+		if (this.isSinglePlayer) {
+			return this.winningPlayer === 1 
+				? { winnerText: "You Win!", congratsText: "Well played!" }
+				: { winnerText: "Bot Wins!", congratsText: "Better luck next time!" };
+		}
+		return { 
+			winnerText: `Player ${this.winningPlayer} Wins!`, 
+			congratsText: "Congratulations!" 
+		};
+	}
+
+	createActionButtons() {
+		this.createPlayAgainButton();
+		this.createMainMenuButton();
+	}
+
+	createPlayAgainButton() {
 		const playAgainButton = this.add.text(centerX, centerY + 60, "Play Again", {
 			fontFamily: 'PressStart2P',
 			fontSize: '32px',
@@ -66,24 +67,14 @@ class Win extends Phaser.Scene {
 			strokeThickness: 3,
 			backgroundColor: '#4CAF50',
 			padding: { x: 20, y: 10 }
-		}).setOrigin(0.5);
+		}).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-		// Make button interactive
-		playAgainButton.setInteractive({ useHandCursor: true })
-			.on('pointerover', () => {
-				playAgainButton.setStyle({ backgroundColor: '#45a049' });
-			})
-			.on('pointerout', () => {
-				playAgainButton.setStyle({ backgroundColor: '#4CAF50' });
-			})
-			.on('pointerdown', () => {
-				if (this.audioSystem) {
-					this.audioSystem.playMenuButton();
-				}
-				this.scene.start("playerSelectionScene");
-			});
+		this.addButtonBehavior(playAgainButton, '#45a049', '#4CAF50', () => {
+			this.scene.start("playerSelectionScene");
+		});
+	}
 
-		// Add return to title button
+	createMainMenuButton() {
 		const titleButton = this.add.text(centerX, centerY + 140, "Main Menu", {
 			fontFamily: 'PressStart2P',
 			fontSize: '24px',
@@ -92,22 +83,28 @@ class Win extends Phaser.Scene {
 			strokeThickness: 2,
 			backgroundColor: '#2196F3',
 			padding: { x: 15, y: 8 }
-		}).setOrigin(0.5);
+		}).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-		// Make title button interactive
-		titleButton.setInteractive({ useHandCursor: true })
-			.on('pointerover', () => {
-				titleButton.setStyle({ backgroundColor: '#1976D2' });
-			})
-			.on('pointerout', () => {
-				titleButton.setStyle({ backgroundColor: '#2196F3' });
-			})
-			.on('pointerdown', () => {
-				if (this.audioSystem) {
-					this.audioSystem.playMenuButton();
-				}
-				this.scene.start("titleScene");
-			});
+		this.addButtonBehavior(titleButton, '#1976D2', '#2196F3', () => {
+			this.scene.start("titleScene");
+		});
+	}
+
+	addButtonBehavior(button, hoverColor, normalColor, action) {
+		button.on('pointerover', () => {
+			button.setStyle({ backgroundColor: hoverColor });
+		});
+
+		button.on('pointerout', () => {
+			button.setStyle({ backgroundColor: normalColor });
+		});
+
+		button.on('pointerdown', () => {
+			if (this.audioSystem) {
+				this.audioSystem.playMenuButton();
+			}
+			action();
+		});
 	}
 
 	update() { 
