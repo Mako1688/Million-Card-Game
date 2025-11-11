@@ -7,6 +7,7 @@
 		"start": "electron .",
 		"build": "electron-builder",
 		"build-win": "electron-builder --win",
+		"build-win-steam": "electron-builder --win --x64 --dir",
 		"build-mac": "electron-builder --mac",
 		"build-linux": "electron-builder --linux",
 		"dist": "electron-builder --publish=never"
@@ -22,29 +23,53 @@
 		"appId": "com.millioncardgame.app",
 		"productName": "Million Card Game",
 		"directories": {
-			"output": "dist"
+			"output": "dist",
+			"buildResources": "build"
 		},
 		"files": [
 			"**/*",
 			"!node_modules",
 			"!dist",
-			"!electron/build"
+			"!electron/build",
+			"!.git",
+			"!*.md"
+		],
+		"extraResources": [
+			{
+				"from": "node_modules/electron/dist",
+				"to": ".",
+				"filter": ["**/*"]
+			}
 		],
 		"win": {
-			"target": "nsis",
-			"icon": "assets/icon.ico"
+			"target": [
+				{
+					"target": "dir",
+					"arch": ["x64"]
+				}
+			],
+			"icon": "assets/icon.ico",
+			"asar": true,
+			"asarUnpack": [
+				"**/*.node",
+				"**/*.dll"
+			]
 		},
 		"mac": {
 			"target": "dmg",
-			"icon": "assets/icon.icns"
+			"icon": "assets/icon.icns",
+			"category": "public.app-category.games"
 		},
 		"linux": {
 			"target": "AppImage",
-			"icon": "assets/icon.png"
+			"icon": "assets/icon.png",
+			"category": "Game"
 		},
 		"nsis": {
 			"oneClick": false,
-			"allowToChangeInstallationDirectory": true
+			"allowToChangeInstallationDirectory": true,
+			"createDesktopShortcut": true,
+			"createStartMenuShortcut": true
 		}
 	}
 }

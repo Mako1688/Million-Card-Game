@@ -1,0 +1,38 @@
+"AppBuild"
+{
+	// Replace with your actual App ID from Steam Partner
+	"AppID" "4082300"
+	
+	// Description for this build
+	"Desc" "Million Card Game - Production Build"
+	
+	// Output directory for build logs
+	"BuildOutput" "steam_builds\\"
+	
+	// Root directory of your game files
+	"ContentRoot" "dist\\win-unpacked\\"
+	
+	// Set live on default branch after upload
+	"SetLive" "default"
+	
+	// Preview mode - set to 1 for testing, 0 for actual upload
+	"Preview" "0"
+	
+	// Depots included in this build
+	"Depots"
+	{
+		// Replace with your actual Windows depot ID
+		"4082301"
+		{
+			"FileMapping"
+			{
+				"LocalPath" "*"
+				"DepotPath" "."
+				"Recursive" "1"
+			}
+			
+			// Exclude unnecessary files
+			"FileExclusion" "*.pdb"
+		}
+	}
+}
