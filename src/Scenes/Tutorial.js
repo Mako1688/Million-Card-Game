@@ -42,9 +42,9 @@ class Tutorial extends Phaser.Scene {
 			"You placed a valid group of cards! All cards on the table need to be apart of a valid group for you to be able to end your turn.",
 			"Draw again since you have no valid groups in your hand.",
 			"You have a valid run of cards which is valid to play as well as sandwiches.",
-			"During your turn you can take cards from existing groups on the table. Click the 9 of diamonds from the group to take it to your hand.",
+			"During your turn you can take cards from existing groups on the table. Click the 9 of Hearts from the group to take it to your hand.",
 			"Now play your 7-8-9 of hearts as a run. Select all three cards and click play.",
-			"Finally, place your last remaining card (9 of clubs) into the existing group to make it valid again. Click on one of the remaining 9s on the table.",
+			"Finally, place your last remaining card (9 of spades) into the existing group to make it valid again. Click on one of the remaining 9s on the table.",
 			"Congratulations, you have completed the tutorial! Click anywhere to return to the main menu."
 		];
 		
