@@ -10,6 +10,7 @@
 		"build-win-steam": "electron-builder --win --x64 --dir",
 		"build-mac": "electron-builder --mac",
 		"build-linux": "electron-builder --linux",
+		"build-linux-steam": "electron-builder --linux --x64 --dir",
 		"dist": "electron-builder --publish=never"
 	},
 	"keywords": ["game", "cards", "phaser"],

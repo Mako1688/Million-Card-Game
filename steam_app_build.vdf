@@ -7,13 +7,13 @@
 	"Desc" "Million Card Game - Production Build"
 	
 	// Output directory for build logs
-	"BuildOutput" "steam_builds\\"
+	"BuildOutput" "steam_builds/"
 	
 	// Root directory of your game files
-	"ContentRoot" "dist\\win-unpacked\\"
+	"ContentRoot" "dist/win-unpacked/"
 	
-	// Set live on default branch after upload
-	"SetLive" "default"
+	// Set live manually from Steamworks partner dashboard after upload
+	// "SetLive" "default"
 	
 	// Preview mode - set to 1 for testing, 0 for actual upload
 	"Preview" "0"
