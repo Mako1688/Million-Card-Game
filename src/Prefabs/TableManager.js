@@ -86,7 +86,7 @@ class TableManager {
 			maxX: this.scene.scale.width - 150,
 			maxY: this.scene.scale.height - 250,
 			rowHeight: 120,
-			colWidth: 60
+			colWidth: 35
 		};
 	}
 
@@ -108,7 +108,7 @@ class TableManager {
 		const BORDER_SIZE = 20;
 		const CARD_WIDTH = 120; // Card width at scale 2
 		const CARD_HEIGHT = 184; // Card height at scale 2
-		const CARD_SPACING = 60; // Standard spacing between cards in a group
+		const CARD_SPACING = 35; // Standard spacing between cards in a group
 		
 		// Calculate total width needed for the group
 		const totalGroupWidth = CARD_WIDTH + (group.length - 1) * CARD_SPACING;
@@ -366,7 +366,7 @@ class TableManager {
 		// If in drag mode, move the entire group
 		if (cardSprite.isDragMode) {
 			const groupBoundaries = this.getGroupDragBoundaries(group);
-			const CARD_SPACING = 60; // Maintain consistent spacing between cards
+			const CARD_SPACING = 35; // Maintain consistent spacing between cards
 			
 			// Calculate the new position for the first card (leftmost)
 			let newX = groupStartPositions[0].x + deltaX;
@@ -956,7 +956,7 @@ class TableManager {
 		this.sortGroup(group);
 		const currentX = group[0].sprite.x;
 		const currentY = group[0].sprite.y;
-		const cardWidth = 50;
+		const cardWidth = 35;
 		this.setGroupCardPositions(group, currentX, currentY, cardWidth);
 	}
 
@@ -1098,7 +1098,7 @@ class TableManager {
 	}
 
 	// Sets positions for all cards in a group with proper spacing and depth
-	setGroupCardPositions(group, startX, startY, cardWidth = 60) {
+	setGroupCardPositions(group, startX, startY, cardWidth = 35) {
 		group.forEach((card, index) => {
 			if (card.sprite) {
 				const targetX = startX + index * cardWidth;
