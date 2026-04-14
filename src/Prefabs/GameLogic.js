@@ -196,8 +196,166 @@ class GameLogic {
 		if (validationResult.isValid) {
 			this.completeTurnEnd();
 		} else {
-			this.scene.showInvalidTurnNotification();
+			// Check if this is a bot's turn - bots need fallback recovery
+			const currentBot = this.getCurrentBot();
+			if (currentBot) {
+				console.warn('Bot turn failed validation:', validationResult);
+				this.handleInvalidBotTurn(currentBot, validationResult);
+			} else {
+				this.scene.showInvalidTurnNotification();
+			}
 		}
+	}
+
+	// Returns the bot object if the current player is a bot, null otherwise
+	getCurrentBot() {
+		const idx = this.scene.currentPlayerIndex;
+		if (this.scene.isSinglePlayer && idx === 1 && this.scene.botPlayer) {
+			return this.scene.botPlayer;
+		}
+		if (this.scene.botPlayers && this.scene.botPlayers[idx]) {
+			return this.scene.botPlayers[idx];
+		}
+		return null;
+	}
+
+	// Fallback recovery when a bot produces an invalid turn
+	handleInvalidBotTurn(bot, validationResult) {
+		console.warn('Bot invalid turn - attempting recovery. Details:', validationResult);
+		
+		const myHand = bot.getMyHand();
+		
+		// Step 1: Return any stranded table cards from bot's hand back to the table
+		if (validationResult.tableCardsInHands || !validationResult.tableIntegrity) {
+			this.returnStrandedTableCardsForBot(bot);
+		}
+		
+		// Step 2: Fix any invalid table groups by restoring to turn-start state
+		if (!validationResult.tableIntegrity || !validationResult.tableValid) {
+			this.restoreTableToTurnStart();
+		}
+		
+		// Step 3: Reset turn flags so draw is possible
+		this.scene.placedCards = false;
+		this.scene.turnValid = false;
+		this.scene.drawnCard = false;
+		this.scene.drawn = false;
+		
+		// Step 4: Restore hand tracking to match current state
+		const currentPlayerIndex = this.scene.currentPlayerIndex;
+		this.playerHandSizesAtTurnStart[currentPlayerIndex] = myHand.length;
+		this.playerHandCardsAtTurnStart[currentPlayerIndex] = myHand.map(
+			card => `${card.card.rank}_${card.card.suit}`
+		);
+		
+		// Step 5: Try to draw a card as fallback action
+		if (this.scene.cardSystem.hasCardsInDeck()) {
+			const newCard = this.scene.deck.pop();
+			newCard.originalPosition = { type: "hand", player: bot.playerNumber };
+			myHand.push(newCard);
+			this.scene.drawnCard = true;
+			this.scene.drawn = true;
+			console.log('Bot fallback: drew a card');
+		} else {
+			// No cards to draw - just pass the turn
+			console.log('Bot fallback: no cards to draw, passing turn');
+		}
+		
+		// Step 6: Force update displays
+		if (this.scene.handManager) {
+			this.scene.handManager.displayHand();
+		}
+		this.scene.tableManager.displayTable();
+		
+		// Step 7: Now complete the turn (skip validation this time)
+		this.completeTurnEnd();
+	}
+
+	// Returns any table cards stuck in a bot's hand back to their original table groups
+	returnStrandedTableCardsForBot(bot) {
+		const myHand = bot.getMyHand();
+		const cardsToReturn = [];
+		
+		for (let i = myHand.length - 1; i >= 0; i--) {
+			const card = myHand[i];
+			if (card.mustReturnToTable || 
+				(card.originalPosition && card.originalPosition.type === "table")) {
+				cardsToReturn.push(card);
+				myHand.splice(i, 1);
+			}
+		}
+		
+		// Try to return cards to their original groups
+		cardsToReturn.forEach(card => {
+			delete card.mustReturnToTable;
+			if (card.originalPosition && card.originalPosition.groupIndex !== undefined) {
+				const groupIdx = card.originalPosition.groupIndex;
+				if (this.scene.tableCards[groupIdx]) {
+					this.scene.tableCards[groupIdx].push(card);
+				} else {
+					// Original group gone - create a holding group
+					this.scene.tableCards.push([card]);
+				}
+			} else {
+				// No known original group - find a group that this card fits
+				let placed = false;
+				for (let g = 0; g < this.scene.tableCards.length; g++) {
+					const testGroup = [...this.scene.tableCards[g], card];
+					if (this.scene.cardSystem.checkValidGroup(testGroup)) {
+						this.scene.tableCards[g].push(card);
+						placed = true;
+						break;
+					}
+				}
+				if (!placed) {
+					// Last resort: put in its own group (will be cleaned up by table restore)
+					this.scene.tableCards.push([card]);
+				}
+			}
+		});
+	}
+
+	// Restores the table to its state at the beginning of the turn
+	restoreTableToTurnStart() {
+		if (!this.tableCardsAtTurnStart || this.tableCardsAtTurnStart.length === 0) {
+			return;
+		}
+		
+		// Build a pool of all current table cards by reference
+		const cardPool = [];
+		this.scene.tableCards.forEach(group => {
+			group.forEach(card => cardPool.push(card));
+		});
+		
+		// Reconstruct table groups matching the turn-start snapshot
+		const newTableCards = [];
+		for (const startGroup of this.tableCardsAtTurnStart) {
+			const rebuiltGroup = [];
+			for (const cardId of startGroup) {
+				// Find a matching card in the pool
+				const idx = cardPool.findIndex(c => `${c.card.rank}_${c.card.suit}` === cardId);
+				if (idx !== -1) {
+					const card = cardPool.splice(idx, 1)[0];
+					delete card.mustReturnToTable;
+					rebuiltGroup.push(card);
+				}
+			}
+			if (rebuiltGroup.length > 0) {
+				newTableCards.push(rebuiltGroup);
+			}
+		}
+		
+		// Any leftover cards that were on the table but not matched go into new groups
+		if (cardPool.length > 0) {
+			// These are new cards that were added during the turn - add as separate groups
+			// only if they form valid groups, otherwise absorb into existing groups
+			newTableCards.push(...cardPool.map(card => {
+				delete card.mustReturnToTable;
+				return [card];
+			}));
+		}
+		
+		this.scene.tableCards = newTableCards;
 	}
 
 	validateTurnEnd() {
@@ -256,11 +414,14 @@ class GameLogic {
 	}
 
 	areAllStartingCardsPresent(currentTableCards) {
+		// Build count-aware lookup of current table cards to handle duplicates from 2 decks
+		const currentCounts = this.buildCardCounts(currentTableCards);
 		for (const startingGroup of this.tableCardsAtTurnStart) {
 			for (const cardId of startingGroup) {
-				if (!currentTableCards.includes(cardId)) {
+				if (!currentCounts[cardId] || currentCounts[cardId] <= 0) {
 					return false;
 				}
+				currentCounts[cardId]--;
 			}
 		}
 		return true;
@@ -572,26 +733,21 @@ class GameLogic {
 		console.log('- startingHandSize:', startingHandSize);
 		console.log('- drawnCard flag:', this.scene.drawnCard);
 		console.log('- placedCards flag:', this.scene.placedCards);
-		console.log('- currentHandCards:', currentHandCards);
-		console.log('- startingHandCards:', startingHandCards);
 		
 		// Valid turn action 1: Player drew a card from deck
 		if (this.scene.drawnCard) {
 			// If they drew a card, their hand should be exactly 1 card larger
 			// and contain all original cards plus the new one
 			if (currentHand.length === startingHandSize + 1) {
-				// Verify all starting cards are still present
-				let allStartingCardsPresent = true;
-				for (let cardId of startingHandCards) {
-					if (!currentHandCards.includes(cardId)) {
-						allStartingCardsPresent = false;
-						break;
+				// Verify all starting cards are still present (count-aware for duplicate cards)
+				if (this.areCardsSubset(startingHandCards, currentHandCards)) {
+					// Also verify all table cards from turn start are still on the table
+					if (this.checkTableCardsIntegrity()) {
+						console.log('checkValidTurnAction: TRUE (valid card draw)');
+						return true;
 					}
-				}
-				
-				if (allStartingCardsPresent) {
-					console.log('checkValidTurnAction: TRUE (valid card draw)');
-					return true;
+					console.log('checkValidTurnAction: FALSE (table cards missing after draw)');
+					return false;
 				}
 			}
 			console.log('checkValidTurnAction: FALSE (invalid state after drawing)');
@@ -600,40 +756,64 @@ class GameLogic {
 		
 		// Valid turn action 2: Player reduced hand size (played cards to table)
 		if (currentHand.length < startingHandSize) {
-			// Verify no new cards were added (all current cards were in starting hand)
-			for (let cardId of currentHandCards) {
-				if (!startingHandCards.includes(cardId)) {
-					console.log('checkValidTurnAction: FALSE (new card found in hand:', cardId, ')');
-					return false;
-				}
+			// Verify no new cards were added - all current cards must be a subset of starting cards
+			if (!this.areCardsSubset(currentHandCards, startingHandCards)) {
+				console.log('checkValidTurnAction: FALSE (new card found in hand)');
+				return false;
 			}
 			
 			// Verify that cards were actually placed (not just discarded)
-			if (this.scene.placedCards) {
-				console.log('checkValidTurnAction: TRUE (valid hand reduction with cards placed)');
-				return true;
-			} else {
+			if (!this.scene.placedCards) {
 				console.log('checkValidTurnAction: FALSE (hand reduced but no cards placed)');
 				return false;
 			}
-		}
-		
-		// Valid turn action 3: Player maintained original hand state exactly
-		// This allows for situations where player took table cards and returned them
-		// In this case, they should be allowed to draw a card if they haven't already
-		if (currentHand.length === startingHandSize && !this.scene.drawnCard && !this.scene.placedCards) {
-			// Check if hand composition is exactly the same
-			const startingSet = new Set(startingHandCards);
-			const currentSet = new Set(currentHandCards);
 			
-			if (startingSet.size === currentSet.size && 
-				[...startingSet].every(card => currentSet.has(card))) {
-				console.log('checkValidTurnAction: TRUE (hand unchanged, eligible to draw card)');
-				return true;
+			// Verify all table cards from turn start are still on the table
+			if (!this.checkTableCardsIntegrity()) {
+				console.log('checkValidTurnAction: FALSE (table cards missing after placing)');
+				return false;
 			}
+			
+			console.log('checkValidTurnAction: TRUE (valid hand reduction with cards placed)');
+			return true;
 		}
 		
-		console.log('checkValidTurnAction: FALSE (no valid turn action detected)');
+		// No valid action: hand unchanged with no draw and no placement is not a valid turn
+		console.log('checkValidTurnAction: FALSE (no action taken - must draw or play cards)');
 		return false;
+	}
+
+	// Checks if every card in 'subset' appears in 'superset' with sufficient count
+	// Handles duplicate card IDs properly (2-deck game)
+	areCardsSubset(subset, superset) {
+		const superCounts = this.buildCardCounts(superset);
+		for (const cardId of subset) {
+			if (!superCounts[cardId] || superCounts[cardId] <= 0) {
+				return false;
+			}
+			superCounts[cardId]--;
+		}
+		return true;
+	}
+
+	// Checks if two card arrays are identical multisets (same cards, same counts)
+	areCardsSameMultiset(cards1, cards2) {
+		if (cards1.length !== cards2.length) return false;
+		const counts1 = this.buildCardCounts(cards1);
+		const counts2 = this.buildCardCounts(cards2);
+		const allKeys = new Set([...Object.keys(counts1), ...Object.keys(counts2)]);
+		for (const key of allKeys) {
+			if ((counts1[key] || 0) !== (counts2[key] || 0)) return false;
+		}
+		return true;
+	}
+
+	// Builds a frequency map of card ID strings
+	buildCardCounts(cardIds) {
+		const counts = {};
+		for (const id of cardIds) {
+			counts[id] = (counts[id] || 0) + 1;
+		}
+		return counts;
 	}
 }

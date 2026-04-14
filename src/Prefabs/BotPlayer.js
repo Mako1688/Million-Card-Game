@@ -11,1035 +11,594 @@ class BotPlayer {
 		this.handOptimization = 0.8;
 		this.turnAttempts = 0;
 		this.maxTurnAttempts = 3;
+		this.rankValues = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13 };
 	}
 
 	async takeTurn() {
 		if (this.isThinking || this.scene.currentPlayerIndex !== this.playerIndex) {
 			return;
 		}
-		
+
 		this.isThinking = true;
 		this.turnAttempts = 0;
-		
-		// No need to disable interactions here as it's already done in completeTurnTransition
-		// when transitioning to bot turn
-		
+
 		this.showThinkingIndicator();
 		const thinkTime = this.calculateThinkingTime();
-		
+
 		setTimeout(() => {
-			this.makeMove();
+			this.executeTurn();
 		}, thinkTime);
 	}
 
 	calculateThinkingTime() {
-		const baseTime = this.thinkingTime;
-		const handSize = this.getMyHand().length;
-		const tableGroups = this.scene.tableCards.length;
-		const handComplexity = handSize * 100;
-		const tableComplexity = tableGroups * 200;
-		const randomFactor = 0.5 + Math.random() * 0.5;
-		
-		return Math.min(baseTime + handComplexity + tableComplexity, 3000) * randomFactor;
+		const baseTime = this.difficulty === 'easy' ? 800 : this.difficulty === 'hard' ? 1200 : 1000;
+		const randomFactor = 0.7 + Math.random() * 0.3;
+		return baseTime * randomFactor;
 	}
 
-	makeMove() {
-		// Safety check to prevent infinite loops
-		this.turnAttempts++;
-		if (this.turnAttempts > this.maxTurnAttempts) {
-			// Force draw or end turn if we've tried too many times
-			if (this.scene.cardSystem.canDrawCard() && !this.scene.drawnCard && !this.scene.placedCards) {
-				this.drawCard();
-			} else {
-				this.endTurn();
-			}
-			return;
-		}
-		
-		// Validate that it's actually our turn
+	// ─── MAIN TURN LOGIC ──────────────────────────────────────────────
+	// The bot collects plays, then executes as many as it can in a single
+	// turn before ending. Each phase loops until no more plays are found.
+
+	executeTurn() {
 		if (this.scene.currentPlayerIndex !== this.playerIndex) {
 			this.endTurn();
 			return;
 		}
-		
+
 		const myHand = this.getMyHand();
 		if (!myHand || myHand.length === 0) {
 			this.endTurn();
 			return;
 		}
-		
-		// Reset turn state flags to ensure clean turn
-		if (this.turnAttempts === 1) {
-			this.scene.placedCards = false;
-			this.scene.drawnCard = false;
-		}
-		
+
+		// Reset turn state
+		this.scene.placedCards = false;
+		this.scene.drawnCard = false;
+
 		// Ensure table is valid before making any moves
 		if (!this.scene.tableManager.checkTableValidity()) {
-			this.endTurn();
+			this.fallbackDraw();
 			return;
 		}
-		
-		const playableGroups = this.findPlayableGroups(myHand);
-		const tableOpportunities = this.analyzeTableManipulation(myHand);
-		const simpleTableOptions = this.findTablePlayOptions(myHand);
-		const canDraw = this.scene.cardSystem.canDrawCard();
-		
-		const canWinBasic = this.canWinThisTurn(playableGroups, simpleTableOptions);
-		const canWinAdvanced = this.checkTableManipulationWin(tableOpportunities, myHand);
-		
-		if (canWinBasic || canWinAdvanced) {
-			this.executeWinningStrategy(playableGroups, tableOpportunities, simpleTableOptions);
-			return;
+
+		let madeAPlay = false;
+
+		// Phase 1: Play groups directly from hand (sets and runs)
+		madeAPlay = this.playHandGroups() || madeAPlay;
+
+		// Phase 2: Add individual cards to existing table groups
+		madeAPlay = this.playTableAdditions() || madeAPlay;
+
+		// Phase 3: Table reorganization (take card from table group, combine with hand cards)
+		if (this.difficulty !== 'easy') {
+			madeAPlay = this.playTableReorganizations() || madeAPlay;
 		}
-		
-		const bestStrategy = this.chooseBestStrategy(playableGroups, tableOpportunities, simpleTableOptions, myHand);
-		
-		if (bestStrategy) {
-			this.executeStrategy(bestStrategy);
-		} else if (canDraw && !this.scene.drawnCard && !this.scene.placedCards) {
-			this.drawCard();
+
+		// After reorganizations, try phases 1 and 2 again (new opportunities may exist)
+		if (madeAPlay) {
+			this.playHandGroups();
+			this.playTableAdditions();
+		}
+
+		// If no plays were made at all, draw a card
+		if (!madeAPlay) {
+			this.fallbackDraw();
 		} else {
 			this.endTurn();
 		}
 	}
 
-	findPlayableGroups(hand) {
-		const playableGroups = [];
-		
-		if (!hand || hand.length < 3) {
-			return playableGroups;
-		}
-		
-		for (let size = 3; size <= hand.length; size++) {
-			const combinations = this.getCombinations(hand, size);
-			
-			for (let combo of combinations) {
-				const isValid = this.scene.cardSystem.checkValidGroup(combo);
-				
-				if (isValid) {
-					const value = this.evaluateGroupValue(combo);
-					playableGroups.push({
-						cards: combo,
-						value: value,
-						size: combo.length
-					});
+	// ─── PHASE 1: PLAY GROUPS FROM HAND ───────────────────────────────
+	// Uses O(n) grouping instead of exponential combinations.
+
+	playHandGroups() {
+		let playedAny = false;
+		let keepLooking = true;
+
+		while (keepLooking) {
+			keepLooking = false;
+			const myHand = this.getMyHand();
+			if (myHand.length < 3) break;
+
+			const groups = this.findHandGroups(myHand);
+			if (groups.length === 0) break;
+
+			// Sort: largest groups first (more hand reduction)
+			groups.sort((a, b) => b.cards.length - a.cards.length);
+
+			// For easy difficulty, sometimes skip good plays
+			if (this.difficulty === 'easy' && Math.random() < 0.3) {
+				break;
+			}
+
+			// Try to play the best group
+			for (const group of groups) {
+				// Verify all cards still in hand (previous plays may have removed some)
+				if (group.cards.every(c => myHand.includes(c))) {
+					if (this.doPlayGroup(group.cards)) {
+						playedAny = true;
+						keepLooking = true; // check for more plays with remaining hand
+						break;
+					}
 				}
 			}
 		}
-		
-		return playableGroups.sort((a, b) => b.value - a.value);
+
+		return playedAny;
 	}
 
-	findTablePlayOptions(hand) {
-		const options = [];
-		
-		if (!hand || hand.length === 0 || !this.scene.tableCards || this.scene.tableCards.length === 0) {
-			return options;
-		}
-		
-		this.scene.tableCards.forEach((group, groupIndex) => {
-			if (!Array.isArray(group) || group.length === 0) {
-				return;
-			}
-			
-			hand.forEach((card, cardIndex) => {
-				const testGroup = [...group, card];
-				const isValid = this.scene.cardSystem.checkValidGroup(testGroup);
-				
-				if (isValid) {
-					const value = this.evaluateAddToGroupValue(card, group);
-					options.push({
-						card: card,
-						cardIndex: cardIndex,
-						groupIndex: groupIndex,
-						newGroupSize: testGroup.length,
-						value: value
-					});
-				}
-			});
-		});
-		
-		return options.sort((a, b) => b.value - a.value);
-	}
-
-	analyzeTableManipulation(hand) {
-		const opportunities = {
-			simpleAdditions: [],
-			tableReorganization: [],
-			complexMoves: []
-		};
-		
-		if (!this.scene.tableCards || this.scene.tableCards.length === 0) {
-			return opportunities;
-		}
-		
-		opportunities.simpleAdditions = this.findTablePlayOptions(hand);
-		opportunities.tableReorganization = this.findTableReorganization(hand);
-		opportunities.complexMoves = this.findComplexTableMoves(hand);
-		
-		return opportunities;
-	}
-	
-	findTableReorganization(hand) {
-		const opportunities = [];
-		
-		if (!hand || hand.length === 0 || !this.scene.tableCards || this.scene.tableCards.length === 0) {
-			return opportunities;
-		}
-		
-		// Skip complex reorganizations on later turn attempts to avoid getting stuck
-		if (this.turnAttempts > 1) {
-			return opportunities;
-		}
-		
-		this.scene.tableCards.forEach((group, groupIndex) => {
-			if (!Array.isArray(group) || group.length === 0) return;
-			
-			for (let i = 0; i < group.length; i++) {
-				const cardToTake = group[i];
-				const remainingGroup = group.filter((_, index) => index !== i);
-				
-				if (remainingGroup.length >= 3 && this.scene.cardSystem.checkValidGroup(remainingGroup)) {
-					const combinedCards = [...hand, cardToTake];
-					const possibleGroups = this.findAllPossibleGroups(combinedCards);
-					
-					possibleGroups.forEach(newGroup => {
-						const handReduction = newGroup.filter(card => hand.includes(card)).length;
-						if (handReduction > 0) {
-							opportunities.push({
-								type: 'table_reorganization',
-								sourceGroupIndex: groupIndex,
-								cardsToTake: [cardToTake],
-								remainingGroup: remainingGroup,
-								newGroup: newGroup,
-								handReduction: handReduction,
-								value: this.evaluateReorganizationValue(handReduction, newGroup, [cardToTake])
-							});
-						}
-					});
-				}
-			}
-		});
-		
-		return opportunities.sort((a, b) => b.value - a.value);
-	}
-	
-	findComplexTableMoves(hand) {
-		const opportunities = [];
-		
-		if (!hand || hand.length === 0 || !this.scene.tableCards || this.scene.tableCards.length < 2) {
-			return opportunities;
-		}
-		
-		// Skip complex moves on later turn attempts to avoid getting stuck
-		if (this.turnAttempts > 1) {
-			return opportunities;
-		}
-		
-		for (let i = 0; i < this.scene.tableCards.length; i++) {
-			for (let j = i + 1; j < this.scene.tableCards.length; j++) {
-				const group1 = this.scene.tableCards[i];
-				const group2 = this.scene.tableCards[j];
-				
-				if (!Array.isArray(group1) || !Array.isArray(group2) || group1.length === 0 || group2.length === 0) continue;
-				
-				group1.forEach(card1 => {
-					group2.forEach(card2 => {
-						const remaining1 = group1.filter(c => c !== card1);
-						const remaining2 = group2.filter(c => c !== card2);
-						
-						if (remaining1.length >= 3 && remaining2.length >= 3 && 
-							this.scene.cardSystem.checkValidGroup(remaining1) && 
-							this.scene.cardSystem.checkValidGroup(remaining2)) {
-							
-							const combinedCards = [...hand, card1, card2];
-							const possibleGroups = this.findAllPossibleGroups(combinedCards);
-							
-							possibleGroups.forEach(newGroup => {
-								const handReduction = newGroup.filter(card => hand.includes(card)).length;
-								if (handReduction > 0) {
-									opportunities.push({
-										type: 'complex_move',
-										sourceGroups: [i, j],
-										cardsToTake: [card1, card2],
-										remainingGroups: [remaining1, remaining2],
-										newGroup: newGroup,
-										handReduction: handReduction,
-										value: this.evaluateComplexMoveValue(handReduction, newGroup, [card1, card2])
-									});
-								}
-							});
-						}
-					});
-				});
-			}
-		}
-		
-		return opportunities.sort((a, b) => b.value - a.value);
-	}
-	
-	findAllPossibleGroups(cards) {
+	findHandGroups(hand) {
 		const groups = [];
-		
-		for (let size = 3; size <= cards.length; size++) {
-			const combinations = this.getCombinations(cards, size);
-			combinations.forEach(combo => {
-				if (this.scene.cardSystem.checkValidGroup(combo)) {
-					groups.push(combo);
+
+		// Find SETS: group by rank, look for 3+ different suits
+		const byRank = {};
+		hand.forEach(card => {
+			const rank = card.card.rank;
+			if (!byRank[rank]) byRank[rank] = [];
+			byRank[rank].push(card);
+		});
+
+		for (const rank in byRank) {
+			const cards = byRank[rank];
+			// Deduplicate by suit (with 2 decks we may have 2 of same rank+suit)
+			const bySuit = {};
+			cards.forEach(card => {
+				if (!bySuit[card.card.suit]) bySuit[card.card.suit] = card;
+			});
+			const uniqueSuitCards = Object.values(bySuit);
+			if (uniqueSuitCards.length >= 3) {
+				if (this.difficulty === 'hard') {
+					// Hard plays full set (4 if possible)
+					groups.push({ cards: [...uniqueSuitCards], type: 'set' });
+				} else {
+					groups.push({ cards: uniqueSuitCards.slice(0, 3), type: 'set' });
+				}
+			}
+		}
+
+		// Find RUNS: group by suit, sort by rank, find consecutive sequences
+		const bySuit = {};
+		hand.forEach(card => {
+			const suit = card.card.suit;
+			if (!bySuit[suit]) bySuit[suit] = [];
+			bySuit[suit].push(card);
+		});
+
+		for (const suit in bySuit) {
+			const cards = bySuit[suit];
+			// Sort by rank value
+			cards.sort((a, b) => this.rankValues[a.card.rank] - this.rankValues[b.card.rank]);
+
+			// Deduplicate by rank (2 decks may have duplicates)
+			const uniqueCards = [];
+			const seenRanks = new Set();
+			cards.forEach(card => {
+				if (!seenRanks.has(card.card.rank)) {
+					seenRanks.add(card.card.rank);
+					uniqueCards.push(card);
 				}
 			});
+
+			// Find consecutive sequences of 3+
+			const runs = this.findConsecutiveRuns(uniqueCards);
+			runs.forEach(run => groups.push({ cards: run, type: 'run' }));
+
+			// Check for high-ace runs (Q-K-A)
+			const hasAce = uniqueCards.some(c => c.card.rank === 'A');
+			const hasKing = uniqueCards.some(c => c.card.rank === 'K');
+			if (hasAce && hasKing) {
+				const highCards = uniqueCards.filter(c => {
+					const v = this.rankValues[c.card.rank];
+					return v >= 10 || c.card.rank === 'A';
+				});
+				if (highCards.length >= 3) {
+					const sorted = [...highCards].sort((a, b) => {
+						const va = a.card.rank === 'A' ? 14 : this.rankValues[a.card.rank];
+						const vb = b.card.rank === 'A' ? 14 : this.rankValues[b.card.rank];
+						return va - vb;
+					});
+					const highRuns = this.findConsecutiveRuns(sorted, true);
+					highRuns.forEach(run => groups.push({ cards: run, type: 'run' }));
+				}
+			}
 		}
-		
+
 		return groups;
 	}
-	
-	evaluateReorganizationValue(handReduction, newGroup, takenCards) {
-		let value = handReduction * 10;
-		value += newGroup.length * 2;
-		
-		newGroup.forEach(card => {
-			const rank = card.card.rank;
-			if (rank === 'A' || rank === 'K' || rank === 'Q' || rank === 'J') {
-				value += 3;
+
+	findConsecutiveRuns(sortedCards, aceHigh = false) {
+		const runs = [];
+		if (sortedCards.length < 3) return runs;
+
+		let currentRun = [sortedCards[0]];
+
+		for (let i = 1; i < sortedCards.length; i++) {
+			const prevVal = aceHigh && sortedCards[i - 1].card.rank === 'A' ? 14 : this.rankValues[sortedCards[i - 1].card.rank];
+			const currVal = aceHigh && sortedCards[i].card.rank === 'A' ? 14 : this.rankValues[sortedCards[i].card.rank];
+
+			if (currVal === prevVal + 1) {
+				currentRun.push(sortedCards[i]);
+			} else {
+				if (currentRun.length >= 3) {
+					runs.push([...currentRun]);
+				}
+				currentRun = [sortedCards[i]];
 			}
-		});
-		
-		if (this.difficulty === 'easy') {
-			value *= 0.7;
-		} else if (this.difficulty === 'hard') {
-			value *= 1.3;
 		}
-		
-		return value;
-	}
-	
-	evaluateComplexMoveValue(handReduction, newGroup, takenCards) {
-		let value = handReduction * 15;
-		value += newGroup.length * 3;
-		
-		if (this.difficulty === 'easy') {
-			value *= 0.5;
-		} else if (this.difficulty === 'medium') {
-			value *= 0.8;
+		if (currentRun.length >= 3) {
+			runs.push([...currentRun]);
 		}
-		
-		return value;
+
+		return runs;
 	}
 
-	canWinThisTurn(playableGroups, tablePlayOptions) {
-		const myHand = this.getMyHand();
-		
-		for (let group of playableGroups) {
-			if (group.cards.length === myHand.length) {
-				return true;
-			}
-		}
-		
-		let remainingCards = myHand.length;
-		for (let option of tablePlayOptions) {
-			remainingCards--;
-			if (remainingCards === 0) {
-				return true;
-			}
-		}
-		
-		return false;
-	}
+	// ─── PHASE 2: ADD CARDS TO EXISTING TABLE GROUPS ──────────────────
 
-	checkTableManipulationWin(tableOpportunities, myHand) {
-		if (!tableOpportunities || !myHand) {
-			return false;
-		}
-		
-		const allOpportunities = [
-			...tableOpportunities.complexMoves,
-			...tableOpportunities.tableReorganization,
-			...tableOpportunities.simpleAdditions
-		];
-		
-		for (let opp of allOpportunities) {
-			if (opp.handReduction >= myHand.length) {
-				return true;
-			}
-		}
-		
-		return false;
-	}
+	playTableAdditions() {
+		let playedAny = false;
+		let keepLooking = true;
 
-	executeWinningStrategy(playableGroups, tableOpportunities, simpleTableOptions) {
-		for (const group of playableGroups) {
-			if (group.cards.length >= this.getMyHand().length) {
-				this.playGroup(group.cards);
-				return;
-			}
-		}
-		
-		const allOpportunities = [
-			...tableOpportunities.complexMoves,
-			...tableOpportunities.tableReorganization,
-			...tableOpportunities.simpleAdditions
-		].sort((a, b) => b.handReduction - a.handReduction);
-		
-		for (const opp of allOpportunities) {
-			if (opp.handReduction >= this.getMyHand().length) {
-				this.executeStrategy(opp);
-				return;
-			}
-		}
-		
-		const bestStrategy = this.chooseBestStrategy(playableGroups, tableOpportunities, simpleTableOptions, this.getMyHand());
-		if (bestStrategy) {
-			this.executeStrategy(bestStrategy);
-		}
-	}
-
-	chooseBestStrategy(playableGroups, tableOpportunities, simpleTableOptions, myHand) {
-		const strategies = [];
-		
-		if (playableGroups && playableGroups.length > 0) {
-			playableGroups.forEach(group => {
-				const priority = this.calculateGroupPriority(group);
-				strategies.push({
-					type: 'play_group',
-					cards: group.cards,
-					value: group.value,
-					priority: priority
-				});
-			});
-		}
-		
-		if (tableOpportunities) {
-			if (tableOpportunities.simpleAdditions) {
-				tableOpportunities.simpleAdditions.forEach(addition => {
-					const priority = this.calculateTablePriority(addition, 'simple');
-					strategies.push({
-						type: 'simple_addition',
-						...addition,
-						priority: priority
-					});
-				});
-			}
-			
-			if (tableOpportunities.tableReorganization) {
-				tableOpportunities.tableReorganization.forEach(reorg => {
-					const priority = this.calculateTablePriority(reorg, 'reorganization');
-					strategies.push({
-						type: 'table_reorganization',
-						...reorg,
-						priority: priority
-					});
-				});
-			}
-			
-			if (tableOpportunities.complexMoves) {
-				tableOpportunities.complexMoves.forEach(complex => {
-					const priority = this.calculateTablePriority(complex, 'complex');
-					strategies.push({
-						type: 'complex_move',
-						...complex,
-						priority: priority
-					});
-				});
-			}
-		}
-		
-		if (simpleTableOptions && simpleTableOptions.length > 0) {
-			simpleTableOptions.forEach(option => {
-				strategies.push({
-					type: 'add_to_table',
-					...option,
-					priority: option.value * 0.8
-				});
-			});
-		}
-		
-		if (strategies.length === 0) {
-			return null;
-		}
-		
-		strategies.sort((a, b) => b.priority - a.priority);
-		
-		let chosenStrategy;
-		if (this.difficulty === 'easy') {
-			const maxChoices = Math.min(3, strategies.length);
-			chosenStrategy = strategies[Math.floor(Math.random() * maxChoices)];
-		} else if (this.difficulty === 'medium') {
-			const topChoices = strategies.slice(0, Math.min(2, strategies.length));
-			chosenStrategy = topChoices[Math.floor(Math.random() * topChoices.length)];
-		} else {
-			chosenStrategy = strategies[0];
-		}
-		
-		return chosenStrategy;
-	}
-
-	calculateGroupPriority(group) {
-		const myHand = this.getMyHand();
-		let priority = group.value;
-		
-		const handPercentage = group.cards.length / myHand.length;
-		priority *= (1 + handPercentage);
-		
-		if (group.cards.length === myHand.length) {
-			priority *= 10;
-		}
-		
-		return priority;
-	}
-
-	calculateTablePriority(opportunity, type) {
-		let priority = opportunity.value || 0;
-		
-		if (type === 'simple') {
-			priority *= 1.2;
-		} else if (type === 'reorganization') {
-			priority *= 0.9;
-		} else if (type === 'complex') {
-			priority *= 0.7;
-		}
-		
-		if (opportunity.handReduction) {
+		while (keepLooking) {
+			keepLooking = false;
 			const myHand = this.getMyHand();
-			const handPercentage = opportunity.handReduction / myHand.length;
-			priority *= (1 + handPercentage * 2);
-		}
-		
-		return priority;
-	}
+			if (myHand.length === 0) break;
+			if (!this.scene.tableCards || this.scene.tableCards.length === 0) break;
 
-	executeStrategy(strategy) {
-		switch (strategy.type) {
-			case 'play_group':
-				this.playGroup(strategy.cards);
-				break;
-			case 'simple_addition':
-			case 'add_to_table':
-				this.addToTable(strategy);
-				break;
-			case 'table_reorganization':
-				this.executeTableReorganization(strategy);
-				break;
-			case 'complex_move':
-				this.executeComplexMove(strategy);
-				break;
-			default:
-				this.endTurn();
-		}
-	}
+			for (let ci = 0; ci < myHand.length; ci++) {
+				const card = myHand[ci];
+				let bestGroup = -1;
+				let bestSize = 0;
 
-	playGroup(cards) {
-		// Validate turn state
-		if (this.scene.currentPlayerIndex !== this.playerIndex) {
-			this.endTurn();
-			return;
-		}
-		
-		if (!this.validateGroupBeforePlay(cards)) {
-			this.endTurn();
-			return;
-		}
-		
-		// Check if we can actually play cards (haven't drawn this turn)
-		if (this.scene.drawnCard) {
-			this.endTurn();
-			return;
-		}
-		
-		const myHand = this.getMyHand();
-		
-		// Verify all cards are actually in our hand
-		for (let card of cards) {
-			if (!myHand.includes(card)) {
-				this.endTurn();
-				return;
+				for (let gi = 0; gi < this.scene.tableCards.length; gi++) {
+					const group = this.scene.tableCards[gi];
+					if (!Array.isArray(group) || group.length === 0) continue;
+
+					const testGroup = [...group, card];
+					if (this.scene.cardSystem.checkValidGroup(testGroup)) {
+						if (group.length > bestSize) {
+							bestSize = group.length;
+							bestGroup = gi;
+						}
+					}
+				}
+
+				if (bestGroup >= 0) {
+					if (this.doAddToTable(card, bestGroup)) {
+						playedAny = true;
+						keepLooking = true;
+						break; // restart scan since hand/table changed
+					}
+				}
 			}
 		}
-		
-		// Clear any existing selections
-		this.scene.handSelected = [];
-		this.scene.cardsSelected = [];
-		
+
+		return playedAny;
+	}
+
+	// ─── PHASE 3: TABLE REORGANIZATION ────────────────────────────────
+	// Take one card from a table group (leaving it valid), combine with
+	// hand cards to form a new group that reduces hand size.
+
+	playTableReorganizations() {
+		let playedAny = false;
+		const myHand = this.getMyHand();
+		if (myHand.length === 0) return false;
+		if (!this.scene.tableCards || this.scene.tableCards.length === 0) return false;
+
+		const maxAttempts = this.difficulty === 'hard' ? 80 : 20;
+		let attempts = 0;
+
+		for (let gi = 0; gi < this.scene.tableCards.length && attempts < maxAttempts; gi++) {
+			const group = this.scene.tableCards[gi];
+			if (!Array.isArray(group) || group.length < 4) continue; // need 4+ so removal leaves 3
+
+			for (let ci = 0; ci < group.length && attempts < maxAttempts; ci++) {
+				attempts++;
+				const cardToTake = group[ci];
+				const remaining = group.filter((_, idx) => idx !== ci);
+
+				if (remaining.length < 3 || !this.scene.cardSystem.checkValidGroup(remaining)) continue;
+
+				// Can we form a new valid group using this card + hand cards?
+				const newGroup = this.findGroupWith(cardToTake, this.getMyHand());
+				if (newGroup && newGroup.length >= 3) {
+					const handCardsUsed = newGroup.filter(c => this.getMyHand().includes(c)).length;
+					if (handCardsUsed > 0) {
+						if (this.doTableReorganization(gi, ci, remaining, newGroup)) {
+							playedAny = true;
+							break; // table state changed, stop scanning
+						}
+					}
+				}
+			}
+			if (playedAny) break;
+		}
+
+		return playedAny;
+	}
+
+	// Given a target card and a hand, find a valid group containing the target + hand cards.
+	findGroupWith(targetCard, hand) {
+		const targetRank = targetCard.card.rank;
+		const targetSuit = targetCard.card.suit;
+
+		// Try SET: find hand cards with same rank, different suits
+		const suitsSeen = new Set([targetSuit]);
+		const setCards = [targetCard];
+		for (const c of hand) {
+			if (c.card.rank === targetRank && !suitsSeen.has(c.card.suit)) {
+				suitsSeen.add(c.card.suit);
+				setCards.push(c);
+			}
+		}
+		if (setCards.length >= 3) {
+			return setCards.slice(0, Math.min(4, setCards.length));
+		}
+
+		// Try RUN: find hand cards with same suit, consecutive ranks
+		const sameSuit = hand.filter(c => c.card.suit === targetSuit);
+		const allSameSuit = [targetCard, ...sameSuit];
+
+		// Sort and deduplicate
+		allSameSuit.sort((a, b) => this.rankValues[a.card.rank] - this.rankValues[b.card.rank]);
+		const unique = [];
+		const seenRanks = new Set();
+		for (const c of allSameSuit) {
+			if (!seenRanks.has(c.card.rank)) {
+				seenRanks.add(c.card.rank);
+				unique.push(c);
+			}
+		}
+
+		// Find any run of 3+ that includes the target card
+		const runs = this.findConsecutiveRuns(unique);
+		for (const run of runs) {
+			if (run.some(c => c === targetCard)) {
+				return run;
+			}
+		}
+
+		// Also check high-ace runs if target is A, Q, K
+		if (targetRank === 'A' || targetRank === 'K' || targetRank === 'Q') {
+			const highSorted = unique.map(c => ({
+				ref: c,
+				val: c.card.rank === 'A' ? 14 : this.rankValues[c.card.rank]
+			})).sort((a, b) => a.val - b.val).map(x => x.ref);
+
+			const highRuns = this.findConsecutiveRuns(highSorted, true);
+			for (const run of highRuns) {
+				if (run.some(c => c === targetCard)) return run;
+			}
+		}
+
+		return null;
+	}
+
+	// ─── EXECUTION METHODS ────────────────────────────────────────────
+
+	doPlayGroup(cards) {
+		if (this.scene.drawnCard) return false;
+		const myHand = this.getMyHand();
+
+		if (!this.scene.cardSystem.checkValidGroup(cards)) return false;
+		for (const card of cards) {
+			if (!myHand.includes(card)) return false;
+		}
+
 		// Add to table
 		this.scene.tableCards.push([...cards]);
-		
-		// Remove played cards from hand AND destroy their sprites
+
+		// Remove from hand
 		cards.forEach(card => {
-			const index = myHand.findIndex(c => c === card);
-			if (index !== -1) {
-				// Destroy sprite if it exists
+			const idx = myHand.findIndex(c => c === card);
+			if (idx !== -1) {
 				if (card.sprite && typeof card.sprite.destroy === 'function') {
 					card.sprite.destroy();
 					card.sprite = null;
 				}
-				myHand.splice(index, 1);
+				myHand.splice(idx, 1);
 			}
 		});
-		
-		// Mark turn as valid - SET BOTH FLAGS
+
 		this.scene.placedCards = true;
 		this.scene.turnValid = true;
-		this.scene.gameLogic.markTurnAsValid();
-		
-		// Validate table is still valid after our move
+
 		if (!this.scene.tableManager.checkTableValidity()) {
-			// Rollback if table became invalid
+			// Rollback
 			this.scene.tableCards.pop();
 			cards.forEach(card => myHand.push(card));
 			this.scene.placedCards = false;
 			this.scene.turnValid = false;
-			this.endTurn();
-			return;
+			return false;
 		}
-		
-		// Force refresh displays
+
 		this.scene.gameLogic.refreshDisplays();
-		
-		this.endTurn();
+		return true;
 	}
 
-	addToTable(strategy) {
-		// Validate turn state
-		if (this.scene.currentPlayerIndex !== this.playerIndex) {
-			this.endTurn();
-			return;
-		}
-		
-		if (!strategy.card || strategy.groupIndex === undefined) {
-			this.endTurn();
-			return;
-		}
-		
-		// Check if we can actually play cards (haven't drawn this turn)
-		if (this.scene.drawnCard) {
-			this.endTurn();
-			return;
-		}
-		
+	doAddToTable(card, groupIndex) {
+		if (this.scene.drawnCard) return false;
 		const myHand = this.getMyHand();
-		const targetGroup = this.scene.tableCards[strategy.groupIndex];
-		
-		if (!targetGroup) {
-			this.endTurn();
-			return;
-		}
-		
-		// Verify card is actually in our hand
-		if (!myHand.includes(strategy.card)) {
-			this.endTurn();
-			return;
-		}
-		
-		// Validate before playing
-		const testGroup = [...targetGroup, strategy.card];
-		if (!this.scene.cardSystem.checkValidGroup(testGroup)) {
-			this.endTurn();
-			return;
-		}
-		
-		// Store original group state for rollback
+		const targetGroup = this.scene.tableCards[groupIndex];
+
+		if (!targetGroup || !myHand.includes(card)) return false;
+
+		const testGroup = [...targetGroup, card];
+		if (!this.scene.cardSystem.checkValidGroup(testGroup)) return false;
+
 		const originalGroup = [...targetGroup];
-		
-		// Add card to table group
-		targetGroup.push(strategy.card);
-		
-		// Remove card from hand AND destroy its sprite
-		const cardIndex = myHand.findIndex(c => c === strategy.card);
-		if (cardIndex !== -1) {
-			// Destroy sprite if it exists
-			if (strategy.card.sprite && typeof strategy.card.sprite.destroy === 'function') {
-				strategy.card.sprite.destroy();
-				strategy.card.sprite = null;
+
+		targetGroup.push(card);
+		const cardIdx = myHand.findIndex(c => c === card);
+		if (cardIdx !== -1) {
+			if (card.sprite && typeof card.sprite.destroy === 'function') {
+				card.sprite.destroy();
+				card.sprite = null;
 			}
-			myHand.splice(cardIndex, 1);
+			myHand.splice(cardIdx, 1);
 		}
-		
-		// Mark turn as valid - SET BOTH FLAGS
+
 		this.scene.placedCards = true;
 		this.scene.turnValid = true;
-		this.scene.gameLogic.markTurnAsValid();
-		
-		// Validate table is still valid after our move
+
 		if (!this.scene.tableManager.checkTableValidity()) {
-			// Rollback if table became invalid
-			this.scene.tableCards[strategy.groupIndex] = originalGroup;
-			myHand.push(strategy.card);
+			this.scene.tableCards[groupIndex] = originalGroup;
+			myHand.push(card);
 			this.scene.placedCards = false;
 			this.scene.turnValid = false;
-			this.endTurn();
-			return;
+			return false;
 		}
-		
-		// Force refresh displays
+
 		this.scene.gameLogic.refreshDisplays();
-		
-		this.endTurn();
+		return true;
 	}
 
-	executeTableReorganization(strategy) {
-		// Validate turn state
-		if (this.scene.currentPlayerIndex !== this.playerIndex) {
-			this.endTurn();
-			return;
-		}
-		
-		// Check if we can actually play cards (haven't drawn this turn)
-		if (this.scene.drawnCard) {
-			this.endTurn();
-			return;
-		}
-		
+	doTableReorganization(sourceGroupIndex, cardIndexInGroup, remainingGroup, newGroup) {
+		if (this.scene.drawnCard) return false;
 		const myHand = this.getMyHand();
-		
-		// Store original table state for rollback
-		const originalTableState = this.scene.tableCards.map(group => [...group]);
+
+		const originalTableState = this.scene.tableCards.map(g => [...g]);
 		const originalHandState = [...myHand];
-		
+
+		// Save card properties for rollback
+		const savedCardProps = new Map();
+		const allAffectedCards = [...newGroup, this.scene.tableCards[sourceGroupIndex][cardIndexInGroup]];
+		allAffectedCards.forEach(card => {
+			if (!savedCardProps.has(card)) {
+				savedCardProps.set(card, {
+					mustReturnToTable: card.mustReturnToTable,
+					originalPosition: card.originalPosition ? { ...card.originalPosition } : undefined
+				});
+			}
+		});
+
 		try {
-			// Take cards from table to hand temporarily
-			strategy.cardsToTake.forEach(card => {
-				card.mustReturnToTable = true;
-				myHand.push(card);
-			});
-			
-			// Update the source group
-			this.scene.tableCards[strategy.sourceGroupIndex] = strategy.remainingGroup;
-			
-			// Create new group and remove cards from hand
-			this.scene.tableCards.push([...strategy.newGroup]);
-			
-			strategy.newGroup.forEach(card => {
-				const index = myHand.findIndex(c => c === card);
-				if (index !== -1) {
-					// Destroy sprite if it exists and card was from hand
+			// Update source group to remaining
+			this.scene.tableCards[sourceGroupIndex] = remainingGroup;
+
+			// Create new group on table
+			this.scene.tableCards.push([...newGroup]);
+
+			// Remove hand cards used in new group from hand
+			newGroup.forEach(card => {
+				const idx = myHand.findIndex(c => c === card);
+				if (idx !== -1) {
 					if (!card.mustReturnToTable && card.sprite && typeof card.sprite.destroy === 'function') {
 						card.sprite.destroy();
 						card.sprite = null;
 					}
-					myHand.splice(index, 1);
+					myHand.splice(idx, 1);
 				}
-				// Clear ALL problematic flags from cards going to table
 				delete card.mustReturnToTable;
-				// Ensure cards going to table have correct original position
 				card.originalPosition = { type: "table" };
 			});
-			
-			// Clean up any remaining problematic flags in hand
-			myHand.forEach(card => {
-				if (card.mustReturnToTable) {
-					// This card should have been returned to table but wasn't
-					// Remove the flag since the move is complete
-					delete card.mustReturnToTable;
-					// Update original position to hand since it's staying in hand
-					card.originalPosition = { type: "hand", player: this.playerNumber };
-				}
-			});
-			
-			// Validate table is still valid after our move
+
 			if (!this.scene.tableManager.checkTableValidity()) {
-				throw new Error("Invalid table state after reorganization");
+				throw new Error("Invalid table after reorg");
 			}
-			
-			// Mark turn as valid - SET BOTH FLAGS
+
 			this.scene.placedCards = true;
 			this.scene.turnValid = true;
-			this.scene.gameLogic.markTurnAsValid();
-			
-			// Force refresh displays
 			this.scene.gameLogic.refreshDisplays();
-			
-		} catch (error) {
-			// Rollback on any error
+			return true;
+
+		} catch (e) {
+			// Rollback
 			this.scene.tableCards = originalTableState;
 			myHand.length = 0;
 			myHand.push(...originalHandState);
 			this.scene.placedCards = false;
 			this.scene.turnValid = false;
+			savedCardProps.forEach((props, card) => {
+				if (props.mustReturnToTable !== undefined) card.mustReturnToTable = props.mustReturnToTable;
+				else delete card.mustReturnToTable;
+				if (props.originalPosition) card.originalPosition = props.originalPosition;
+			});
+			return false;
 		}
-		
-		this.endTurn();
 	}
 
-	executeComplexMove(strategy) {
-		// Validate turn state
-		if (this.scene.currentPlayerIndex !== this.playerIndex) {
-			this.endTurn();
-			return;
-		}
-		
-		// Check if we can actually play cards (haven't drawn this turn)
-		if (this.scene.drawnCard) {
-			this.endTurn();
-			return;
-		}
-		
-		const myHand = this.getMyHand();
-		
-		// Store original table state for rollback
-		const originalTableState = this.scene.tableCards.map(group => [...group]);
-		const originalHandState = [...myHand];
-		
-		try {
-			// Take cards from multiple groups
-			strategy.cardsToTake.forEach(card => {
-				card.mustReturnToTable = true;
-				myHand.push(card);
-			});
-			
-			// Update source groups (handle indices carefully)
-			strategy.sourceGroups.sort((a, b) => b - a);
-			strategy.sourceGroups.forEach((groupIndex, i) => {
-				if (strategy.remainingGroups[i] && strategy.remainingGroups[i].length > 0) {
-					this.scene.tableCards[groupIndex] = strategy.remainingGroups[i];
-				} else {
-					this.scene.tableCards.splice(groupIndex, 1);
-				}
-			});
-			
-			// Create new group
-			this.scene.tableCards.push([...strategy.newGroup]);
-			
-			// Remove used cards from hand
-			strategy.newGroup.forEach(card => {
-				const index = myHand.findIndex(c => c === card);
-				if (index !== -1) {
-					// Destroy sprite if it exists and card was from hand
-					if (!card.mustReturnToTable && card.sprite && typeof card.sprite.destroy === 'function') {
-						card.sprite.destroy();
-						card.sprite = null;
-					}
-					myHand.splice(index, 1);
-				}
-				// Clear ALL problematic flags from cards going to table
-				delete card.mustReturnToTable;
-				// Ensure cards going to table have correct original position
-				card.originalPosition = { type: "table" };
-			});
-			
-			// Clean up any remaining problematic flags in hand
-			myHand.forEach(card => {
-				if (card.mustReturnToTable) {
-					// This card should have been returned to table but wasn't
-					// Remove the flag since the move is complete
-					delete card.mustReturnToTable;
-					// Update original position to hand since it's staying in hand
-					card.originalPosition = { type: "hand", player: this.playerNumber };
-				}
-			});
-			
-			// Validate table is still valid after our move
-			if (!this.scene.tableManager.checkTableValidity()) {
-				throw new Error("Invalid table state after complex move");
-			}
-			
-			// Mark turn as valid - SET BOTH FLAGS
-			this.scene.placedCards = true;
-			this.scene.turnValid = true;
-			this.scene.gameLogic.markTurnAsValid();
-			
-			// Force refresh displays
-			this.scene.gameLogic.refreshDisplays();
-			
-		} catch (error) {
-			// Rollback on any error
-			this.scene.tableCards = originalTableState;
-			myHand.length = 0;
-			myHand.push(...originalHandState);
-			this.scene.placedCards = false;
-			this.scene.turnValid = false;
-		}
-		
-		this.endTurn();
-	}
+	// ─── FALLBACK DRAW ────────────────────────────────────────────────
 
-	drawCard() {
-		// Validate turn state
-		if (this.scene.currentPlayerIndex !== this.playerIndex) {
-			this.endTurn();
-			return;
-		}
-		
-		// Check if we've already made a move this turn
+	fallbackDraw() {
 		if (this.scene.placedCards || this.scene.drawnCard) {
 			this.endTurn();
 			return;
 		}
-		
+
+		if (this.scene.deck.length === 0) {
+			this.endTurn();
+			return;
+		}
+
 		const canDraw = this.scene.cardSystem.canDrawCard();
-		
-		if (!canDraw) {
-			this.endTurn();
-			return;
+		if (canDraw) {
+			this.scene.cardSystem.drawCard();
+		} else {
+			// Direct draw fallback
+			const myHand = this.getMyHand();
+			const newCard = this.scene.deck.pop();
+			newCard.originalPosition = { type: "hand", player: this.playerNumber };
+			myHand.push(newCard);
+			this.scene.drawn = true;
 		}
-		
-		// Store hand size before drawing for validation
-		const handSizeBefore = this.getMyHand().length;
-		
-		this.scene.cardSystem.drawCard();
-		
-		// Verify card was actually drawn
-		const handSizeAfter = this.getMyHand().length;
-		if (handSizeAfter <= handSizeBefore) {
-			this.endTurn();
-			return;
-		}
-		
-		// Mark that we drew a card
+
 		this.scene.drawnCard = true;
-		
+
 		setTimeout(() => {
 			this.autoSortHand();
 		}, 100);
-		
+
 		this.endTurn();
 	}
+
+	// ─── END TURN ─────────────────────────────────────────────────────
 
 	endTurn() {
 		this.hideThinkingIndicator();
 		this.isThinking = false;
-		
 		this.scene.handSelected = [];
-		
-		// Ensure hand display is updated
+
 		if (this.scene.handManager) {
 			this.scene.handManager.displayHand();
 		}
-		
-		// CRITICAL: Clear any problematic card flags before ending turn
-		const myHand = this.getMyHand();
-		myHand.forEach(card => {
-			// Clear any mustReturnToTable flags on remaining cards
-			delete card.mustReturnToTable;
-			// Update original position for remaining cards to be hand cards
-			if (card.originalPosition && card.originalPosition.type === "table") {
-				card.originalPosition = { type: "hand", player: this.playerNumber };
-			}
-		});
-		
-		// CRITICAL: Ensure the turn validation will work by explicitly updating the hand tracking
-		// Since this is the bot's turn, force update the hand length tracking
-		if (this.scene.gameLogic) {
-			if (this.scene.gameLogic.updateActualHandLengths) {
-				this.scene.gameLogic.updateActualHandLengths();
-			}
-			
-			// Ensure the starting hand state is properly set for this player index
-			if (this.scene.gameLogic.playerHandSizesAtTurnStart && 
-				this.scene.gameLogic.playerHandCardsAtTurnStart) {
-				
-				// If the starting hand tracking seems incorrect, don't let it block valid bot moves
-				const currentHandSize = this.getMyHand().length;
-				const startingHandSize = this.scene.gameLogic.playerHandSizesAtTurnStart[this.playerIndex];
-				
-				// If we placed cards and reduced hand size, but validation might fail due to tracking issues,
-				// temporarily adjust the tracking to reflect the valid move
-				if (this.scene.placedCards && currentHandSize < startingHandSize) {
-					// The hand size reduction is valid, ensure the validation passes
-				}
-			}
-		}
-		
-		// Do not re-enable player interactions here - let the pause screen handle it
-		// when it's actually the player's turn
-		
+
 		setTimeout(() => {
 			this.scene.gameLogic.endTurn();
 		}, 300);
 	}
 
-	evaluateGroupValue(cards) {
-		let value = cards.length * 10;
-		
-		if (cards.length >= 4) value += 20;
-		if (cards.length >= 5) value += 30;
-		
-		cards.forEach(card => {
-			const rank = card.card.rank;
-			if (['J', 'Q', 'K'].includes(rank)) value += 5;
-			if (rank === 'A') value += 3;
-		});
-		
-		return value;
-	}
-
-	evaluateAddToGroupValue(card, group) {
-		let value = 15;
-		
-		if (group.length >= 4) value += 10;
-		
-		const rank = card.card.rank;
-		if (['J', 'Q', 'K'].includes(rank)) value += 5;
-		if (rank === 'A') value += 3;
-		
-		return value;
-	}
-
-	getCombinations(array, size) {
-		if (size > array.length || size <= 0) {
-			return [];
-		}
-		if (size === 1) {
-			return array.map(item => [item]);
-		}
-		if (size === array.length) {
-			return [array];
-		}
-		
-		const combinations = [];
-		
-		for (let i = 0; i <= array.length - size; i++) {
-			const head = array[i];
-			const tailCombinations = this.getCombinations(array.slice(i + 1), size - 1);
-			
-			for (let tailCombination of tailCombinations) {
-				combinations.push([head, ...tailCombination]);
-			}
-		}
-		
-		return combinations;
-	}
+	// ─── UTILITY METHODS ──────────────────────────────────────────────
 
 	getMyHand() {
 		if (!this.scene.playerHands || !this.scene.playerHands[this.playerIndex]) {
 			return [];
 		}
-		
 		return this.scene.playerHands[this.playerIndex];
 	}
 
 	autoSortHand() {
 		const myHand = this.getMyHand();
 		if (!myHand || myHand.length === 0) return;
-		
+
 		myHand.sort((a, b) => {
-			const rankA = this.scene.cardSystem.getRankValue(a.card.rank);
-			const rankB = this.scene.cardSystem.getRankValue(b.card.rank);
-			
-			if (rankA !== rankB) {
-				return rankA - rankB;
-			}
-			
+			const rankA = this.rankValues[a.card.rank] || 0;
+			const rankB = this.rankValues[b.card.rank] || 0;
+			if (rankA !== rankB) return rankA - rankB;
 			const suitOrder = { "diamond": 0, "club": 1, "heart": 2, "spade": 3 };
-			return suitOrder[a.card.suit] - suitOrder[b.card.suit];
+			return (suitOrder[a.card.suit] || 0) - (suitOrder[b.card.suit] || 0);
 		});
-		
+
 		if (this.scene.currentPlayerIndex === this.playerIndex && this.scene.handManager) {
 			this.scene.handManager.displayHand();
 		}
 	}
 
-	validateGroupBeforePlay(cards) {
-		if (!cards || cards.length < 3) {
-			return false;
-		}
-		
-		return this.scene.cardSystem.checkValidGroup(cards);
-	}
-
 	setDifficulty(difficulty) {
 		this.difficulty = difficulty;
-		
-		switch(difficulty) {
+
+		switch (difficulty) {
 			case 'easy':
 				this.aggressiveness = 0.4;
 				this.patience = 0.3;
@@ -1050,72 +609,42 @@ class BotPlayer {
 				this.aggressiveness = 0.7;
 				this.patience = 0.6;
 				this.handOptimization = 0.8;
-				this.thinkingTime = 1500;
+				this.thinkingTime = 1000;
 				break;
 			case 'hard':
 				this.aggressiveness = 0.9;
 				this.patience = 0.8;
 				this.handOptimization = 0.95;
-				this.thinkingTime = 2200;
+				this.thinkingTime = 1200;
 				break;
 		}
 	}
 
 	disablePlayerInteractions() {
 		try {
-			// Disable UI buttons
-			if (this.scene.endTurnButton) {
-				this.scene.endTurnButton.disableInteractive();
-			}
-			if (this.scene.deckSprite) {
-				this.scene.deckSprite.disableInteractive();
-			}
-			if (this.scene.restart) {
-				this.scene.restart.disableInteractive();
-			}
-			if (this.scene.sortRankButton) {
-				this.scene.sortRankButton.disableInteractive();
-			}
-			if (this.scene.sortSuitButton) {
-				this.scene.sortSuitButton.disableInteractive();
-			}
-			if (this.scene.sortRank) {
-				this.scene.sortRank.disableInteractive();
-			}
-			if (this.scene.sortSuit) {
-				this.scene.sortSuit.disableInteractive();
-			}
-			if (this.scene.settingsButton) {
-				this.scene.settingsButton.disableInteractive();
-			}
-			if (this.scene.validationBox) {
-				this.scene.validationBox.disableInteractive();
-			}
-			
-			// Disable all hand card interactions
+			if (this.scene.endTurnButton) this.scene.endTurnButton.disableInteractive();
+			if (this.scene.deckSprite) this.scene.deckSprite.disableInteractive();
+			if (this.scene.restart) this.scene.restart.disableInteractive();
+			if (this.scene.sortRankButton) this.scene.sortRankButton.disableInteractive();
+			if (this.scene.sortSuitButton) this.scene.sortSuitButton.disableInteractive();
+			if (this.scene.sortRank) this.scene.sortRank.disableInteractive();
+			if (this.scene.sortSuit) this.scene.sortSuit.disableInteractive();
+			if (this.scene.settingsButton) this.scene.settingsButton.disableInteractive();
+			if (this.scene.validationBox) this.scene.validationBox.disableInteractive();
+
 			if (this.scene.handSelected) {
-				this.scene.handSelected.forEach((sprite) => {
-					if (sprite) {
-						sprite.disableInteractive();
-					}
+				this.scene.handSelected.forEach(sprite => {
+					if (sprite) sprite.disableInteractive();
 				});
 			}
-			
-			// Disable all table card interactions
 			if (this.scene.tableSprites) {
-				this.scene.tableSprites.forEach((sprite) => {
-					if (sprite) {
-						sprite.disableInteractive();
-					}
+				this.scene.tableSprites.forEach(sprite => {
+					if (sprite) sprite.disableInteractive();
 				});
 			}
-			
-			// Disable controller cursor interactions during bot turn
 			if (this.scene.controllerSystem) {
 				this.scene.controllerSystem.botTurnActive = true;
 			}
-			
-			console.log('Bot: Disabled all player interactions (UI, cards, controller)');
 		} catch (error) {
 			console.warn('Bot: Error during interaction disabling:', error);
 		}
@@ -1123,59 +652,29 @@ class BotPlayer {
 
 	enablePlayerInteractions() {
 		try {
-			// Re-enable UI buttons
-			if (this.scene.endTurnButton) {
-				this.scene.endTurnButton.setInteractive();
-			}
-			if (this.scene.deckSprite) {
-				this.scene.deckSprite.setInteractive();
-			}
-			if (this.scene.restart) {
-				this.scene.restart.setInteractive();
-			}
-			if (this.scene.sortRankButton) {
-				this.scene.sortRankButton.setInteractive();
-			}
-			if (this.scene.sortSuitButton) {
-				this.scene.sortSuitButton.setInteractive();
-			}
-			if (this.scene.sortRank) {
-				this.scene.sortRank.setInteractive();
-			}
-			if (this.scene.sortSuit) {
-				this.scene.sortSuit.setInteractive();
-			}
-			if (this.scene.settingsButton) {
-				this.scene.settingsButton.setInteractive();
-			}
-			if (this.scene.validationBox) {
-				this.scene.validationBox.setInteractive();
-			}
-			
-			// Re-enable all hand card interactions
+			if (this.scene.endTurnButton) this.scene.endTurnButton.setInteractive();
+			if (this.scene.deckSprite) this.scene.deckSprite.setInteractive();
+			if (this.scene.restart) this.scene.restart.setInteractive();
+			if (this.scene.sortRankButton) this.scene.sortRankButton.setInteractive();
+			if (this.scene.sortSuitButton) this.scene.sortSuitButton.setInteractive();
+			if (this.scene.sortRank) this.scene.sortRank.setInteractive();
+			if (this.scene.sortSuit) this.scene.sortSuit.setInteractive();
+			if (this.scene.settingsButton) this.scene.settingsButton.setInteractive();
+			if (this.scene.validationBox) this.scene.validationBox.setInteractive();
+
 			if (this.scene.handSelected) {
-				this.scene.handSelected.forEach((sprite) => {
-					if (sprite) {
-						sprite.setInteractive();
-					}
+				this.scene.handSelected.forEach(sprite => {
+					if (sprite) sprite.setInteractive();
 				});
 			}
-			
-			// Re-enable all table card interactions
 			if (this.scene.tableSprites) {
-				this.scene.tableSprites.forEach((sprite) => {
-					if (sprite) {
-						sprite.setInteractive();
-					}
+				this.scene.tableSprites.forEach(sprite => {
+					if (sprite) sprite.setInteractive();
 				});
 			}
-			
-			// Re-enable controller cursor interactions after bot turn
 			if (this.scene.controllerSystem) {
 				this.scene.controllerSystem.botTurnActive = false;
 			}
-			
-			console.log('Bot: Re-enabled all player interactions (UI, cards, controller)');
 		} catch (error) {
 			console.warn('Bot: Error during interaction enabling:', error);
 		}
@@ -1185,7 +684,7 @@ class BotPlayer {
 		if (this.scene.thinkingText) {
 			this.scene.thinkingText.destroy();
 		}
-		
+
 		this.scene.thinkingText = this.scene.add.text(
 			this.scene.scale.width / 2,
 			50,

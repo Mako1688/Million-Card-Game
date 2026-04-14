@@ -105,11 +105,17 @@ class CardSystem {
 
 	isHandCompositionUnchanged(currentHand, startingHandCards) {
 		const currentHandCards = currentHand.map(card => `${card.card.rank}_${card.card.suit}`);
-		const startingSet = new Set(startingHandCards);
-		const currentSet = new Set(currentHandCards);
-		
-		return startingSet.size === currentSet.size && 
-			   [...startingSet].every(card => currentSet.has(card));
+		// Use count-aware comparison to handle duplicate cards across 2 decks
+		if (currentHandCards.length !== startingHandCards.length) return false;
+		const startCounts = {};
+		for (const id of startingHandCards) startCounts[id] = (startCounts[id] || 0) + 1;
+		const currCounts = {};
+		for (const id of currentHandCards) currCounts[id] = (currCounts[id] || 0) + 1;
+		const allKeys = new Set([...Object.keys(startCounts), ...Object.keys(currCounts)]);
+		for (const key of allKeys) {
+			if ((startCounts[key] || 0) !== (currCounts[key] || 0)) return false;
+		}
+		return true;
 	}
 
 	isTableValid() {
